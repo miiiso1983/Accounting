@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function DashboardPage() {
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -8,9 +10,15 @@ export default function DashboardPage() {
           Next: Chart of Accounts, journal posting engine, invoices, expenses, and reports.
         </p>
 
-		<a className="mt-3 inline-flex text-sm underline text-zinc-700" href="/app/coa">
-			View Chart of Accounts
-		</a>
+
+				<div className="mt-3 flex flex-col gap-2">
+					<Link className="inline-flex text-sm underline text-zinc-700" href="/app/coa">
+						View Chart of Accounts
+					</Link>
+					<Link className="inline-flex text-sm underline text-zinc-700" href="/app/journal">
+						Journal Entries
+					</Link>
+				</div>
       </div>
       <div className="rounded-2xl border bg-white p-5">
         <div className="text-sm text-zinc-500">Currencies</div>
