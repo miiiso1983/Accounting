@@ -1,0 +1,27 @@
+export const PERMISSIONS = {
+  // Admin
+  ADMIN_ALL: "admin:all",
+
+  // Accounting core
+  COA_READ: "coa:read",
+  COA_WRITE: "coa:write",
+  JOURNAL_READ: "journal:read",
+  JOURNAL_WRITE: "journal:write",
+  REPORTS_READ: "reports:read",
+
+  // Invoices
+  INVOICE_READ: "invoice:read",
+  INVOICE_WRITE: "invoice:write",
+  INVOICE_SEND: "invoice:send",
+
+  // Expenses
+  EXPENSE_READ: "expense:read",
+  EXPENSE_WRITE: "expense:write",
+  EXPENSE_APPROVE: "expense:approve",
+
+  // Attachments
+  ATTACHMENT_READ: "attachment:read",
+  ATTACHMENT_WRITE: "attachment:write",
+} as const;
+
+export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

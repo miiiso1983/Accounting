@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+
+		// next-pwa generated assets (minified/bundled)
+		"public/sw.js",
+		"public/sw.js.map",
+		"public/workbox-*.js",
   ]),
 ]);
 

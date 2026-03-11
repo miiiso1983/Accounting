@@ -1,0 +1,442 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CurrencyCode {
+  IQD
+  USD
+}
+
+enum Dc {
+  DEBIT
+  CREDIT
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  VOID
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum AttachmentOwnerType {
+  INVOICE
+  EXPENSE
+}
+
+model Company {
+  id                 String       @id @default(cuid())
+  name               String
+  baseCurrencyCode   CurrencyCode @default(IQD)
+  secondaryCurrency  CurrencyCode? @default(USD)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  users              User[]
+  glAccounts         GlAccount[]
+  exchangeRates      ExchangeRate[]
+  customers          Customer[]
+  invoices           Invoice[]
+  expenses           Expense[]
+  journalEntries     JournalEntry[]
+  attachments        Attachment[]
+}
+
+// --- Auth.js / NextAuth v4 models (Prisma Adapter) ---
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String?    @unique
+  emailVerified DateTime?
+  image         String?
+
+  // Credentials auth support
+  passwordHash  String?
+
+  companyId     String?
+  company       Company?   @relation(fields: [companyId], references: [id])
+
+  accounts      Account[]
+  sessions      Session[]
+  roles         UserRole[]
+
+  // Operational links
+  createdJournalEntries JournalEntry[]
+  uploadedAttachments   Attachment[]
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// NOTE: NextAuth Prisma Adapter expects this model to be named `Account`.
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- RBAC ---
+
+model Role {
+  id          String          @id @default(cuid())
+  key         String          @unique
+  name        String
+  description String?
+
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+// --- Accounting core ---
+
+model ExchangeRate {
+  id                String       @id @default(cuid())
+  companyId          String
+  baseCurrencyCode   CurrencyCode
+  quoteCurrencyCode  CurrencyCode
+
+  // 1 baseCurrencyCode = rate quoteCurrencyCode
+  rate              Decimal      @db.Decimal(20, 8)
+  effectiveAt       DateTime
+  source            String?
+
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Inverse relations
+  journalEntries    JournalEntry[]
+  invoices          Invoice[]
+  expenses          Expense[]
+
+  @@index([companyId, baseCurrencyCode, quoteCurrencyCode, effectiveAt])
+}
+
+// General Ledger (Chart of Accounts)
+model GlAccount {
+  id            String      @id @default(cuid())
+  companyId      String
+
+  code          String
+  name          String
+  type          AccountType
+  normalBalance Dc
+
+  parentId      String?
+  parent        GlAccount?    @relation("AccountTree", fields: [parentId], references: [id])
+  children      GlAccount[]   @relation("AccountTree")
+
+  isPosting     Boolean     @default(true)
+
+  // Optional: currency-denominated account (e.g., USD bank account)
+  currencyCode  CurrencyCode?
+
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalLines  JournalLine[]
+
+  // Inverse relation for Expense.expenseAccount
+  expenses      Expense[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+  @@index([companyId, parentId])
+}
+
+model JournalEntry {
+  id               String             @id @default(cuid())
+  companyId         String
+  status           JournalEntryStatus @default(DRAFT)
+
+  entryDate        DateTime
+  description      String?
+
+  // Snapshot of reporting/base currency used for conversion
+  baseCurrencyCode CurrencyCode
+
+  // Optional: transaction currency for the entry
+  currencyCode     CurrencyCode?
+  exchangeRateId   String?
+  exchangeRate     ExchangeRate?      @relation(fields: [exchangeRateId], references: [id])
+
+  referenceType    String?
+  referenceId      String?
+
+  createdById      String?
+  createdBy        User?              @relation(fields: [createdById], references: [id])
+
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines            JournalLine[]
+
+  // Optional links from documents
+  invoices         Invoice[]
+  expenses         Expense[]
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([companyId, entryDate])
+  @@index([companyId, status])
+}
+
+model JournalLine {
+  id               String       @id @default(cuid())
+  journalEntryId   String
+  accountId        String
+
+  dc               Dc
+  // amount in the line currency
+  amount           Decimal      @db.Decimal(20, 6)
+  currencyCode     CurrencyCode
+
+  // amount converted to entry.baseCurrencyCode at posting time
+  amountBase       Decimal      @db.Decimal(20, 6)
+  description      String?
+
+  journalEntry     JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account          GlAccount    @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+// --- Sales/Invoicing ---
+
+model Customer {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  email      String?
+  phone      String?
+  address1   String?
+  address2   String?
+  city       String?
+  country    String?
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices   Invoice[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId, name])
+}
+
+model Invoice {
+  id               String       @id @default(cuid())
+  companyId         String
+  customerId        String
+
+  invoiceNumber     String
+  status            InvoiceStatus @default(DRAFT)
+  issueDate         DateTime
+  dueDate           DateTime?
+
+  currencyCode      CurrencyCode
+  baseCurrencyCode  CurrencyCode
+  exchangeRateId    String?
+  exchangeRate      ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+
+  subtotal          Decimal      @db.Decimal(20, 6)
+  taxTotal          Decimal      @default(0) @db.Decimal(20, 6)
+  total             Decimal      @db.Decimal(20, 6)
+
+  subtotalBase      Decimal      @db.Decimal(20, 6)
+  taxTotalBase      Decimal      @default(0) @db.Decimal(20, 6)
+  totalBase         Decimal      @db.Decimal(20, 6)
+
+  templateKey       String? // for customizable templates
+  qrPayload         String?
+
+  customer          Customer  @relation(fields: [customerId], references: [id])
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineItems         InvoiceLineItem[]
+  attachments       Attachment[]
+
+  // Optional linkage to posted accounting entry
+  journalEntryId    String?
+  journalEntry      JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId, issueDate])
+  @@index([companyId, status])
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal  @db.Decimal(20, 6)
+  unitPrice   Decimal  @db.Decimal(20, 6)
+  lineTotal   Decimal  @db.Decimal(20, 6)
+  taxRate     Decimal? @db.Decimal(20, 6) // e.g. 0.05
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// --- Expenses ---
+
+model Expense {
+  id               String        @id @default(cuid())
+  companyId         String
+
+  expenseNumber     String?
+  status            ExpenseStatus @default(DRAFT)
+  expenseDate       DateTime
+
+  vendorName        String?
+  description       String?
+
+  currencyCode      CurrencyCode
+  baseCurrencyCode  CurrencyCode
+  exchangeRateId    String?
+  exchangeRate      ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+
+  total             Decimal      @db.Decimal(20, 6)
+  totalBase         Decimal      @db.Decimal(20, 6)
+
+  // Suggested posting account (e.g., expense category)
+  expenseAccountId  String?
+  expenseAccount    GlAccount?     @relation(fields: [expenseAccountId], references: [id])
+
+  // Optional linkage to posted accounting entry
+  journalEntryId    String?
+  journalEntry      JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attachments       Attachment[]
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([companyId, expenseDate])
+  @@index([companyId, status])
+}
+
+// --- Attachments (invoices + expenses) ---
+
+model Attachment {
+  id            String              @id @default(cuid())
+  companyId      String
+  ownerType     AttachmentOwnerType
+
+  invoiceId     String?
+  expenseId     String?
+
+  originalName  String
+  mimeType      String
+  sizeBytes     Int
+
+  // Storage reference (local path or object key)
+  storageKey    String
+
+  uploadedById  String?
+  uploadedBy    User?               @relation(fields: [uploadedById], references: [id])
+
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice       Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  expense       Expense?            @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime            @default(now())
+
+  @@index([companyId, ownerType])
+  @@index([invoiceId])
+  @@index([expenseId])
+}
