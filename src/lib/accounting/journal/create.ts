@@ -1,11 +1,11 @@
 import { Prisma, type CurrencyCode, type Dc, type PrismaClient } from "../../../generated/prisma/client";
 import type { CreateJournalEntryInput, JournalLineInput } from "./types";
 
-export async function createPostedJournalEntry(prisma: PrismaClient, input: CreateJournalEntryInput) {
+export async function createPostedJournalEntryTx(tx: Prisma.TransactionClient, input: CreateJournalEntryInput) {
   if (input.lines.length < 2) throw new Error("Journal entry must have at least 2 lines");
 
   const exchangeRate = input.exchangeRateId
-    ? await prisma.exchangeRate.findUnique({ where: { id: input.exchangeRateId } })
+    ? await tx.exchangeRate.findUnique({ where: { id: input.exchangeRateId } })
     : null;
 
   const normalizedLines = input.lines.map((l) => normalizeLine(l, input.baseCurrencyCode, exchangeRate));
@@ -13,7 +13,7 @@ export async function createPostedJournalEntry(prisma: PrismaClient, input: Crea
 
   // Validate accounts exist and are posting accounts
   const accountIds = [...new Set(normalizedLines.map((l) => l.accountId))];
-  const accounts = await prisma.glAccount.findMany({
+  const accounts = await tx.glAccount.findMany({
     where: { id: { in: accountIds }, companyId: input.companyId },
     select: { id: true, isPosting: true },
   });
@@ -24,33 +24,35 @@ export async function createPostedJournalEntry(prisma: PrismaClient, input: Crea
     if (!a.isPosting) throw new Error(`Cannot post to non-posting account: ${id}`);
   }
 
-  return prisma.$transaction(async (tx) => {
-    return tx.journalEntry.create({
-      data: {
-        companyId: input.companyId,
-        status: "POSTED",
-        entryDate: input.entryDate,
-        description: input.description,
-        baseCurrencyCode: input.baseCurrencyCode,
-        currencyCode: input.currencyCode ?? null,
-        exchangeRateId: input.exchangeRateId ?? null,
-        referenceType: input.referenceType ?? null,
-        referenceId: input.referenceId ?? null,
-        createdById: input.createdById ?? null,
-        lines: {
-          create: normalizedLines.map((l) => ({
-            accountId: l.accountId,
-            dc: l.dc,
-            amount: l.amount,
-            currencyCode: l.currencyCode,
-            amountBase: l.amountBase,
-            description: l.description ?? null,
-          })),
-        },
+  return tx.journalEntry.create({
+    data: {
+      companyId: input.companyId,
+      status: "POSTED",
+      entryDate: input.entryDate,
+      description: input.description,
+      baseCurrencyCode: input.baseCurrencyCode,
+      currencyCode: input.currencyCode ?? null,
+      exchangeRateId: input.exchangeRateId ?? null,
+      referenceType: input.referenceType ?? null,
+      referenceId: input.referenceId ?? null,
+      createdById: input.createdById ?? null,
+      lines: {
+        create: normalizedLines.map((l) => ({
+          accountId: l.accountId,
+          dc: l.dc,
+          amount: l.amount,
+          currencyCode: l.currencyCode,
+          amountBase: l.amountBase,
+          description: l.description ?? null,
+        })),
       },
-      include: { lines: true },
-    });
+    },
+    include: { lines: true },
   });
+}
+
+export async function createPostedJournalEntry(prisma: PrismaClient, input: CreateJournalEntryInput) {
+  return prisma.$transaction(async (tx) => createPostedJournalEntryTx(tx, input));
 }
 
 function normalizeLine(

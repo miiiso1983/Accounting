@@ -18,6 +18,12 @@ export default function DashboardPage() {
 					<Link className="inline-flex text-sm underline text-zinc-700" href="/app/journal">
 						Journal Entries
 					</Link>
+					<Link className="inline-flex text-sm underline text-zinc-700" href="/app/customers">
+						Customers
+					</Link>
+					<Link className="inline-flex text-sm underline text-zinc-700" href="/app/invoices">
+						Invoices
+					</Link>
 				</div>
       </div>
       <div className="rounded-2xl border bg-white p-5">
