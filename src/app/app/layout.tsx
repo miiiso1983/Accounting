@@ -8,6 +8,7 @@ import {
   FileText,
   LayoutDashboard,
   NotebookPen,
+	  ReceiptText,
   Users,
 } from "lucide-react";
 
@@ -48,6 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <NavItem href="/app/journal" icon={<NotebookPen className="h-4 w-4" aria-hidden />} label={t("nav.journal")} />
                 <NavItem href="/app/customers" icon={<Users className="h-4 w-4" aria-hidden />} label={t("nav.customers")} />
                 <NavItem href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("nav.invoices")} />
+	                <NavItem href="/app/expenses" icon={<ReceiptText className="h-4 w-4" aria-hidden />} label={t("nav.expenses")} />
               </nav>
 
 	            <div className="mt-4 flex flex-col gap-2 border-t border-sky-200/60 pt-4">
@@ -82,6 +84,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <MobileNavChip href="/app/journal" label={t("nav.journal")} />
                 <MobileNavChip href="/app/customers" label={t("nav.customers")} />
                 <MobileNavChip href="/app/invoices" label={t("nav.invoices")} />
+	                <MobileNavChip href="/app/expenses" label={t("nav.expenses")} />
               </nav>
             </header>
 

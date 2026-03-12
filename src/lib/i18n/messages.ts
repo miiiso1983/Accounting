@@ -14,6 +14,7 @@ const en: Messages = {
     journal: "Journal",
     customers: "Customers",
     invoices: "Invoices",
+	    expenses: "Expenses",
     signOut: "Sign out",
   },
   auth: {
@@ -119,6 +120,7 @@ const ar: Messages = {
     journal: "القيود",
     customers: "العملاء",
     invoices: "الفواتير",
+	    expenses: "المصروفات",
     signOut: "تسجيل الخروج",
   },
   auth: {
