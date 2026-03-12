@@ -6,17 +6,51 @@ const en: Messages = {
   common: {
     appName: "Accounting",
     dashboard: "Dashboard",
+	    total: "Total",
     signedInAs: "Signed in as {email}",
   },
   nav: {
     overview: "Overview",
     coa: "Chart of Accounts",
     journal: "Journal",
+	    reports: "Reports",
     customers: "Customers",
     invoices: "Invoices",
 	    expenses: "Expenses",
     signOut: "Sign out",
   },
+	  reports: {
+	    title: "Reports",
+	    trialBalance: {
+	      title: "Trial Balance",
+	    },
+	    generalLedger: {
+	      title: "General Ledger",
+	    },
+	    filters: {
+	      from: "From",
+	      to: "To",
+	      account: "Account",
+	      apply: "Apply",
+	    },
+	    columns: {
+	      date: "Date",
+	      entry: "Entry",
+	      dc: "DC",
+	      code: "Code",
+	      account: "Account",
+	      debitBase: "Debit (base)",
+	      creditBase: "Credit (base)",
+	      netBase: "Net (base)",
+	      balanceBase: "Balance (base)",
+	      amount: "Amount",
+	      currency: "Currency",
+	      note: "Note",
+	    },
+	    empty: {
+	      selectAccount: "Select an account to view its ledger.",
+	    },
+	  },
   auth: {
     title: "Sign in",
     subtitle: "Use your admin email and password to access the dashboard.",
@@ -112,17 +146,51 @@ const ar: Messages = {
   common: {
     appName: "المحاسبة",
     dashboard: "لوحة التحكم",
+	    total: "الإجمالي",
     signedInAs: "تم تسجيل الدخول باسم {email}",
   },
   nav: {
     overview: "نظرة عامة",
     coa: "دليل الحسابات",
     journal: "القيود",
+	    reports: "التقارير",
     customers: "العملاء",
     invoices: "الفواتير",
 	    expenses: "المصروفات",
     signOut: "تسجيل الخروج",
   },
+	  reports: {
+	    title: "التقارير",
+	    trialBalance: {
+	      title: "ميزان المراجعة",
+	    },
+	    generalLedger: {
+	      title: "الأستاذ العام",
+	    },
+	    filters: {
+	      from: "من",
+	      to: "إلى",
+	      account: "الحساب",
+	      apply: "تطبيق",
+	    },
+	    columns: {
+	      date: "التاريخ",
+	      entry: "القيد",
+	      dc: "مدين/دائن",
+	      code: "الرمز",
+	      account: "الحساب",
+	      debitBase: "مدين (بالأساس)",
+	      creditBase: "دائن (بالأساس)",
+	      netBase: "الصافي (بالأساس)",
+	      balanceBase: "الرصيد (بالأساس)",
+	      amount: "المبلغ",
+	      currency: "العملة",
+	      note: "ملاحظة",
+	    },
+	    empty: {
+	      selectAccount: "اختر حسابًا لعرض الأستاذ العام.",
+	    },
+	  },
   auth: {
     title: "تسجيل الدخول",
     subtitle: "استخدم بريد المدير الإلكتروني وكلمة المرور للدخول إلى لوحة التحكم.",
