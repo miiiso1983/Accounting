@@ -27,13 +27,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const email = session.user.email ?? "";
 
   return (
-	  <div className="min-h-dvh bg-gradient-to-br from-sky-100 via-white to-emerald-100">
+    <div className="min-h-dvh bg-linear-to-br from-sky-100 via-white to-emerald-100">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="grid gap-6 md:grid-cols-[280px_1fr]">
           <aside className="hidden md:block">
 	          <div className="sticky top-6 rounded-3xl border border-sky-200/60 bg-white/75 p-4 shadow-xl shadow-emerald-200/30 backdrop-blur ring-1 ring-sky-200/40">
               <div className="flex items-center gap-3 px-2 py-2">
-	              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-sky-700 to-emerald-600 text-white shadow-sm">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-linear-to-br from-sky-700 to-emerald-600 text-white shadow-sm">
                   <LayoutDashboard className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0">
