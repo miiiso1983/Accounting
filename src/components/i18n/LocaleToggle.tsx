@@ -24,11 +24,11 @@ export function LocaleToggle({ locale }: { locale: Locale }) {
           router.refresh();
         })
       }
-      className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/70 shadow-sm transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100 disabled:opacity-60"
+	      className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-sky-200/70 shadow-sm transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-200/70 disabled:opacity-60"
       disabled={pending}
       aria-label={label}
     >
-      <Globe className="h-4 w-4 text-zinc-500" aria-hidden />
+	      <Globe className="h-4 w-4 text-sky-700" aria-hidden />
       <span>{label}</span>
     </button>
   );

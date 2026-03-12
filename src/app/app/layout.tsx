@@ -27,13 +27,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const email = session.user.email ?? "";
 
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-zinc-50 via-white to-sky-50">
+	  <div className="min-h-dvh bg-gradient-to-br from-sky-100 via-white to-emerald-100">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="grid gap-6 md:grid-cols-[280px_1fr]">
           <aside className="hidden md:block">
-            <div className="sticky top-6 rounded-3xl border border-zinc-200/70 bg-white/75 p-4 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
+	          <div className="sticky top-6 rounded-3xl border border-sky-200/60 bg-white/75 p-4 shadow-xl shadow-emerald-200/30 backdrop-blur ring-1 ring-sky-200/40">
               <div className="flex items-center gap-3 px-2 py-2">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white shadow-sm">
+	              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-sky-700 to-emerald-600 text-white shadow-sm">
                   <LayoutDashboard className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0">
@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <NavItem href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("nav.invoices")} />
               </nav>
 
-              <div className="mt-4 flex flex-col gap-2 border-t border-zinc-200/70 pt-4">
+	            <div className="mt-4 flex flex-col gap-2 border-t border-sky-200/60 pt-4">
                 <div className="px-2 text-xs text-zinc-600">
                   {t("common.signedInAs", { email: email || "-" })}
                 </div>
@@ -63,7 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </aside>
 
           <div className="min-w-0">
-            <header className="sticky top-0 z-10 rounded-3xl border border-zinc-200/70 bg-white/70 px-4 py-4 backdrop-blur ring-1 ring-zinc-200/40 md:px-6">
+	        <header className="sticky top-0 z-10 rounded-3xl border border-sky-200/60 bg-white/70 px-4 py-4 backdrop-blur ring-1 ring-sky-200/40 md:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-xs font-medium text-zinc-500">{t("common.appName")}</div>
@@ -72,7 +72,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
                 <div className="flex items-center gap-2">
                   <LocaleToggle locale={locale} />
-                  <SignOutButton className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/70 shadow-sm transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100" />
+	              <SignOutButton className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-sky-200/70 shadow-sm transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-200/70" />
                 </div>
               </div>
 
@@ -105,9 +105,9 @@ function NavItem({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-sky-100"
+	    className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-sky-50/80 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
     >
-      <span className="grid h-8 w-8 place-items-center rounded-xl bg-zinc-50 text-zinc-500 ring-1 ring-zinc-200/70 transition group-hover:bg-white group-hover:text-zinc-700">
+	    <span className="grid h-8 w-8 place-items-center rounded-xl bg-sky-50/70 text-sky-700 ring-1 ring-sky-200/70 transition group-hover:bg-white group-hover:text-sky-800">
         {icon}
       </span>
       <span className="truncate">{label}</span>
@@ -119,7 +119,7 @@ function MobileNavChip({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="shrink-0 rounded-2xl bg-white px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/70 transition hover:bg-zinc-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
+	    className="shrink-0 rounded-2xl bg-white px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-sky-200/70 transition hover:bg-sky-50/80 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
     >
       {label}
     </Link>

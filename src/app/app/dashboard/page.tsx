@@ -55,7 +55,7 @@ export default async function DashboardPage() {
 
   if (!companyId) {
     return (
-      <div className="rounded-3xl border border-zinc-200/70 bg-white/75 p-6 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
+			<div className="rounded-3xl border border-sky-200/60 bg-white/80 p-6 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
         <div className="text-sm font-semibold text-zinc-900">{t("dashboardPage.empty.noCompanyTitle")}</div>
         <p className="mt-2 text-sm text-zinc-600">{t("dashboardPage.empty.noCompanyDesc")}</p>
       </div>
@@ -149,10 +149,10 @@ export default async function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-2xl bg-white/70 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/70 shadow-sm">
+			<div className="rounded-2xl bg-white/70 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-sky-200/70 shadow-sm">
             {t("dashboardPage.meta.company", { name: companyName || "-" })}
           </div>
-          <div className="rounded-2xl bg-white/70 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/70 shadow-sm">
+			<div className="rounded-2xl bg-white/70 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-sky-200/70 shadow-sm">
             {t("dashboardPage.meta.periodThisMonth")}
           </div>
         </div>
@@ -168,7 +168,7 @@ export default async function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <TrendChartCard data={buckets} currencyCode={currencyCode ?? undefined} />
 
-        <div className="rounded-3xl border border-zinc-200/70 bg-white/75 p-5 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
+		<div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-semibold text-zinc-900">{t("dashboardPage.quickActions")}</div>
           </div>
@@ -180,20 +180,20 @@ export default async function DashboardPage() {
             <QuickAction href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("dashboardPage.open.invoices")} />
           </div>
 
-          <div className="mt-5 rounded-2xl bg-zinc-50 px-4 py-3 text-xs text-zinc-600 ring-1 ring-zinc-200/70">
+			<div className="mt-5 rounded-2xl bg-emerald-50/60 px-4 py-3 text-xs text-zinc-700 ring-1 ring-emerald-200/60">
             {t("dashboardPage.chartDesc")}
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-3xl border border-zinc-200/70 bg-white/75 p-5 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
+	<div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-zinc-900">{t("dashboardPage.recentInvoices")}</div>
               <div className="mt-1 text-xs text-zinc-500">{t("dashboardPage.recentInvoicesDesc")}</div>
             </div>
-            <Link href="/app/invoices" className="text-xs font-medium text-sky-700 hover:text-sky-800">
+			<Link href="/app/invoices" className="text-xs font-medium text-emerald-700 hover:text-emerald-800">
               {t("dashboardPage.viewAll")}
             </Link>
           </div>
@@ -204,7 +204,7 @@ export default async function DashboardPage() {
                 <Link
                   key={inv.id}
                   href={`/app/invoices/${inv.id}`}
-                  className="group flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/70 bg-white px-4 py-3 text-sm shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
+						className="group flex items-center justify-between gap-3 rounded-2xl border border-sky-200/60 bg-white px-4 py-3 text-sm shadow-sm transition hover:border-sky-300/70 hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -222,21 +222,21 @@ export default async function DashboardPage() {
                   </div>
                 </Link>
               ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-4 py-6 text-center text-sm text-zinc-600">
+			) : (
+				<div className="rounded-2xl border border-dashed border-sky-200/60 bg-white px-4 py-6 text-center text-sm text-zinc-600">
                 {t("dashboardPage.empty.noInvoices")}
               </div>
             )}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-zinc-200/70 bg-white/75 p-5 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
+	<div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-zinc-900">{t("dashboardPage.recentEntries")}</div>
               <div className="mt-1 text-xs text-zinc-500">{t("dashboardPage.recentEntriesDesc")}</div>
             </div>
-            <Link href="/app/journal" className="text-xs font-medium text-sky-700 hover:text-sky-800">
+			<Link href="/app/journal" className="text-xs font-medium text-emerald-700 hover:text-emerald-800">
               {t("dashboardPage.viewAll")}
             </Link>
           </div>
@@ -247,7 +247,7 @@ export default async function DashboardPage() {
                 <Link
                   key={e.id}
                   href={`/app/journal`}
-                  className="group flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/70 bg-white px-4 py-3 text-sm shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
+						className="group flex items-center justify-between gap-3 rounded-2xl border border-sky-200/60 bg-white px-4 py-3 text-sm shadow-sm transition hover:border-sky-300/70 hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -258,11 +258,11 @@ export default async function DashboardPage() {
                       {(e.description ?? t("dashboardPage.noDescription")) + " · " + new Intl.DateTimeFormat(locale).format(e.entryDate)}
                     </div>
                   </div>
-                  <ArrowUpRight className="h-4 w-4 text-zinc-400 transition group-hover:text-zinc-600" aria-hidden />
+					<ArrowUpRight className="h-4 w-4 text-emerald-600 transition group-hover:text-emerald-700" aria-hidden />
                 </Link>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-4 py-6 text-center text-sm text-zinc-600">
+			<div className="rounded-2xl border border-dashed border-sky-200/60 bg-white px-4 py-6 text-center text-sm text-zinc-600">
                 {t("dashboardPage.empty.noEntries")}
               </div>
             )}
@@ -290,10 +290,10 @@ function StatCard({
   desc: string;
 }) {
   return (
-    <div className="rounded-3xl border border-zinc-200/70 bg-white/75 p-5 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
+		<div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm text-zinc-500">{title}</div>
-        <span className="grid h-9 w-9 place-items-center rounded-2xl bg-zinc-50 text-zinc-600 ring-1 ring-zinc-200/70">
+				<span className="grid h-9 w-9 place-items-center rounded-2xl bg-sky-50/70 text-sky-700 ring-1 ring-sky-200/70">
           {icon}
         </span>
       </div>
@@ -305,7 +305,7 @@ function StatCard({
 
 function MiniCard({ title, value, desc }: { title: string; value: string; desc: string }) {
   return (
-    <div className="rounded-3xl border border-zinc-200/70 bg-white/55 p-5 shadow-xl shadow-sky-100/40 backdrop-blur ring-1 ring-zinc-200/40">
+		<div className="rounded-3xl border border-sky-200/60 bg-white/70 p-5 shadow-xl shadow-emerald-200/20 backdrop-blur ring-1 ring-sky-200/40">
       <div className="text-sm font-semibold text-zinc-900">{title}</div>
       <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{value}</div>
       <div className="mt-1 text-xs text-zinc-500">{desc}</div>
@@ -315,15 +315,15 @@ function MiniCard({ title, value, desc }: { title: string; value: string; desc: 
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
-    PAID: "bg-emerald-50 text-emerald-700 ring-emerald-200/70",
-    SENT: "bg-sky-50 text-sky-700 ring-sky-200/70",
-    OVERDUE: "bg-amber-50 text-amber-800 ring-amber-200/70",
-    CANCELLED: "bg-zinc-100 text-zinc-700 ring-zinc-200/70",
-    DRAFT: "bg-zinc-100 text-zinc-700 ring-zinc-200/70",
-    POSTED: "bg-emerald-50 text-emerald-700 ring-emerald-200/70",
-    VOID: "bg-zinc-100 text-zinc-700 ring-zinc-200/70",
+		PAID: "bg-emerald-100 text-emerald-800 ring-emerald-200/80",
+		SENT: "bg-sky-100 text-sky-800 ring-sky-200/80",
+		OVERDUE: "bg-amber-100 text-amber-900 ring-amber-200/80",
+		CANCELLED: "bg-slate-100 text-slate-700 ring-slate-200/80",
+		DRAFT: "bg-slate-100 text-slate-700 ring-slate-200/80",
+		POSTED: "bg-emerald-100 text-emerald-800 ring-emerald-200/80",
+		VOID: "bg-slate-100 text-slate-700 ring-slate-200/80",
   };
-  const cls = map[status] ?? "bg-zinc-100 text-zinc-700 ring-zinc-200/70";
+	const cls = map[status] ?? "bg-slate-100 text-slate-700 ring-slate-200/80";
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${cls}`}>
       {status}
@@ -335,15 +335,15 @@ function QuickAction({ href, icon, label }: { href: string; icon: React.ReactNod
   return (
     <Link
       href={href}
-      className="group flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/70 bg-white px-4 py-3 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
+			className="group flex items-center justify-between gap-3 rounded-2xl border border-sky-200/60 bg-white px-4 py-3 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-sky-300/70 hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
     >
       <span className="flex items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-2xl bg-zinc-50 text-zinc-500 ring-1 ring-zinc-200/70 transition group-hover:bg-white group-hover:text-zinc-700">
+				<span className="grid h-9 w-9 place-items-center rounded-2xl bg-emerald-50/60 text-emerald-700 ring-1 ring-emerald-200/60 transition group-hover:bg-white group-hover:text-emerald-800">
           {icon}
         </span>
         <span className="min-w-0 truncate">{label}</span>
       </span>
-      <ArrowUpRight className="h-4 w-4 text-zinc-400 transition group-hover:text-zinc-600" aria-hidden />
+			<ArrowUpRight className="h-4 w-4 text-emerald-600 transition group-hover:text-emerald-700" aria-hidden />
     </Link>
   );
 }
