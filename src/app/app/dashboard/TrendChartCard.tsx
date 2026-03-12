@@ -12,17 +12,16 @@ import {
 
 import { useI18n } from "@/components/i18n/I18nProvider";
 
-const data = [
-  { name: "Jan", value: 18 },
-  { name: "Feb", value: 22 },
-  { name: "Mar", value: 19 },
-  { name: "Apr", value: 28 },
-  { name: "May", value: 24 },
-  { name: "Jun", value: 31 },
-];
+export type TrendPoint = { label: string; value: number };
 
-export function TrendChartCard() {
-  const { t } = useI18n();
+export function TrendChartCard({ data, currencyCode }: { data: TrendPoint[]; currencyCode?: string }) {
+  const { locale, t } = useI18n();
+
+  const fmt = (n: number) => {
+    if (!Number.isFinite(n)) return "-";
+    if (!currencyCode) return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(n);
+    return new Intl.NumberFormat(locale, { style: "currency", currency: currencyCode, maximumFractionDigits: 0 }).format(n);
+  };
 
   return (
     <div className="rounded-3xl border border-zinc-200/70 bg-white/75 p-5 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
@@ -39,7 +38,7 @@ export function TrendChartCard() {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-            <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} stroke="#71717a" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} stroke="#71717a" />
             <YAxis tickLine={false} axisLine={false} fontSize={12} stroke="#71717a" width={24} />
             <Tooltip
               contentStyle={{
@@ -47,6 +46,7 @@ export function TrendChartCard() {
                 borderColor: "#e4e4e7",
                 boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
               }}
+              formatter={(v) => fmt(Number(v))}
             />
             <Area type="monotone" dataKey="value" stroke="#4f46e5" strokeWidth={2} fill="url(#trend)" />
           </AreaChart>
