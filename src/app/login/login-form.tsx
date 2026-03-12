@@ -8,6 +8,9 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 
+import { LocaleToggle } from "@/components/i18n/LocaleToggle";
+import { useI18n } from "@/components/i18n/I18nProvider";
+
 const loginSchema = z.object({
   email: z.string().trim().email("Please enter a valid email"),
   password: z.string().min(1, "Password is required"),
@@ -15,15 +18,17 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-function mapAuthError(code: string | null): string {
-  if (!code) return "Unable to sign in. Please try again.";
-  if (code === "CredentialsSignin") return "Invalid email or password.";
-  if (code === "Configuration") return "Authentication is not configured correctly. Please contact support.";
-  return "Unable to sign in. Please try again.";
-}
-
 export default function LoginForm({ initialErrorCode }: { initialErrorCode: string | null }) {
+  const { locale, t } = useI18n();
   const router = useRouter();
+
+  function mapAuthError(code: string | null): string {
+    if (!code) return t("auth.errors.generic");
+    if (code === "CredentialsSignin") return t("auth.errors.invalidCredentials");
+    if (code === "Configuration") return t("auth.errors.configuration");
+    return t("auth.errors.generic");
+  }
+
   const [serverError, setServerError] = useState<string | null>(() =>
     initialErrorCode ? mapAuthError(initialErrorCode) : null,
   );
@@ -63,18 +68,22 @@ export default function LoginForm({ initialErrorCode }: { initialErrorCode: stri
       <div className="pointer-events-none absolute -right-24 -top-20 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
 
       <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white shadow-sm">
-            <ShieldCheck className="h-5 w-5" aria-hidden />
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white shadow-sm">
+              <ShieldCheck className="h-5 w-5" aria-hidden />
+            </div>
+            <div>
+              <div className="text-xs font-medium text-zinc-500">{t("common.appName")}</div>
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{t("auth.title")}</h1>
+            </div>
           </div>
-          <div>
-            <div className="text-xs font-medium text-zinc-500">Accounting</div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Sign in</h1>
-          </div>
+
+          <LocaleToggle locale={locale} />
         </div>
 
         <div className="rounded-3xl border border-zinc-200/70 bg-white/85 p-7 shadow-xl shadow-sky-100/60 backdrop-blur ring-1 ring-zinc-200/40">
-          <p className="text-sm text-zinc-600">Use your admin email and password to access the dashboard.</p>
+          <p className="text-sm text-zinc-600">{t("auth.subtitle")}</p>
 
           {serverError ? (
             <div className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -85,7 +94,7 @@ export default function LoginForm({ initialErrorCode }: { initialErrorCode: stri
 
           <form className="mt-5 space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <div>
-              <label className="text-sm font-medium text-zinc-800">Email</label>
+              <label className="text-sm font-medium text-zinc-800">{t("auth.email")}</label>
               <div className="relative mt-1">
                 <Mail className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
                 <input
@@ -100,7 +109,7 @@ export default function LoginForm({ initialErrorCode }: { initialErrorCode: stri
             </div>
 
             <div>
-              <label className="text-sm font-medium text-zinc-800">Password</label>
+              <label className="text-sm font-medium text-zinc-800">{t("auth.password")}</label>
               <div className="relative mt-1">
                 <Lock className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
                 <input
@@ -127,13 +136,13 @@ export default function LoginForm({ initialErrorCode }: { initialErrorCode: stri
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Signing in…" : "Sign in"}
+              {isSubmitting ? t("auth.signingIn") : t("auth.signIn")}
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
             </button>
           </form>
 
           <div className="mt-6 rounded-2xl bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
-            Don’t have credentials yet? Run the Prisma seed to create the initial admin user.
+            {t("auth.seedHint")}
           </div>
         </div>
       </div>

@@ -3,46 +3,126 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth/options";
 
+import {
+  BookOpen,
+  FileText,
+  LayoutDashboard,
+  NotebookPen,
+  Users,
+} from "lucide-react";
+
+import { LocaleToggle } from "@/components/i18n/LocaleToggle";
+import { SignOutButton } from "@/components/auth/SignOutButton";
+import { getRequestLocale } from "@/lib/i18n/server";
+import { getMessages } from "@/lib/i18n/messages";
+import { createTranslator } from "@/lib/i18n/translate";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
+  const locale = await getRequestLocale();
+  const messages = getMessages(locale);
+  const t = createTranslator(messages);
+  const email = session.user.email ?? "";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-sky-50">
-      <header className="sticky top-0 z-10 border-b bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 shadow-sm" />
-              <div>
-                <div className="text-sm font-medium text-zinc-600">Accounting</div>
-                <div className="text-lg font-semibold text-zinc-900">Dashboard</div>
+    <div className="min-h-dvh bg-gradient-to-br from-zinc-50 via-white to-sky-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+        <div className="grid gap-6 md:grid-cols-[280px_1fr]">
+          <aside className="hidden md:block">
+            <div className="sticky top-6 rounded-3xl border border-zinc-200/70 bg-white/75 p-4 shadow-xl shadow-sky-100/50 backdrop-blur ring-1 ring-zinc-200/40">
+              <div className="flex items-center gap-3 px-2 py-2">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white shadow-sm">
+                  <LayoutDashboard className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-zinc-900">{t("common.appName")}</div>
+                  <div className="truncate text-xs text-zinc-500">{t("common.dashboard")}</div>
+                </div>
+              </div>
+
+              <nav className="mt-3 space-y-1">
+                <NavItem href="/app/dashboard" icon={<LayoutDashboard className="h-4 w-4" aria-hidden />} label={t("nav.overview")} />
+                <NavItem href="/app/coa" icon={<BookOpen className="h-4 w-4" aria-hidden />} label={t("nav.coa")} />
+                <NavItem href="/app/journal" icon={<NotebookPen className="h-4 w-4" aria-hidden />} label={t("nav.journal")} />
+                <NavItem href="/app/customers" icon={<Users className="h-4 w-4" aria-hidden />} label={t("nav.customers")} />
+                <NavItem href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("nav.invoices")} />
+              </nav>
+
+              <div className="mt-4 flex flex-col gap-2 border-t border-zinc-200/70 pt-4">
+                <div className="px-2 text-xs text-zinc-600">
+                  {t("common.signedInAs", { email: email || "-" })}
+                </div>
+                <div className="flex items-center justify-between gap-2 px-2">
+                  <LocaleToggle locale={locale} />
+                  <SignOutButton />
+                </div>
               </div>
             </div>
-            <div className="text-sm text-zinc-600">Signed in as {session.user.email ?? "(no email)"}</div>
+          </aside>
+
+          <div className="min-w-0">
+            <header className="sticky top-0 z-10 rounded-3xl border border-zinc-200/70 bg-white/70 px-4 py-4 backdrop-blur ring-1 ring-zinc-200/40 md:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-zinc-500">{t("common.appName")}</div>
+                  <div className="truncate text-lg font-semibold tracking-tight text-zinc-900">{t("common.dashboard")}</div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <LocaleToggle locale={locale} />
+                  <SignOutButton className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/70 shadow-sm transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100" />
+                </div>
+              </div>
+
+              <nav className="mt-4 flex gap-2 overflow-x-auto text-sm md:hidden">
+                <MobileNavChip href="/app/dashboard" label={t("nav.overview")} />
+                <MobileNavChip href="/app/coa" label={t("nav.coa")} />
+                <MobileNavChip href="/app/journal" label={t("nav.journal")} />
+                <MobileNavChip href="/app/customers" label={t("nav.customers")} />
+                <MobileNavChip href="/app/invoices" label={t("nav.invoices")} />
+              </nav>
+            </header>
+
+            <main className="mt-6">{children}</main>
           </div>
-
-          <nav className="mt-4 flex flex-wrap gap-2 text-sm">
-            <Link className="rounded-xl bg-white px-3 py-2 ring-1 ring-zinc-200 hover:bg-zinc-50" href="/app/dashboard">
-              Overview
-            </Link>
-            <Link className="rounded-xl bg-white px-3 py-2 ring-1 ring-zinc-200 hover:bg-zinc-50" href="/app/coa">
-              Chart of Accounts
-            </Link>
-            <Link className="rounded-xl bg-white px-3 py-2 ring-1 ring-zinc-200 hover:bg-zinc-50" href="/app/journal">
-              Journal
-            </Link>
-            <Link className="rounded-xl bg-white px-3 py-2 ring-1 ring-zinc-200 hover:bg-zinc-50" href="/app/customers">
-              Customers
-            </Link>
-            <Link className="rounded-xl bg-white px-3 py-2 ring-1 ring-zinc-200 hover:bg-zinc-50" href="/app/invoices">
-              Invoices
-            </Link>
-          </nav>
         </div>
-      </header>
-
-      <div className="mx-auto max-w-6xl p-6">{children}</div>
+      </div>
     </div>
   );
 }
+
+function NavItem({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-sky-100"
+    >
+      <span className="grid h-8 w-8 place-items-center rounded-xl bg-zinc-50 text-zinc-500 ring-1 ring-zinc-200/70 transition group-hover:bg-white group-hover:text-zinc-700">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
+function MobileNavChip({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="shrink-0 rounded-2xl bg-white px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/70 transition hover:bg-zinc-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
+    >
+      {label}
+    </Link>
+  );
+}
+
