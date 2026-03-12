@@ -2,6 +2,10 @@ export const PERMISSIONS = {
   // Admin
   ADMIN_ALL: "admin:all",
 
+  // User management
+  USERS_READ: "users:read",
+  USERS_WRITE: "users:write",
+
   // Accounting core
   COA_READ: "coa:read",
   COA_WRITE: "coa:write",

@@ -5,12 +5,13 @@ import { authOptions } from "@/lib/auth/options";
 
 import {
   BookOpen,
-	  BarChart3,
+  BarChart3,
   FileText,
   LayoutDashboard,
   NotebookPen,
-	  ReceiptText,
+  ReceiptText,
   Users,
+  ShieldCheck,
 } from "lucide-react";
 
 import { LocaleToggle } from "@/components/i18n/LocaleToggle";
@@ -52,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <NavItem href="/app/customers" icon={<Users className="h-4 w-4" aria-hidden />} label={t("nav.customers")} />
                 <NavItem href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("nav.invoices")} />
 	                <NavItem href="/app/expenses" icon={<ReceiptText className="h-4 w-4" aria-hidden />} label={t("nav.expenses")} />
+                <NavItem href="/app/admin/users" icon={<ShieldCheck className="h-4 w-4" aria-hidden />} label={t("nav.users")} />
               </nav>
 
 	            <div className="mt-4 flex flex-col gap-2 border-t border-sky-200/60 pt-4">
@@ -88,6 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <MobileNavChip href="/app/customers" label={t("nav.customers")} />
                 <MobileNavChip href="/app/invoices" label={t("nav.invoices")} />
 	                <MobileNavChip href="/app/expenses" label={t("nav.expenses")} />
+                <MobileNavChip href="/app/admin/users" label={t("nav.users")} />
               </nav>
             </header>
 

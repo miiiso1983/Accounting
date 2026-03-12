@@ -9,6 +9,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { getMessages } from "@/lib/i18n/messages";
 import { getRequestLocale } from "@/lib/i18n/server";
 import { createTranslator } from "@/lib/i18n/translate";
+import { ExportButtons } from "@/components/reports/ExportButtons";
 
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
@@ -113,8 +114,16 @@ export default async function TrialBalancePage({
 
   return (
     <div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
-      <div className="text-sm text-zinc-500">{t("reports.title")}</div>
-      <div className="mt-1 text-base font-medium text-zinc-900">{t("reports.trialBalance.title")}</div>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-sm text-zinc-500">{t("reports.title")}</div>
+          <div className="mt-1 text-base font-medium text-zinc-900">{t("reports.trialBalance.title")}</div>
+        </div>
+        <ExportButtons
+          excelHref={`/api/reports/trial-balance/export${from || to ? `?${new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}` : ""}`}
+          labels={{ excel: t("reports.export.excel"), print: t("reports.export.print") }}
+        />
+      </div>
 
       <form className="mt-4 grid gap-3 md:grid-cols-6" method="GET" action="/app/reports/trial-balance">
         <div className="md:col-span-2">

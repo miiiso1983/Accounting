@@ -32,9 +32,14 @@ export default async function CustomersIndexPage() {
           <div className="text-sm text-zinc-500">Sales</div>
           <div className="mt-1 text-base font-medium text-zinc-900">Customers</div>
         </div>
-        <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/customers/new">
-          New customer
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-zinc-700 hover:bg-sky-50" href="/app/customers/import">
+            Import
+          </Link>
+          <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/customers/new">
+            New customer
+          </Link>
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto">
