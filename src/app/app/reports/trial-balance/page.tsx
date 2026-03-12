@@ -96,18 +96,19 @@ export default async function TrialBalancePage({
   const rows = accounts.map((a) => {
     const debit = debitByAccount.get(a.id) ?? 0;
     const credit = creditByAccount.get(a.id) ?? 0;
-    const net = debit - credit;
-    return { ...a, debit, credit, net };
+    const balance = debit - credit;
+    const balanceDebit = balance > 0 ? balance : 0;
+    const balanceCredit = balance < 0 ? -balance : 0;
+    return { ...a, debit, credit, balance, balanceDebit, balanceCredit };
   });
 
   const totals = rows.reduce(
     (acc, r) => {
-      acc.debit += r.debit;
-      acc.credit += r.credit;
-      acc.net += r.net;
+      acc.debit += r.balanceDebit;
+      acc.credit += r.balanceCredit;
       return acc;
     },
-    { debit: 0, credit: 0, net: 0 },
+    { debit: 0, credit: 0 },
   );
 
   return (
@@ -142,7 +143,6 @@ export default async function TrialBalancePage({
               <th className="py-2 pr-3">{t("reports.columns.account")}</th>
               <th className="py-2 pr-3">{t("reports.columns.debitBase")}</th>
               <th className="py-2 pr-3">{t("reports.columns.creditBase")}</th>
-              <th className="py-2 pr-3">{t("reports.columns.netBase")}</th>
             </tr>
           </thead>
           <tbody>
@@ -153,9 +153,8 @@ export default async function TrialBalancePage({
                   <div className="font-medium">{r.name}</div>
                   <div className="text-xs text-zinc-500">{r.type}</div>
                 </td>
-                <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(r.debit)}</td>
-                <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(r.credit)}</td>
-                <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(r.net)}</td>
+                <td className="py-2 pr-3 font-mono text-zinc-900">{r.balanceDebit ? fmt(r.balanceDebit) : "-"}</td>
+                <td className="py-2 pr-3 font-mono text-zinc-900">{r.balanceCredit ? fmt(r.balanceCredit) : "-"}</td>
               </tr>
             ))}
           </tbody>
@@ -166,7 +165,6 @@ export default async function TrialBalancePage({
               </td>
               <td className="py-2 pr-3 font-mono text-sm font-medium text-zinc-900">{fmt(totals.debit)}</td>
               <td className="py-2 pr-3 font-mono text-sm font-medium text-zinc-900">{fmt(totals.credit)}</td>
-              <td className="py-2 pr-3 font-mono text-sm font-medium text-zinc-900">{fmt(totals.net)}</td>
             </tr>
           </tfoot>
         </table>
