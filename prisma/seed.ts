@@ -38,14 +38,36 @@ async function main() {
     });
   }
 
-  const email = (process.env.INITIAL_ADMIN_EMAIL ?? "admin@example.com").toLowerCase();
-  const password = process.env.INITIAL_ADMIN_PASSWORD ?? "ChangeMe123!";
-  const passwordHash = await bcrypt.hash(password, 12);
+	const emailRaw = process.env.INITIAL_ADMIN_EMAIL ?? "admin@example.com";
+	const passwordEnv = process.env.INITIAL_ADMIN_PASSWORD;
+	const nameEnv = process.env.INITIAL_ADMIN_NAME;
 
-  const user = await prisma.user.upsert({
+	const email = emailRaw.toLowerCase().trim();
+	if (!email) throw new Error("INITIAL_ADMIN_EMAIL is empty");
+	if (typeof passwordEnv === "string" && passwordEnv.length === 0) {
+		throw new Error("INITIAL_ADMIN_PASSWORD is set but empty");
+	}
+	if (typeof nameEnv === "string" && nameEnv.length === 0) {
+		throw new Error("INITIAL_ADMIN_NAME is set but empty");
+	}
+
+	// If you provide INITIAL_ADMIN_PASSWORD explicitly, we will also UPDATE the existing admin user's password.
+	// This makes it safe to re-run seed when you need to rotate credentials.
+	const shouldUpdatePassword = typeof passwordEnv === "string" && passwordEnv.length > 0;
+	const shouldUpdateName = typeof nameEnv === "string" && nameEnv.length > 0;
+
+	const password = passwordEnv ?? "ChangeMe123!";
+	const passwordHash = await bcrypt.hash(password, 12);
+	const name = nameEnv ?? "Admin";
+
+	const user = await prisma.user.upsert({
     where: { email },
-    update: { companyId: company.id },
-    create: { email, name: "Admin", passwordHash, companyId: company.id },
+		update: {
+			companyId: company.id,
+			...(shouldUpdatePassword ? { passwordHash } : {}),
+			...(shouldUpdateName ? { name } : {}),
+		},
+		create: { email, name, passwordHash, companyId: company.id },
   });
 
   await prisma.userRole.upsert({
@@ -53,6 +75,11 @@ async function main() {
     update: {},
     create: { userId: user.id, roleId: superAdmin.id },
   });
+
+	console.log(`Seeded admin user: ${email}`);
+	if (!shouldUpdatePassword && passwordEnv == null) {
+		console.log("Admin password used default value. Set INITIAL_ADMIN_PASSWORD to a strong password and re-run seed to rotate it.");
+	}
 }
 
 main()
