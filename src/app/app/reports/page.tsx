@@ -27,7 +27,7 @@ export default async function ReportsIndexPage() {
       <div className="text-sm text-zinc-500">{t("reports.title")}</div>
       <div className="mt-1 text-base font-medium text-zinc-900">{t("reports.title")}</div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         <Link
           href="/app/reports/trial-balance"
           className="rounded-2xl border border-sky-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
@@ -42,6 +42,38 @@ export default async function ReportsIndexPage() {
         >
           <div className="font-medium text-zinc-900">{t("reports.generalLedger.title")}</div>
           <div className="mt-1 text-xs text-zinc-500">{t("reports.filters.account")} + {t("reports.filters.from")} / {t("reports.filters.to")}</div>
+        </Link>
+
+        <Link
+          href="/app/reports/profit-loss"
+          className="rounded-2xl border border-emerald-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-emerald-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">Profit & Loss / قائمة الأرباح والخسائر</div>
+          <div className="mt-1 text-xs text-zinc-500">Revenue vs Expenses by month / الإيرادات مقابل المصروفات شهرياً</div>
+        </Link>
+
+        <Link
+          href="/app/reports/balance-sheet"
+          className="rounded-2xl border border-purple-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-purple-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">Balance Sheet / الميزانية العمومية</div>
+          <div className="mt-1 text-xs text-zinc-500">Assets = Liabilities + Equity / الأصول = الالتزامات + حقوق الملكية</div>
+        </Link>
+
+        <Link
+          href="/app/reports/ar-aging"
+          className="rounded-2xl border border-orange-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-orange-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">AR Aging Summary / تقادم الذمم المدينة</div>
+          <div className="mt-1 text-xs text-zinc-500">Outstanding invoices by age / الفواتير المستحقة حسب العمر</div>
+        </Link>
+
+        <Link
+          href="/app/reports/collections"
+          className="rounded-2xl border border-sky-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">Collection Report / تقرير التحصيل</div>
+          <div className="mt-1 text-xs text-zinc-500">Paid invoices & collection period / الفواتير المحصّلة ومدة التحصيل</div>
         </Link>
       </div>
     </div>
