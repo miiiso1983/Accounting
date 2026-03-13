@@ -364,6 +364,7 @@ model Invoice {
   taxTotalBase      Decimal      @default(0) @db.Decimal(20, 6)
   totalBase         Decimal      @db.Decimal(20, 6)
 
+  paymentTerms      String? // "MONTHLY" | "QUARTERLY" | "YEARLY"
   templateKey       String? // for customizable templates
   qrPayload         String?
 

@@ -19,6 +19,7 @@ type InvoiceData = {
   exchangeRate: string;
   discountType: string;
   discountValue: string;
+  paymentTerms: string;
   lines: { description: string; quantity: string; unitPrice: string; taxRate: string }[];
 };
 
@@ -46,6 +47,7 @@ const FormSchema = z.object({
   exchangeRate: z.string().optional(),
   discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
   discountValue: z.string().optional(),
+  paymentTerms: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
   lines: z.array(LineSchema).min(1),
 });
 
@@ -69,6 +71,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
       exchangeRate: initialData.exchangeRate,
       discountType: (initialData.discountType as "PERCENTAGE" | "FIXED") || undefined,
       discountValue: initialData.discountValue || "",
+      paymentTerms: (initialData.paymentTerms as "MONTHLY" | "QUARTERLY" | "YEARLY") || undefined,
       lines: initialData.lines,
     },
   });
@@ -84,6 +87,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
       exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
       discountType: values.discountValue && Number(values.discountValue) > 0 ? (values.discountType || "FIXED") : undefined,
       discountValue: values.discountValue && Number(values.discountValue) > 0 ? values.discountValue : undefined,
+      paymentTerms: values.paymentTerms || undefined,
     };
 
     const res = await fetch(`/api/invoices/${invoiceId}`, {
@@ -154,7 +158,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
           ) : null}
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
           <div>
             <label className="text-sm font-medium text-zinc-700">Discount type / نوع الخصم</label>
             <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("discountType")}>
@@ -166,6 +170,15 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
           <div>
             <label className="text-sm font-medium text-zinc-700">Discount value / قيمة الخصم</label>
             <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="0" {...form.register("discountValue")} />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-zinc-700">Payment terms / شروط الدفع</label>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("paymentTerms")}>
+              <option value="">— Select / اختر —</option>
+              <option value="MONTHLY">Monthly / شهري</option>
+              <option value="QUARTERLY">Quarterly / ربع سنوي</option>
+              <option value="YEARLY">Yearly / سنوي</option>
+            </select>
           </div>
         </div>
 

@@ -40,15 +40,9 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
 
   if (!invoice || !company) return <div className="p-5 text-sm">Not found.</div>;
 
-  // Generate QR code
-  const qrPayload = JSON.stringify({
-    invoice: invoice.invoiceNumber,
-    company: company.name,
-    total: String(invoice.total),
-    currency: invoice.currencyCode,
-    date: fmtDate(invoice.issueDate),
-    customer: invoice.customer.name,
-  });
+  // Generate QR code — use the invoice preview URL so scanning opens the invoice
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "https://phpstack-1510634-6273369.cloudwaysapps.com";
+  const qrPayload = `${baseUrl}/app/invoices/${id}/preview`;
 
   let qrDataUrl = "";
   try {
@@ -118,6 +112,11 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
               {invoice.dueDate && <div><span className="text-zinc-400">Due / الاستحقاق:</span> <span className="font-mono">{fmtDate(invoice.dueDate)}</span></div>}
               <div><span className="text-zinc-400">Status / الحالة:</span> <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-700" : invoice.status === "SENT" ? "bg-sky-100 text-sky-700" : "bg-zinc-100 text-zinc-700"}`}>{invoice.status}</span></div>
               <div><span className="text-zinc-400">Currency / العملة:</span> <span className="font-mono">{invoice.currencyCode}</span></div>
+              {invoice.paymentTerms && (
+                <div><span className="text-zinc-400">Payment / الدفع:</span> <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700`}>
+                  {invoice.paymentTerms === "MONTHLY" ? "Monthly / شهري" : invoice.paymentTerms === "QUARTERLY" ? "Quarterly / ربع سنوي" : "Yearly / سنوي"}
+                </span></div>
+              )}
             </div>
           </div>
         </div>

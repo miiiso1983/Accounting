@@ -21,6 +21,7 @@ const BodySchema = z.object({
     .optional(),
   discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
   discountValue: z.string().optional().or(z.literal("")),
+  paymentTerms: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
   mode: z.enum(["DRAFT", "SEND"]),
   lines: z
     .array(
@@ -151,6 +152,7 @@ export async function POST(req: Request) {
           currencyCode: invoiceCurrency,
           baseCurrencyCode,
           exchangeRateId,
+          paymentTerms: body.paymentTerms || null,
           subtotal: subtotal.toFixed(6),
           discountType,
           discountValue: discountValue.toFixed(6),

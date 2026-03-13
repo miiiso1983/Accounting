@@ -73,6 +73,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     exchangeRate: invoice.exchangeRate ? String(invoice.exchangeRate.rate) : "",
     discountType: invoice.discountType ?? "",
     discountValue: invoice.discountValue ? String(invoice.discountValue) : "",
+    paymentTerms: invoice.paymentTerms ?? "",
     lines: invoice.lineItems.map((li) => ({
       description: li.description,
       quantity: String(li.quantity),
