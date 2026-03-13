@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
+import { InvoiceListActions } from "./InvoiceListActions";
+
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
   if (!Number.isFinite(x)) return "-";
@@ -31,6 +33,7 @@ export default async function InvoicesIndexPage() {
     include: { customer: { select: { name: true } } },
     take: 50,
   });
+  const canWrite = hasPermission(session, PERMISSIONS.INVOICE_WRITE);
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -53,6 +56,7 @@ export default async function InvoicesIndexPage() {
               <th className="py-2 pr-3">Customer</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3">Total (base)</th>
+              <th className="py-2 pr-3">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -65,6 +69,9 @@ export default async function InvoicesIndexPage() {
                 <td className="py-2 pr-3 text-zinc-900">{inv.customer.name}</td>
                 <td className="py-2 pr-3 text-zinc-700">{inv.status}</td>
                 <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(inv.totalBase)}</td>
+                <td className="py-2 pr-3">
+                  <InvoiceListActions invoiceId={inv.id} status={inv.status} canWrite={canWrite} />
+                </td>
               </tr>
             ))}
           </tbody>

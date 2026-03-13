@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
+import { ensureInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { prisma } from "@/lib/db/prisma";
 import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -177,14 +178,7 @@ export async function POST(req: Request) {
       });
 
       if (body.mode === "SEND") {
-        const accounts = await tx.glAccount.findMany({
-          where: { companyId: company.id, code: { in: ["1200", "4100", "2250"] } },
-          select: { id: true, code: true, isPosting: true },
-        });
-        for (const a of accounts) {
-          if (!a.isPosting) throw new Error(`GL account ${a.code} must be a posting account`);
-        }
-        const accountsByCode = new Map(accounts.map((a) => [a.code, { id: a.id }] as const));
+        const accountsByCode = await ensureInvoicePostingAccountsTx(tx, company.id);
         const arId = mustGetPostingAccountIdByCode({ accountsByCode, code: "1200" });
         const salesId = mustGetPostingAccountIdByCode({ accountsByCode, code: "4100" });
         const vatId = mustGetPostingAccountIdByCode({ accountsByCode, code: "2250" });

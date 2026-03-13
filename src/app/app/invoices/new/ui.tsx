@@ -39,6 +39,17 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
+async function readResponseData(res: Response) {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCustomerId }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -87,10 +98,10 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
       body: JSON.stringify(payload),
     });
 
-    const data: unknown = await res.json();
+    const data = await readResponseData(res);
     if (!res.ok) {
       const parsedErr = ApiErrSchema.safeParse(data);
-      setServerError(parsedErr.success ? parsedErr.data.error : "Failed to create invoice");
+      setServerError(parsedErr.success ? parsedErr.data.error : `Failed to create invoice (HTTP ${res.status})`);
       return;
     }
 

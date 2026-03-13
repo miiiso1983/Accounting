@@ -10,6 +10,17 @@ function readErrorMessage(data: unknown): string | null {
   return typeof msg === "string" ? msg : null;
 }
 
+async function readResponseData(res: Response) {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 type Props = {
   invoiceId: string;
   status: string;
@@ -37,9 +48,9 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
     setLoading(true);
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/send`, { method: "POST" });
-      const data: unknown = await res.json();
+      const data = await readResponseData(res);
       if (!res.ok) {
-        const msg = readErrorMessage(data) ?? "Failed to send invoice";
+        const msg = readErrorMessage(data) ?? `Failed to send invoice (HTTP ${res.status})`;
         setError(msg);
         return;
       }
@@ -56,9 +67,9 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
     setDeleting(true);
     try {
       const res = await fetch(`/api/invoices/${invoiceId}`, { method: "DELETE" });
-      const data: unknown = await res.json();
+      const data = await readResponseData(res);
       if (!res.ok) {
-        setError(readErrorMessage(data) ?? "Failed to delete invoice");
+        setError(readErrorMessage(data) ?? `Failed to delete invoice (HTTP ${res.status})`);
         return;
       }
       router.push("/app/invoices");
@@ -78,12 +89,12 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ channel }),
       });
-      const data = await res.json() as Record<string, unknown>;
+      const data = (await readResponseData(res)) as Record<string, unknown> | null;
       if (!res.ok) {
-        setError(readErrorMessage(data) ?? `Failed to send ${channel} notification`);
+        setError(readErrorMessage(data) ?? `Failed to send ${channel} notification (HTTP ${res.status})`);
         return;
       }
-      if (data.fallbackLink && typeof data.fallbackLink === "string") {
+      if (data?.fallbackLink && typeof data.fallbackLink === "string") {
         window.open(data.fallbackLink, "_blank");
         setSuccess("WhatsApp link opened in new tab (API not configured)");
       } else {

@@ -1,21 +1,28 @@
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_SECURE === "true", // false for port 587 (STARTTLS)
-  requireTLS: true, // Office365 requires STARTTLS upgrade
-  auth: {
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
-  },
-  tls: {
-    ciphers: "SSLv3",
-    rejectUnauthorized: false, // allow self-signed certs on some hosts
-  },
-});
+function createTransporter() {
+  const host = process.env.SMTP_HOST || "smtp.office365.com";
+  const port = Number(process.env.SMTP_PORT || "587");
+  const secure = process.env.SMTP_SECURE === "true";
 
-const FROM = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@example.com";
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    requireTLS: !secure && port === 587,
+    auth: {
+      user: process.env.SMTP_USER || "",
+      pass: process.env.SMTP_PASS || "",
+    },
+    tls: {
+      servername: host,
+      minVersion: "TLSv1.2",
+    },
+  });
+}
+
+const FROM_ADDRESS = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@example.com";
+const FROM_NAME = process.env.SMTP_FROM_NAME || "شركة التيم لتكنلوجيا المعلومات";
 
 type SendEmailArgs = {
   to: string;
@@ -23,24 +30,36 @@ type SendEmailArgs = {
   html: string;
 };
 
+export type SendEmailResult =
+  | { ok: true; messageId: string }
+  | { ok: false; error: string };
+
+function getErrorMessage(err: unknown) {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err.trim()) return err;
+  return "Unknown SMTP error";
+}
+
 export async function sendEmail({ to, subject, html }: SendEmailArgs) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn("[Email] SMTP not configured, skipping email to:", to);
-    return null;
+    return { ok: false, error: "SMTP is not configured. Set SMTP_USER and SMTP_PASS." } satisfies SendEmailResult;
   }
 
   try {
+    const transporter = createTransporter();
     const info = await transporter.sendMail({
-      from: FROM,
+      from: { name: FROM_NAME, address: FROM_ADDRESS },
       to,
       subject,
       html,
     });
     console.log("[Email] Sent:", info.messageId);
-    return info;
+    return { ok: true, messageId: info.messageId } satisfies SendEmailResult;
   } catch (err) {
-    console.error("[Email] Failed to send:", err);
-    return null;
+    const message = getErrorMessage(err);
+    console.error("[Email] Failed to send:", message, err);
+    return { ok: false, error: message } satisfies SendEmailResult;
   }
 }
 

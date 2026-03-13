@@ -16,7 +16,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
-  if (!hasPermission(session, PERMISSIONS.INVOICE_WRITE)) {
+  const canNotify = hasPermission(session, PERMISSIONS.INVOICE_WRITE) || hasPermission(session, PERMISSIONS.INVOICE_SEND);
+  if (!canNotify) {
     return Response.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -53,8 +54,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     const { subject, html } = buildInvoiceCreatedEmail({ ...notifData, issueDate: invoice.issueDate.toISOString().slice(0, 10), dueDate: invoice.dueDate?.toISOString().slice(0, 10) });
     const result = await sendEmail({ to: invoice.customer.email, subject, html });
-    if (!result) {
-      return Response.json({ error: "Failed to send email. Check SMTP configuration." }, { status: 500 });
+    if (!result.ok) {
+      return Response.json({ error: `Failed to send email: ${result.error}` }, { status: 500 });
     }
     return Response.json({ success: true, messageId: result.messageId });
   }

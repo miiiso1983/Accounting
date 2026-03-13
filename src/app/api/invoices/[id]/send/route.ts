@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 
+import { ensureInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
@@ -48,14 +49,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   try {
     const posted = await prisma.$transaction(async (tx) => {
-      const accounts = await tx.glAccount.findMany({
-        where: { companyId: invoice.companyId, code: { in: ["1200", "4100", "2250"] } },
-        select: { id: true, code: true, isPosting: true },
-      });
-      for (const a of accounts) {
-        if (!a.isPosting) throw new Error(`GL account ${a.code} must be a posting account`);
-      }
-      const accountsByCode = new Map(accounts.map((a) => [a.code, { id: a.id }] as const));
+      const accountsByCode = await ensureInvoicePostingAccountsTx(tx, invoice.companyId);
       const arId = mustGetPostingAccountIdByCode({ accountsByCode, code: "1200" });
       const salesId = mustGetPostingAccountIdByCode({ accountsByCode, code: "4100" });
       const vatId = mustGetPostingAccountIdByCode({ accountsByCode, code: "2250" });
