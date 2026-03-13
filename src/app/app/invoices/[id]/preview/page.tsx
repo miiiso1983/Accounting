@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import QRCode from "qrcode";
@@ -16,6 +18,15 @@ function fmt(n: unknown) {
 
 function fmtDate(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+
+async function getLogoDataUrl() {
+  try {
+    const logoBuffer = await readFile(join(process.cwd(), "public", "logo.PNG"));
+    return `data:image/png;base64,${logoBuffer.toString("base64")}`;
+  } catch {
+    return "";
+  }
 }
 
 export default async function InvoicePreviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,6 +68,7 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
   const discountAmt = Number(invoice.discountAmount);
   const taxTotal = Number(invoice.taxTotal);
   const total = Number(invoice.total);
+  const logoDataUrl = await getLogoDataUrl();
 
   return (
     <>
@@ -82,8 +94,7 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
         {/* Header */}
         <div className="flex items-start justify-between border-b pb-6">
           <div className="flex items-center gap-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.PNG" alt="Logo" width={72} height={72} className="rounded-lg object-contain" />
+            {logoDataUrl ? <img src={logoDataUrl} alt="Logo" width={72} height={72} className="rounded-lg object-contain" /> : null}
             <div>
               <h1 className="text-xl font-bold text-zinc-900">{company.name}</h1>
               <p className="mt-1 text-sm text-zinc-500">Invoice / فاتورة</p>
