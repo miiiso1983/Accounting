@@ -4,13 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
-
-type TreeNode = {
-  id: string;
-  code: string;
-  name: string;
-  children: TreeNode[];
-};
+import { CoaClient, type TreeNode, type AccountType } from "./CoaClient";
 
 export default async function CoaPage() {
   const session = await getServerSession(authOptions);
@@ -20,6 +14,8 @@ export default async function CoaPage() {
     return <div className="rounded-2xl border bg-white p-5 text-sm">Not authorized.</div>;
   }
 
+  const canWrite = hasPermission(session, PERMISSIONS.COA_WRITE);
+
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
@@ -27,11 +23,13 @@ export default async function CoaPage() {
   const accounts = await prisma.glAccount.findMany({
     where: { companyId },
     orderBy: [{ code: "asc" }],
-    select: { id: true, code: true, name: true, parentId: true },
+    select: { id: true, code: true, name: true, type: true, isPosting: true, parentId: true },
   });
 
   const byId = new Map<string, TreeNode>();
-  for (const a of accounts) byId.set(a.id, { id: a.id, code: a.code, name: a.name, children: [] });
+  for (const a of accounts) {
+    byId.set(a.id, { id: a.id, code: a.code, name: a.name, type: a.type as AccountType, isPosting: a.isPosting, children: [] });
+  }
 
   const roots: TreeNode[] = [];
   for (const a of accounts) {
@@ -40,29 +38,5 @@ export default async function CoaPage() {
     else roots.push(node);
   }
 
-  return (
-    <div className="rounded-2xl border bg-white p-5">
-      <div className="text-sm text-zinc-500">Chart of Accounts</div>
-      <div className="mt-1 text-base font-medium text-zinc-900">Unified Accounting System (starter)</div>
-      <div className="mt-4 space-y-1 text-sm">
-        {roots.map((r) => (
-          <Tree key={r.id} node={r} depth={0} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Tree({ node, depth }: { node: TreeNode; depth: number }) {
-  return (
-    <div>
-      <div className="flex gap-3" style={{ paddingLeft: depth * 16 }}>
-        <div className="w-20 font-mono text-zinc-500">{node.code}</div>
-        <div className="text-zinc-900">{node.name}</div>
-      </div>
-      {node.children.map((c) => (
-        <Tree key={c.id} node={c} depth={depth + 1} />
-      ))}
-    </div>
-  );
+  return <CoaClient initialRoots={roots} canWrite={canWrite} />;
 }
