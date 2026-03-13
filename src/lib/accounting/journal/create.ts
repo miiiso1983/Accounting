@@ -4,7 +4,8 @@ import type { CreateJournalEntryInput, JournalLineInput } from "./types";
 export async function createPostedJournalEntryTx(tx: Prisma.TransactionClient, input: CreateJournalEntryInput) {
   if (input.lines.length < 2) throw new Error("Journal entry must have at least 2 lines");
 
-  const exchangeRate = input.exchangeRateId
+  const needsExchangeRate = input.lines.some((line) => !line.amountBase && line.currencyCode !== input.baseCurrencyCode);
+  const exchangeRate = input.exchangeRateId && needsExchangeRate
     ? await tx.exchangeRate.findUnique({ where: { id: input.exchangeRateId } })
     : null;
 

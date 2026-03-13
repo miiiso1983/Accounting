@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
-import { ensureInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
+import { ensureInvoicePostingAccounts, getInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { prisma } from "@/lib/db/prisma";
 import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
@@ -67,6 +67,10 @@ export async function POST(req: Request) {
   const invoiceCurrency = body.currencyCode;
 
   try {
+    if (body.mode === "SEND") {
+      await ensureInvoicePostingAccounts(prisma, company.id);
+    }
+
     const created = await prisma.$transaction(async (tx) => {
       const customer = await tx.customer.findFirst({ where: { id: body.customerId, companyId: company.id }, select: { id: true } });
       if (!customer) throw new Error("Customer not found");
@@ -140,6 +144,7 @@ export async function POST(req: Request) {
 
       const subtotalBase = mulToBase(subtotal).toDecimalPlaces(6);
       const discountAmountBase = mulToBase(discountAmount).toDecimalPlaces(6);
+      const afterDiscountBase = subtotalBase.minus(discountAmountBase).toDecimalPlaces(6);
       const taxTotalBase = mulToBase(taxTotal).toDecimalPlaces(6);
       const totalBase = mulToBase(total).toDecimalPlaces(6);
 
@@ -179,16 +184,16 @@ export async function POST(req: Request) {
       });
 
       if (body.mode === "SEND") {
-        const accountsByCode = await ensureInvoicePostingAccountsTx(tx, company.id);
+        const accountsByCode = await getInvoicePostingAccountsTx(tx, company.id);
         const arId = mustGetPostingAccountIdByCode({ accountsByCode, code: "1200" });
         const salesId = mustGetPostingAccountIdByCode({ accountsByCode, code: "4100" });
         const vatId = mustGetPostingAccountIdByCode({ accountsByCode, code: "2250" });
 
         const postingLines = [
-          { accountId: arId, dc: "DEBIT" as const, amount: total.toFixed(6) },
-          { accountId: salesId, dc: "CREDIT" as const, amount: afterDiscount.toFixed(6) },
+          { accountId: arId, dc: "DEBIT" as const, amount: total.toFixed(6), amountBase: totalBase.toFixed(6) },
+          { accountId: salesId, dc: "CREDIT" as const, amount: afterDiscount.toFixed(6), amountBase: afterDiscountBase.toFixed(6) },
           ...(taxTotal.gt(0)
-            ? [{ accountId: vatId, dc: "CREDIT" as const, amount: taxTotal.toFixed(6) }]
+            ? [{ accountId: vatId, dc: "CREDIT" as const, amount: taxTotal.toFixed(6), amountBase: taxTotalBase.toFixed(6) }]
             : []),
         ];
 
@@ -206,6 +211,7 @@ export async function POST(req: Request) {
             accountId: l.accountId,
             dc: l.dc,
             amount: l.amount,
+            amountBase: l.amountBase,
             currencyCode: invoiceCurrency,
           })),
         });

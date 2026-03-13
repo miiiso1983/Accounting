@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 
-import { ensureInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
+import { ensureInvoicePostingAccounts, getInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { authOptions } from "@/lib/auth/options";
 import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { prisma } from "@/lib/db/prisma";
@@ -37,9 +37,13 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       baseCurrencyCode: true,
       exchangeRateId: true,
       subtotal: true,
+      subtotalBase: true,
       discountAmount: true,
+      discountAmountBase: true,
       taxTotal: true,
+      taxTotalBase: true,
       total: true,
+      totalBase: true,
       journalEntryId: true,
     },
   });
@@ -49,20 +53,23 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (invoice.status !== "DRAFT") return Response.json({ error: "Only DRAFT invoices can be sent" }, { status: 400 });
 
   try {
+    await ensureInvoicePostingAccounts(prisma, invoice.companyId);
+
     const posted = await prisma.$transaction(async (tx) => {
-      const accountsByCode = await ensureInvoicePostingAccountsTx(tx, invoice.companyId);
+      const accountsByCode = await getInvoicePostingAccountsTx(tx, invoice.companyId);
       const arId = mustGetPostingAccountIdByCode({ accountsByCode, code: "1200" });
       const salesId = mustGetPostingAccountIdByCode({ accountsByCode, code: "4100" });
       const vatId = mustGetPostingAccountIdByCode({ accountsByCode, code: "2250" });
 
-		const netSales = invoice.subtotal.minus(invoice.discountAmount);
-		const entryLines = [
-			{ accountId: arId, dc: "DEBIT" as const, amount: invoice.total.toFixed(6) },
-			{ accountId: salesId, dc: "CREDIT" as const, amount: netSales.toFixed(6) },
-			...(invoice.taxTotal.gt(0)
-				? [{ accountId: vatId, dc: "CREDIT" as const, amount: invoice.taxTotal.toFixed(6) }]
-				: []),
-		];
+      const netSales = invoice.subtotal.minus(invoice.discountAmount);
+      const netSalesBase = invoice.subtotalBase.minus(invoice.discountAmountBase).toDecimalPlaces(6);
+      const entryLines = [
+        { accountId: arId, dc: "DEBIT" as const, amount: invoice.total.toFixed(6), amountBase: invoice.totalBase.toFixed(6) },
+        { accountId: salesId, dc: "CREDIT" as const, amount: netSales.toFixed(6), amountBase: netSalesBase.toFixed(6) },
+        ...(invoice.taxTotal.gt(0)
+          ? [{ accountId: vatId, dc: "CREDIT" as const, amount: invoice.taxTotal.toFixed(6), amountBase: invoice.taxTotalBase.toFixed(6) }]
+          : []),
+      ];
 
       const entry = await createPostedJournalEntryTx(tx, {
         companyId: invoice.companyId,
@@ -78,6 +85,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
           accountId: l.accountId,
           dc: l.dc,
           amount: l.amount,
+          amountBase: l.amountBase,
           currencyCode: invoice.currencyCode,
         })),
       });

@@ -1,15 +1,32 @@
 import nodemailer from "nodemailer";
 
+type SmtpLikeError = Error & {
+  code?: string;
+  response?: string;
+  responseCode?: number;
+  command?: string;
+  errno?: string | number;
+  syscall?: string;
+  address?: string;
+  port?: number;
+};
+
 function createTransporter() {
   const host = process.env.SMTP_HOST || "smtp.office365.com";
   const port = Number(process.env.SMTP_PORT || "587");
   const secure = process.env.SMTP_SECURE === "true";
+  const debug = process.env.SMTP_DEBUG === "true";
 
   return nodemailer.createTransport({
     host,
     port,
     secure,
+    logger: debug,
+    debug,
     requireTLS: !secure && port === 587,
+    connectionTimeout: 20_000,
+    greetingTimeout: 20_000,
+    socketTimeout: 30_000,
     auth: {
       user: process.env.SMTP_USER || "",
       pass: process.env.SMTP_PASS || "",
@@ -35,6 +52,22 @@ export type SendEmailResult =
   | { ok: false; error: string };
 
 function getErrorMessage(err: unknown) {
+  if (err && typeof err === "object") {
+    const smtpError = err as Partial<SmtpLikeError>;
+    const parts = [smtpError.message].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+    if (smtpError.code) parts.push(`code=${smtpError.code}`);
+    if (typeof smtpError.responseCode === "number") parts.push(`responseCode=${smtpError.responseCode}`);
+    if (smtpError.command) parts.push(`command=${smtpError.command}`);
+    if (smtpError.response) parts.push(`response=${smtpError.response}`);
+    if (smtpError.syscall) parts.push(`syscall=${smtpError.syscall}`);
+    if (smtpError.address) parts.push(`address=${smtpError.address}`);
+    if (typeof smtpError.port === "number") parts.push(`port=${smtpError.port}`);
+    if (smtpError.errno) parts.push(`errno=${String(smtpError.errno)}`);
+
+    if (parts.length > 0) return parts.join(" | ");
+  }
+
   if (err instanceof Error && err.message) return err.message;
   if (typeof err === "string" && err.trim()) return err;
   return "Unknown SMTP error";
