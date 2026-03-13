@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
+import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -187,11 +188,11 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
       });
 
       return inv;
-    });
+    }, INTERACTIVE_TRANSACTION_OPTIONS);
 
     return Response.json({ id: updated.id }, { status: 200 });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
+    const message = readTransactionErrorMessage(e);
     return Response.json({ error: message }, { status: 400 });
   }
 }
@@ -225,11 +226,11 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
       await tx.invoiceLineItem.deleteMany({ where: { invoiceId: id } });
       // Delete the invoice
       await tx.invoice.delete({ where: { id } });
-    });
+    }, INTERACTIVE_TRANSACTION_OPTIONS);
 
     return Response.json({ success: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
+    const message = readTransactionErrorMessage(e);
     return Response.json({ error: message }, { status: 400 });
   }
 }

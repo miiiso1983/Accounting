@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 
 import { ensureInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { authOptions } from "@/lib/auth/options";
+import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { prisma } from "@/lib/db/prisma";
 import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -91,11 +92,11 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       });
 
       return entry;
-    });
+    }, INTERACTIVE_TRANSACTION_OPTIONS);
 
     return Response.json({ journalEntryId: posted.id }, { status: 200 });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
+    const message = readTransactionErrorMessage(e);
     return Response.json({ error: message }, { status: 400 });
   }
 }

@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
 import { ensureInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { prisma } from "@/lib/db/prisma";
+import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -213,11 +214,11 @@ export async function POST(req: Request) {
       }
 
       return invoice;
-    });
+    }, INTERACTIVE_TRANSACTION_OPTIONS);
 
     return Response.json({ id: created.id }, { status: 201 });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
+    const message = readTransactionErrorMessage(e);
     return Response.json({ error: message }, { status: 400 });
   }
 }
