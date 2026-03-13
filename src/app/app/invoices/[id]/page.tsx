@@ -119,6 +119,7 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
 	          status={invoice.status}
 	          hasJournalEntry={Boolean(invoice.journalEntryId)}
 	          canSendPermission={canSend}
+	          canDeletePermission={hasPermission(session, PERMISSIONS.INVOICE_WRITE)}
 	          customerEmail={invoice.customer?.email}
 	          customerPhone={invoice.customer?.phone}
 	        />

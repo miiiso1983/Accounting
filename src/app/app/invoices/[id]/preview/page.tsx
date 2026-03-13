@@ -87,9 +87,13 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
       <div className="print-page mx-auto max-w-[210mm] rounded-2xl border bg-white p-8 shadow-sm" dir="ltr">
         {/* Header */}
         <div className="flex items-start justify-between border-b pb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900">{company.name}</h1>
-            <p className="mt-1 text-sm text-zinc-500">Invoice / فاتورة</p>
+          <div className="flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Logo" width={72} height={72} className="rounded-lg object-contain" />
+            <div>
+              <h1 className="text-xl font-bold text-zinc-900">{company.name}</h1>
+              <p className="mt-1 text-sm text-zinc-500">Invoice / فاتورة</p>
+            </div>
           </div>
           <div className="text-right">
             <div className="text-xl font-bold text-sky-700">INVOICE</div>

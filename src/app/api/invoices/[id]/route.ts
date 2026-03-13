@@ -73,6 +73,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
 
+
   const issueDate = new Date(`${body.issueDate}T00:00:00.000Z`);
   const dueDate = body.dueDate ? new Date(`${body.dueDate}T00:00:00.000Z`) : null;
   const baseCurrencyCode = company.baseCurrencyCode;
@@ -193,3 +194,40 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   }
 }
 
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const session = await getServerSession(authOptions);
+  if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
+  if (!hasPermission(session, PERMISSIONS.INVOICE_WRITE)) {
+    return Response.json({ error: "Not authorized" }, { status: 403 });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
+  if (!user?.companyId) return Response.json({ error: "No company assigned" }, { status: 400 });
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, companyId: user.companyId },
+    select: { id: true, status: true, journalEntryId: true },
+  });
+
+  if (!invoice) return Response.json({ error: "Not found" }, { status: 404 });
+
+  // Only allow deleting DRAFT invoices (no journal entry posted)
+  if (invoice.status !== "DRAFT") {
+    return Response.json({ error: "Only DRAFT invoices can be deleted. Void posted invoices instead." }, { status: 400 });
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Delete line items first
+      await tx.invoiceLineItem.deleteMany({ where: { invoiceId: id } });
+      // Delete the invoice
+      await tx.invoice.delete({ where: { id } });
+    });
+
+    return Response.json({ success: true });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return Response.json({ error: message }, { status: 400 });
+  }
+}

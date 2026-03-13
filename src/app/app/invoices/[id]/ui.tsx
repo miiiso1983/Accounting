@@ -15,18 +15,21 @@ type Props = {
   status: string;
   hasJournalEntry: boolean;
   canSendPermission: boolean;
+  canDeletePermission: boolean;
   customerEmail?: string | null;
   customerPhone?: string | null;
 };
 
-export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPermission, customerEmail, customerPhone }: Props) {
+export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPermission, canDeletePermission, customerEmail, customerPhone }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [notifyLoading, setNotifyLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const canSend = canSendPermission && status === "DRAFT" && !hasJournalEntry;
+  const canDelete = canDeletePermission && status === "DRAFT";
 
   async function onSend() {
     setError(null);
@@ -43,6 +46,25 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
       router.refresh();
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onDelete() {
+    if (!confirm("هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء.\n\nAre you sure you want to delete this invoice? This cannot be undone.")) return;
+    setError(null);
+    setSuccess(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, { method: "DELETE" });
+      const data: unknown = await res.json();
+      if (!res.ok) {
+        setError(readErrorMessage(data) ?? "Failed to delete invoice");
+        return;
+      }
+      router.push("/app/invoices");
+      router.refresh();
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -107,6 +129,17 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
             disabled={notifyLoading !== null}
           >
             {notifyLoading === "whatsapp" ? "Sending..." : "📱 WhatsApp"}
+          </button>
+        )}
+
+        {canDelete && (
+          <button
+            type="button"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 hover:bg-red-100 disabled:opacity-50"
+            onClick={onDelete}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting..." : "🗑 Delete / حذف"}
           </button>
         )}
       </div>

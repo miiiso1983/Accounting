@@ -10,8 +10,8 @@ const prisma = new PrismaClient();
 async function main() {
   const company = await prisma.company.upsert({
     where: { id: "single-company" },
-    update: {},
-    create: { id: "single-company", name: "My Company", baseCurrencyCode: "IQD", secondaryCurrency: "USD" },
+    update: { name: "شركة التيم لتكنلوجيا المعلومات" },
+    create: { id: "single-company", name: "شركة التيم لتكنلوجيا المعلومات", baseCurrencyCode: "IQD", secondaryCurrency: "USD" },
   });
 
 	// Seed a starter Chart of Accounts (idempotent)
