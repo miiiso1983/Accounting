@@ -35,6 +35,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       baseCurrencyCode: true,
       exchangeRateId: true,
       subtotal: true,
+      discountAmount: true,
       taxTotal: true,
       total: true,
       journalEntryId: true,
@@ -59,9 +60,10 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       const salesId = mustGetPostingAccountIdByCode({ accountsByCode, code: "4100" });
       const vatId = mustGetPostingAccountIdByCode({ accountsByCode, code: "2250" });
 
+		const netSales = invoice.subtotal.minus(invoice.discountAmount);
 		const entryLines = [
 			{ accountId: arId, dc: "DEBIT" as const, amount: invoice.total.toFixed(6) },
-			{ accountId: salesId, dc: "CREDIT" as const, amount: invoice.subtotal.toFixed(6) },
+			{ accountId: salesId, dc: "CREDIT" as const, amount: netSales.toFixed(6) },
 			...(invoice.taxTotal.gt(0)
 				? [{ accountId: vatId, dc: "CREDIT" as const, amount: invoice.taxTotal.toFixed(6) }]
 				: []),

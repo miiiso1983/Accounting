@@ -2,19 +2,39 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 type CustomerOption = { id: string; name: string };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
-type Props = { customers: CustomerOption[]; products: ProductOption[]; baseCurrencyCode: "IQD" | "USD"; defaultCustomerId?: string };
+
+type InvoiceData = {
+  id: string;
+  invoiceNumber: string;
+  customerId: string;
+  issueDate: string;
+  dueDate: string;
+  currencyCode: "IQD" | "USD";
+  exchangeRate: string;
+  discountType: string;
+  discountValue: string;
+  lines: { description: string; quantity: string; unitPrice: string; taxRate: string }[];
+};
+
+type Props = {
+  invoiceId: string;
+  initialData: InvoiceData;
+  customers: CustomerOption[];
+  products: ProductOption[];
+  baseCurrencyCode: "IQD" | "USD";
+};
 
 const LineSchema = z.object({
   description: z.string().min(1),
   quantity: z.string().min(1),
   unitPrice: z.string().min(1),
-  taxRate: z.string().optional(), // e.g. 0.15
+  taxRate: z.string().optional(),
 });
 
 const FormSchema = z.object({
@@ -22,13 +42,10 @@ const FormSchema = z.object({
   customerId: z.string().min(1),
   issueDate: z.string().min(1),
   dueDate: z.string().optional(),
-
   currencyCode: z.enum(["IQD", "USD"]),
   exchangeRate: z.string().optional(),
-
   discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
   discountValue: z.string().optional(),
-
   lines: z.array(LineSchema).min(1),
 });
 
@@ -37,48 +54,40 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCustomerId }: Props) {
+export function InvoiceEditForm({ invoiceId, initialData, customers, products, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const initialCustomerId = useMemo(() => {
-    if (defaultCustomerId && customers.some((c) => c.id === defaultCustomerId)) return defaultCustomerId;
-    return customers[0]?.id ?? "";
-  }, [customers, defaultCustomerId]);
-
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      invoiceNumber: "",
-	      customerId: initialCustomerId,
-      issueDate: today,
-      dueDate: "",
-      currencyCode: baseCurrencyCode,
-      exchangeRate: "",
-      discountType: undefined,
-      discountValue: "",
-      lines: [{ description: "", quantity: "1", unitPrice: "", taxRate: "" }],
+      invoiceNumber: initialData.invoiceNumber,
+      customerId: initialData.customerId,
+      issueDate: initialData.issueDate,
+      dueDate: initialData.dueDate,
+      currencyCode: initialData.currencyCode,
+      exchangeRate: initialData.exchangeRate,
+      discountType: (initialData.discountType as "PERCENTAGE" | "FIXED") || undefined,
+      discountValue: initialData.discountValue || "",
+      lines: initialData.lines,
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
-
   const currencyCode = useWatch({ control: form.control, name: "currencyCode" });
   const showFx = currencyCode && currencyCode !== baseCurrencyCode;
 
-  async function submit(values: FormValues, mode: "DRAFT" | "SEND") {
+  async function submit(values: FormValues) {
     setServerError(null);
     const payload = {
       ...values,
-      mode,
       exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
       discountType: values.discountValue && Number(values.discountValue) > 0 ? (values.discountType || "FIXED") : undefined,
       discountValue: values.discountValue && Number(values.discountValue) > 0 ? values.discountValue : undefined,
     };
 
-    const res = await fetch("/api/invoices", {
-      method: "POST",
+    const res = await fetch(`/api/invoices/${invoiceId}`, {
+      method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -86,13 +95,13 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
     const data: unknown = await res.json();
     if (!res.ok) {
       const parsedErr = ApiErrSchema.safeParse(data);
-      setServerError(parsedErr.success ? parsedErr.data.error : "Failed to create invoice");
+      setServerError(parsedErr.success ? parsedErr.data.error : "Failed to update invoice");
       return;
     }
 
     const parsedOk = ApiOkSchema.safeParse(data);
     if (!parsedOk.success) {
-      setServerError("Created but no id returned");
+      setServerError("Updated but no id returned");
       return;
     }
 
@@ -108,30 +117,24 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <label className="text-sm font-medium text-zinc-700">Invoice #</label>
-            <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono" placeholder="INV-0001" {...form.register("invoiceNumber")} />
+            <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono" {...form.register("invoiceNumber")} />
           </div>
-
           <div>
             <label className="text-sm font-medium text-zinc-700">Customer</label>
-            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("customerId")}> 
+            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("customerId")}>
               {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
-
           <div>
             <label className="text-sm font-medium text-zinc-700">Issue date</label>
             <input className="mt-1 w-full rounded-xl border px-3 py-2" type="date" {...form.register("issueDate")} />
           </div>
-
           <div>
             <label className="text-sm font-medium text-zinc-700">Due date</label>
             <input className="mt-1 w-full rounded-xl border px-3 py-2" type="date" {...form.register("dueDate")} />
           </div>
-
           <div>
             <label className="text-sm font-medium text-zinc-700">Currency</label>
             <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("currencyCode")}>
@@ -139,7 +142,6 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
               <option value="USD">USD</option>
             </select>
           </div>
-
           {showFx ? (
             <div>
               <label className="text-sm font-medium text-zinc-700">Exchange rate</label>
@@ -148,7 +150,6 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
                 <input className="w-40 rounded-xl border px-3 py-2" placeholder="e.g. 1300" {...form.register("exchangeRate")} />
                 <div className="text-sm text-zinc-600">{baseCurrencyCode}</div>
               </div>
-              <div className="mt-1 text-xs text-zinc-500">We store it as: 1 {currencyCode} = rate {baseCurrencyCode}</div>
             </div>
           ) : null}
         </div>
@@ -183,7 +184,6 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
           <div className="mt-4 grid gap-3">
             {fields.map((f, idx) => (
               <div key={f.id} className="grid gap-3">
-                {/* Product selector */}
                 {products.length > 0 && (
                   <div>
                     <select
@@ -240,23 +240,22 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
 
         <div className="flex items-center gap-3">
           <button
-            className="rounded-xl border px-4 py-2 text-sm hover:bg-zinc-50"
-            type="button"
-            onClick={form.handleSubmit((v) => submit(v, "DRAFT"))}
-            disabled={customers.length === 0}
-          >
-            Save draft
-          </button>
-          <button
             className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
             type="button"
-            onClick={form.handleSubmit((v) => submit(v, "SEND"))}
-            disabled={customers.length === 0}
+            onClick={form.handleSubmit((v) => submit(v))}
           >
-            Send & post
+            Save changes
+          </button>
+          <button
+            className="rounded-xl border px-4 py-2 text-sm hover:bg-zinc-50"
+            type="button"
+            onClick={() => router.push(`/app/invoices/${invoiceId}`)}
+          >
+            Cancel
           </button>
         </div>
       </form>
     </div>
   );
 }
+

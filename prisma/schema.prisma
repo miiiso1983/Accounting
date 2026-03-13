@@ -353,10 +353,14 @@ model Invoice {
   exchangeRate      ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
 
   subtotal          Decimal      @db.Decimal(20, 6)
+  discountType      String?      // "PERCENTAGE" | "FIXED"
+  discountValue     Decimal      @default(0) @db.Decimal(20, 6)
+  discountAmount    Decimal      @default(0) @db.Decimal(20, 6)
   taxTotal          Decimal      @default(0) @db.Decimal(20, 6)
   total             Decimal      @db.Decimal(20, 6)
 
   subtotalBase      Decimal      @db.Decimal(20, 6)
+  discountAmountBase Decimal     @default(0) @db.Decimal(20, 6)
   taxTotalBase      Decimal      @default(0) @db.Decimal(20, 6)
   totalBase         Decimal      @db.Decimal(20, 6)
 

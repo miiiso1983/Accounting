@@ -40,6 +40,7 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
 
   if (!invoice) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
 	  const canSend = hasPermission(session, PERMISSIONS.INVOICE_SEND);
+	  const canEdit = hasPermission(session, PERMISSIONS.INVOICE_WRITE) && invoice.status === "DRAFT";
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -49,9 +50,19 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
           <div className="mt-1 text-base font-medium text-zinc-900">{invoice.invoiceNumber}</div>
           <div className="mt-1 text-xs text-zinc-500">Customer: {invoice.customer.name}</div>
         </div>
-        <Link className="text-sm underline text-zinc-700" href="/app/invoices">
-          Back
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" href={`/app/invoices/${invoice.id}/preview`}>
+            🖨 Preview
+          </Link>
+          {canEdit ? (
+            <Link className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" href={`/app/invoices/${invoice.id}/edit`}>
+              ✏️ Edit
+            </Link>
+          ) : null}
+          <Link className="text-sm underline text-zinc-700" href="/app/invoices">
+            Back
+          </Link>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -72,6 +83,17 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
           </div>
         </div>
       </div>
+
+      {Number(invoice.discountAmount) > 0 ? (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
+          <div className="text-xs text-amber-700">Discount / خصم</div>
+          <div className="mt-1 font-mono text-amber-900">
+            {invoice.discountType === "PERCENTAGE"
+              ? `${fmt(invoice.discountValue)}% = ${fmt(invoice.discountAmount)} ${invoice.currencyCode}`
+              : `${fmt(invoice.discountAmount)} ${invoice.currencyCode}`}
+          </div>
+        </div>
+      ) : null}
 
       {invoice.exchangeRate ? (
         <div className="mt-3 rounded-xl border p-3 text-sm">
@@ -97,6 +119,8 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
 	          status={invoice.status}
 	          hasJournalEntry={Boolean(invoice.journalEntryId)}
 	          canSendPermission={canSend}
+	          customerEmail={invoice.customer?.email}
+	          customerPhone={invoice.customer?.phone}
 	        />
       </div>
 
