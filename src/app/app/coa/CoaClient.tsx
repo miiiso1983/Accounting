@@ -143,7 +143,7 @@ export function CoaClient({
         {roots.map((r) => (
           <TreeRow key={r.id} node={r} depth={0} canWrite={canWrite} onAddChild={openCreate} onEdit={openEdit} onDelete={handleDelete} />
         ))}
-        {roots.length === 0 && <div className="text-zinc-400 text-center py-8">No accounts yet. Click "+ New Account" to begin.</div>}
+        {roots.length === 0 && <div className="text-zinc-400 text-center py-8">No accounts yet. Click &quot;+ New Account&quot; to begin.</div>}
       </div>
 
       {form && (
@@ -186,22 +186,22 @@ function TreeRow({
       >
         <button
           onClick={() => setExpanded((p) => !p)}
-          className="w-4 text-zinc-400 flex-shrink-0"
+          className="w-4 text-zinc-400 shrink-0"
         >
           {hasChildren ? (expanded ? "▾" : "▸") : "·"}
         </button>
-        <span className="w-20 font-mono text-xs text-zinc-500 flex-shrink-0">{node.code}</span>
-        <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${TYPE_COLORS[node.type]}`}>
+        <span className="w-20 font-mono text-xs text-zinc-500 shrink-0">{node.code}</span>
+        <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${TYPE_COLORS[node.type]}`}>
           {node.type}
         </span>
         <span className={`flex-1 ${node.isPosting ? "text-zinc-900" : "font-medium text-zinc-700"}`}>
           {node.name}
         </span>
         {!node.isPosting && (
-          <span className="text-xs text-zinc-400 flex-shrink-0">[Header]</span>
+          <span className="text-xs text-zinc-400 shrink-0">[Header]</span>
         )}
         {canWrite && (
-          <span className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+          <span className="hidden group-hover:flex items-center gap-1 shrink-0">
             <button
               onClick={() => onAddChild(node.id, node.type)}
               title="Add sub-account"
