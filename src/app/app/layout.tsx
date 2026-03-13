@@ -9,6 +9,7 @@ import {
   FileText,
   LayoutDashboard,
   NotebookPen,
+  Package,
   ReceiptText,
   Users,
   ShieldCheck,
@@ -51,6 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <NavItem href="/app/journal" icon={<NotebookPen className="h-4 w-4" aria-hidden />} label={t("nav.journal")} />
 	                <NavItem href="/app/reports" icon={<BarChart3 className="h-4 w-4" aria-hidden />} label={t("nav.reports")} />
                 <NavItem href="/app/customers" icon={<Users className="h-4 w-4" aria-hidden />} label={t("nav.customers")} />
+                <NavItem href="/app/products" icon={<Package className="h-4 w-4" aria-hidden />} label={t("nav.products")} />
                 <NavItem href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("nav.invoices")} />
 	                <NavItem href="/app/expenses" icon={<ReceiptText className="h-4 w-4" aria-hidden />} label={t("nav.expenses")} />
                 <NavItem href="/app/admin/users" icon={<ShieldCheck className="h-4 w-4" aria-hidden />} label={t("nav.users")} />
@@ -88,6 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <MobileNavChip href="/app/journal" label={t("nav.journal")} />
 	                <MobileNavChip href="/app/reports" label={t("nav.reports")} />
                 <MobileNavChip href="/app/customers" label={t("nav.customers")} />
+                <MobileNavChip href="/app/products" label={t("nav.products")} />
                 <MobileNavChip href="/app/invoices" label={t("nav.invoices")} />
 	                <MobileNavChip href="/app/expenses" label={t("nav.expenses")} />
                 <MobileNavChip href="/app/admin/users" label={t("nav.users")} />

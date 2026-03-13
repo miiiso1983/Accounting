@@ -7,7 +7,8 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 type CustomerOption = { id: string; name: string };
-type Props = { customers: CustomerOption[]; baseCurrencyCode: "IQD" | "USD"; defaultCustomerId?: string };
+type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
+type Props = { customers: CustomerOption[]; products: ProductOption[]; baseCurrencyCode: "IQD" | "USD"; defaultCustomerId?: string };
 
 const LineSchema = z.object({
   description: z.string().min(1),
@@ -33,7 +34,7 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function InvoiceForm({ customers, baseCurrencyCode, defaultCustomerId }: Props) {
+export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCustomerId }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -159,29 +160,54 @@ export function InvoiceForm({ customers, baseCurrencyCode, defaultCustomerId }: 
 
           <div className="mt-4 grid gap-3">
             {fields.map((f, idx) => (
-              <div key={f.id} className="grid gap-3 md:grid-cols-12">
-                <div className="md:col-span-5">
-                  <input className="w-full rounded-xl border px-3 py-2" placeholder="Description" {...form.register(`lines.${idx}.description` as const)} />
-                </div>
-                <div className="md:col-span-2">
-                  <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Qty" {...form.register(`lines.${idx}.quantity` as const)} />
-                </div>
-                <div className="md:col-span-3">
-                  <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Unit price" {...form.register(`lines.${idx}.unitPrice` as const)} />
-                </div>
-                <div className="md:col-span-1">
-                  <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Tax" {...form.register(`lines.${idx}.taxRate` as const)} />
-                </div>
-                <div className="md:col-span-1">
-                  <button
-                    type="button"
-                    className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-                    onClick={() => remove(idx)}
-                    disabled={fields.length <= 1}
-                    title={fields.length <= 1 ? "At least 1 line required" : "Remove"}
-                  >
-                    ×
-                  </button>
+              <div key={f.id} className="grid gap-3">
+                {/* Product selector */}
+                {products.length > 0 && (
+                  <div>
+                    <select
+                      className="w-full rounded-xl border px-3 py-2 text-sm text-zinc-600"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const prod = products.find((p) => p.id === e.target.value);
+                        if (prod) {
+                          form.setValue(`lines.${idx}.description`, prod.description || prod.name);
+                          form.setValue(`lines.${idx}.unitPrice`, prod.unitPrice);
+                        }
+                      }}
+                    >
+                      <option value="">— Select product / اختر منتج —</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.unitPrice} {p.currencyCode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="grid gap-3 md:grid-cols-12">
+                  <div className="md:col-span-5">
+                    <input className="w-full rounded-xl border px-3 py-2" placeholder="Description" {...form.register(`lines.${idx}.description` as const)} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Qty" {...form.register(`lines.${idx}.quantity` as const)} />
+                  </div>
+                  <div className="md:col-span-3">
+                    <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Unit price" {...form.register(`lines.${idx}.unitPrice` as const)} />
+                  </div>
+                  <div className="md:col-span-1">
+                    <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Tax" {...form.register(`lines.${idx}.taxRate` as const)} />
+                  </div>
+                  <div className="md:col-span-1">
+                    <button
+                      type="button"
+                      className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
+                      onClick={() => remove(idx)}
+                      disabled={fields.length <= 1}
+                      title={fields.length <= 1 ? "At least 1 line required" : "Remove"}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

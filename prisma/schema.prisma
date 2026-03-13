@@ -75,6 +75,7 @@ model Company {
   expenses           Expense[]
   journalEntries     JournalEntry[]
   attachments        Attachment[]
+  products           Product[]
 }
 
 // --- Auth.js / NextAuth v4 models (Prisma Adapter) ---
@@ -292,6 +293,26 @@ model JournalLine {
 
   @@index([journalEntryId])
   @@index([accountId])
+}
+
+// --- Products/Items ---
+
+model Product {
+  id            String       @id @default(cuid())
+  companyId     String
+  name          String
+  description   String?
+  unitPrice     Decimal      @db.Decimal(20, 6)
+  currencyCode  CurrencyCode @default(IQD)
+  isActive      Boolean      @default(true)
+
+  company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([companyId, isActive])
+  @@index([companyId, name])
 }
 
 // --- Sales/Invoicing ---

@@ -10,6 +10,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { InvoiceForm } from "./ui";
 
 type CustomerOption = { id: string; name: string };
+type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
 
 export default async function NewInvoicePage({
   searchParams,
@@ -32,12 +33,25 @@ export default async function NewInvoicePage({
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
-  const customers: CustomerOption[] = await prisma.customer.findMany({
-    where: { companyId },
-    orderBy: [{ name: "asc" }],
-    select: { id: true, name: true },
-    take: 500,
-  });
+  const [customers, productsRaw] = await Promise.all([
+    prisma.customer.findMany({
+      where: { companyId },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true },
+      take: 500,
+    }),
+    prisma.product.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true, description: true, unitPrice: true, currencyCode: true },
+      take: 500,
+    }),
+  ]);
+
+  const products: ProductOption[] = productsRaw.map((p) => ({
+    ...p,
+    unitPrice: String(p.unitPrice),
+  }));
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -52,7 +66,7 @@ export default async function NewInvoicePage({
       </div>
 
       <div className="mt-4">
-	        <InvoiceForm customers={customers} baseCurrencyCode={company.baseCurrencyCode} defaultCustomerId={defaultCustomerId} />
+        <InvoiceForm customers={customers} products={products} baseCurrencyCode={company.baseCurrencyCode} defaultCustomerId={defaultCustomerId} />
         {customers.length === 0 ? (
           <div className="mt-3 text-sm text-zinc-600">
             You have no customers yet. <Link className="underline" href="/app/customers/new">Create a customer</Link> first.
