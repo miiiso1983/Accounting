@@ -38,6 +38,16 @@ const LineSchema = z.object({
   taxRate: z.string().optional(),
 });
 
+const OptionalDiscountTypeSchema = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.enum(["PERCENTAGE", "FIXED"]).optional(),
+);
+
+const OptionalPaymentTermsSchema = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
+);
+
 const FormSchema = z.object({
   invoiceNumber: z.string().min(1),
   customerId: z.string().min(1),
@@ -45,16 +55,17 @@ const FormSchema = z.object({
   dueDate: z.string().optional(),
   currencyCode: z.enum(["IQD", "USD"]),
   exchangeRate: z.string().optional(),
-  discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+  discountType: OptionalDiscountTypeSchema,
   discountValue: z.string().optional(),
-  paymentTerms: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
+  paymentTerms: OptionalPaymentTermsSchema,
   lines: z.array(LineSchema).min(1),
 });
 
 const ApiOkSchema = z.object({ id: z.string().min(1) });
 const ApiErrSchema = z.object({ error: z.string().min(1) });
 
-type FormValues = z.infer<typeof FormSchema>;
+type FormValues = z.input<typeof FormSchema>;
+type SubmitValues = z.output<typeof FormSchema>;
 
 async function readResponseData(res: Response) {
   const text = await res.text();
@@ -71,7 +82,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormValues, undefined, SubmitValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       invoiceNumber: initialData.invoiceNumber,
@@ -80,18 +91,20 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
       dueDate: initialData.dueDate,
       currencyCode: initialData.currencyCode,
       exchangeRate: initialData.exchangeRate,
-      discountType: (initialData.discountType as "PERCENTAGE" | "FIXED") || undefined,
+      discountType: initialData.discountType || "",
       discountValue: initialData.discountValue || "",
-      paymentTerms: (initialData.paymentTerms as "MONTHLY" | "QUARTERLY" | "YEARLY") || undefined,
+      paymentTerms: initialData.paymentTerms || "",
       lines: initialData.lines,
     },
   });
+
+  const { errors, isSubmitting } = form.formState;
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const currencyCode = useWatch({ control: form.control, name: "currencyCode" });
   const showFx = currencyCode && currencyCode !== baseCurrencyCode;
 
-  async function submit(values: FormValues) {
+  async function submit(values: SubmitValues) {
     setServerError(null);
     const payload = {
       ...values,
@@ -133,6 +146,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
           <div>
             <label className="text-sm font-medium text-zinc-700">Invoice #</label>
             <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono" {...form.register("invoiceNumber")} />
+            {errors.invoiceNumber ? <div className="mt-1 text-xs text-red-600">Invoice number is required.</div> : null}
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700">Customer</label>
@@ -233,12 +247,15 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
                 <div className="grid gap-3 md:grid-cols-12">
                   <div className="md:col-span-5">
                     <input className="w-full rounded-xl border px-3 py-2" placeholder="Description" {...form.register(`lines.${idx}.description` as const)} />
+                    {errors.lines?.[idx]?.description ? <div className="mt-1 text-xs text-red-600">Description is required.</div> : null}
                   </div>
                   <div className="md:col-span-2">
                     <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Qty" {...form.register(`lines.${idx}.quantity` as const)} />
+                    {errors.lines?.[idx]?.quantity ? <div className="mt-1 text-xs text-red-600">Qty is required.</div> : null}
                   </div>
                   <div className="md:col-span-3">
                     <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Unit price" {...form.register(`lines.${idx}.unitPrice` as const)} />
+                    {errors.lines?.[idx]?.unitPrice ? <div className="mt-1 text-xs text-red-600">Unit price is required.</div> : null}
                   </div>
                   <div className="md:col-span-1">
                     <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Tax" {...form.register(`lines.${idx}.taxRate` as const)} />
@@ -266,9 +283,10 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
           <button
             className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
             type="button"
-            onClick={form.handleSubmit((v) => submit(v))}
+            onClick={form.handleSubmit((v) => submit(v), () => setServerError("Please complete the required invoice fields before saving."))}
+            disabled={isSubmitting}
           >
-            Save changes
+            {isSubmitting ? "Saving..." : "Save changes"}
           </button>
           <button
             className="rounded-xl border px-4 py-2 text-sm hover:bg-zinc-50"
