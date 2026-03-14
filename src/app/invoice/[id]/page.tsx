@@ -1,15 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
+
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
-import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
-import { buildPublicInvoiceUrl } from "@/lib/invoices/public-link";
-import { hasPermission } from "@/lib/rbac/authorize";
-import { PERMISSIONS } from "@/lib/rbac/permissions";
-import { PrintButton } from "./print-button";
+import { buildPublicInvoiceUrl, hasValidPublicInvoiceAccess } from "@/lib/invoices/public-link";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
@@ -30,73 +31,50 @@ async function getLogoDataUrl() {
   }
 }
 
-export default async function InvoicePreviewPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PublicInvoicePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
-  if (!hasPermission(session, PERMISSIONS.INVOICE_READ)) {
-    return <div className="p-5 text-sm">Not authorized.</div>;
-  }
+  const sp = (await searchParams) ?? {};
+  const access = typeof sp.access === "string" ? sp.access : null;
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
-  const companyId = user?.companyId;
-  if (!companyId) return <div className="p-5 text-sm">No company assigned.</div>;
+  if (!hasValidPublicInvoiceAccess(id, access)) notFound();
 
-  const [invoice, company] = await Promise.all([
-    prisma.invoice.findFirst({
-      where: { id, companyId },
-      include: { customer: true, lineItems: true },
-    }),
-    prisma.company.findUnique({ where: { id: companyId } }),
-  ]);
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    include: { company: true, customer: true, lineItems: true },
+  });
 
-  if (!invoice || !company) return <div className="p-5 text-sm">Not found.</div>;
+  if (!invoice) notFound();
 
-  // Generate QR code — use a public signed URL so scanning opens the invoice without login
   const qrPayload = buildPublicInvoiceUrl(id);
-
-  let qrDataUrl = "";
-  try {
-    qrDataUrl = await QRCode.toDataURL(qrPayload, { width: 120, margin: 1 });
-    // Update qrPayload in DB
-    await prisma.invoice.update({ where: { id }, data: { qrPayload } });
-  } catch {
-    // QR generation failed, continue without it
-  }
+  const [logoDataUrl, qrDataUrl] = await Promise.all([
+    getLogoDataUrl(),
+    QRCode.toDataURL(qrPayload, { width: 120, margin: 1 }).catch(() => ""),
+  ]);
 
   const subtotal = Number(invoice.subtotal);
   const discountAmt = Number(invoice.discountAmount);
   const taxTotal = Number(invoice.taxTotal);
   const total = Number(invoice.total);
-  const logoDataUrl = await getLogoDataUrl();
 
   return (
     <>
       <style>{`
-        @media print {
-          body { background: white !important; }
-          .no-print { display: none !important; }
-          .print-page { box-shadow: none !important; margin: 0 !important; border-radius: 0 !important; }
-        }
+        body { background: white !important; }
         @page { size: A4; margin: 15mm; }
       `}</style>
 
-      {/* Action bar */}
-      <div className="no-print mb-4 flex items-center gap-3 px-4">
-        <a href={`/app/invoices/${id}`} className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50">
-          ← Back
-        </a>
-        <PrintButton />
-      </div>
-
-      {/* Invoice */}
-      <div className="print-page mx-auto max-w-[210mm] rounded-2xl border bg-white p-8 shadow-sm" dir="ltr">
-        {/* Header */}
+      <div className="mx-auto max-w-[210mm] rounded-2xl border bg-white p-8 shadow-sm" dir="ltr">
         <div className="flex items-start justify-between border-b pb-6">
           <div className="flex items-center gap-4">
             {logoDataUrl ? <img src={logoDataUrl} alt="Logo" width={72} height={72} className="rounded-lg object-contain" /> : null}
             <div>
-              <h1 className="text-xl font-bold text-zinc-900">{company.name}</h1>
+              <h1 className="text-xl font-bold text-zinc-900">{invoice.company.name}</h1>
               <p className="mt-1 text-sm text-zinc-500">Invoice / فاتورة</p>
             </div>
           </div>
@@ -107,11 +85,10 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        {/* Info grid */}
         <div className="mt-6 grid grid-cols-2 gap-6">
           <div>
             <div className="text-xs font-semibold uppercase text-zinc-400">Bill To / فاتورة إلى</div>
-            <div className="mt-2 text-sm text-zinc-900 font-medium">{invoice.customer.name}</div>
+            <div className="mt-2 text-sm font-medium text-zinc-900">{invoice.customer.name}</div>
             {invoice.customer.email && <div className="text-sm text-zinc-600">{invoice.customer.email}</div>}
             {invoice.customer.phone && <div className="text-sm text-zinc-600">{invoice.customer.phone}</div>}
             {invoice.customer.address1 && <div className="text-sm text-zinc-600">{invoice.customer.address1}</div>}
@@ -124,7 +101,7 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
               <div><span className="text-zinc-400">Status / الحالة:</span> <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-700" : invoice.status === "SENT" ? "bg-sky-100 text-sky-700" : "bg-zinc-100 text-zinc-700"}`}>{invoice.status}</span></div>
               <div><span className="text-zinc-400">Currency / العملة:</span> <span className="font-mono">{invoice.currencyCode}</span></div>
               {invoice.paymentTerms && (
-                <div><span className="text-zinc-400">Payment / الدفع:</span> <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700`}>
+                <div><span className="text-zinc-400">Payment / الدفع:</span> <span className="inline-block rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
                   {invoice.paymentTerms === "MONTHLY" ? "Monthly / شهري" : invoice.paymentTerms === "QUARTERLY" ? "Quarterly / ربع سنوي" : "Yearly / سنوي"}
                 </span></div>
               )}
@@ -132,7 +109,6 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        {/* Line items table */}
         <div className="mt-8">
           <table className="w-full text-sm">
             <thead>
@@ -153,14 +129,13 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
                   <td className="py-3 text-right font-mono text-zinc-700">{fmt(li.quantity)}</td>
                   <td className="py-3 text-right font-mono text-zinc-700">{fmt(li.unitPrice)}</td>
                   <td className="py-3 text-right font-mono text-zinc-700">{li.taxRate ? `${fmt(Number(li.taxRate) * 100)}%` : "-"}</td>
-                  <td className="py-3 text-right font-mono text-zinc-900 font-medium">{fmt(li.lineTotal)}</td>
+                  <td className="py-3 text-right font-mono font-medium text-zinc-900">{fmt(li.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* Totals */}
         <div className="mt-6 flex justify-end">
           <div className="w-72">
             <div className="flex justify-between border-b py-2 text-sm">
@@ -186,16 +161,15 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        {/* QR Code & Footer */}
         <div className="mt-8 flex items-end justify-between border-t pt-6">
-          <div className="text-xs text-zinc-400 max-w-xs">
+          <div className="max-w-xs text-xs text-zinc-400">
             <p>Thank you for your business / شكراً لتعاملكم معنا</p>
-            <p className="mt-1">This invoice was generated by {company.name}</p>
+            <p className="mt-1">This invoice was generated by {invoice.company.name}</p>
           </div>
           {qrDataUrl && (
             <div className="text-center">
               <img src={qrDataUrl} alt="QR Code" width={120} height={120} />
-              <div className="mt-1 text-xs text-zinc-400">Scan for details</div>
+              <div className="mt-1 text-xs text-zinc-400">Scan to open invoice</div>
             </div>
           )}
         </div>
@@ -203,4 +177,3 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
     </>
   );
 }
-

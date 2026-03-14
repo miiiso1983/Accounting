@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { generateInvoicePdf } from "@/lib/invoices/pdf";
+import { buildPublicInvoiceUrl } from "@/lib/invoices/public-link";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { sendEmail, buildInvoiceCreatedEmail } from "@/lib/notifications/email";
@@ -41,8 +42,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!parsed.success) return Response.json({ error: "Invalid channel" }, { status: 400 });
 
   const { channel } = parsed.data;
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "https://phpstack-1510634-6273369.cloudwaysapps.com";
-  const invoiceUrl = `${baseUrl}/app/invoices/${invoice.id}/preview`;
+  const invoiceUrl = buildPublicInvoiceUrl(invoice.id);
 
   const notifData = {
     companyName: invoice.company.name,
