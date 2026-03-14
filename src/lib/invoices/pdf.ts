@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import fontkit from "@pdf-lib/fontkit";
+import bidiFactory from "bidi-js";
+import { ArabicShaper } from "arabic-persian-reshaper";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 const PAGE_WIDTH = 595.28;
@@ -20,6 +23,9 @@ const COLORS = {
   panel: rgb(0.96, 0.98, 1),
   success: rgb(0.06, 0.62, 0.35),
 };
+
+const bidi = bidiFactory();
+const ARABIC_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 export type InvoicePdfData = {
   companyName: string;
@@ -52,22 +58,97 @@ function formatAmount(value: number) {
   return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "-";
 }
 
+type PreparedText = {
+  text: string;
+  rtl: boolean;
+};
+
 function safePdfText(value: string | null | undefined, fallback = "-") {
   const normalized = (value ?? "")
-    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return normalized || fallback;
 }
 
-function truncateText(text: string, maxWidth: number, font: PDFFont, size: number) {
+function containsArabic(value: string) {
+  return ARABIC_REGEX.test(value);
+}
+
+function reorderRtlText(text: string) {
+  const embeddingLevels = bidi.getEmbeddingLevels(text, "rtl");
+  const chars = text.split("");
+  const mirroredChars = bidi.getMirroredCharactersMap(text, embeddingLevels);
+
+  mirroredChars.forEach((char, index) => {
+    chars[index] = char;
+  });
+
+  bidi.getReorderSegments(text, embeddingLevels).forEach(([start, end]) => {
+    const reversed = chars.slice(start, end + 1).reverse();
+    chars.splice(start, end - start + 1, ...reversed);
+  });
+
+  return chars.join("");
+}
+
+function preparePdfText(value: string | null | undefined, fallback = "-"): PreparedText {
+  const normalized = safePdfText(value, fallback);
+  if (!containsArabic(normalized)) {
+    return { text: normalized, rtl: false };
+  }
+
+  try {
+    return { text: reorderRtlText(ArabicShaper.convertArabic(normalized)), rtl: true };
+  } catch {
+    return { text: normalized, rtl: false };
+  }
+}
+
+function truncateText(text: string, maxWidth: number, font: PDFFont, size: number, rtl = false) {
   if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
   const ellipsis = "...";
   let out = text;
+
+  if (rtl) {
+    while (out.length > 1 && font.widthOfTextAtSize(`${ellipsis}${out}`, size) > maxWidth) {
+      out = out.slice(1);
+    }
+    return `${ellipsis}${out}`;
+  }
+
   while (out.length > 1 && font.widthOfTextAtSize(`${out}${ellipsis}`, size) > maxWidth) {
     out = out.slice(0, -1);
   }
   return `${out}${ellipsis}`;
+}
+
+function selectFont(prepared: PreparedText, font: PDFFont, arabicFont: PDFFont) {
+  return prepared.rtl ? arabicFont : font;
+}
+
+function drawPreparedText(
+  page: PDFPage,
+  prepared: PreparedText,
+  options: {
+    x: number;
+    y: number;
+    size: number;
+    font: PDFFont;
+    arabicFont: PDFFont;
+    color: ReturnType<typeof rgb>;
+    maxWidth?: number;
+    boxWidth?: number;
+  },
+) {
+  const activeFont = selectFont(prepared, options.font, options.arabicFont);
+  const text = options.maxWidth ? truncateText(prepared.text, options.maxWidth, activeFont, options.size, prepared.rtl) : prepared.text;
+  const width = activeFont.widthOfTextAtSize(text, options.size);
+  const x = prepared.rtl && options.boxWidth ? options.x + Math.max(options.boxWidth - width, 0) : options.x;
+
+  page.drawText(text, { x, y: options.y, size: options.size, font: activeFont, color: options.color });
+
+  return { text, width, font: activeFont, x };
 }
 
 function drawLabelValue(page: PDFPage, label: string, value: string, x: number, y: number, labelWidth: number, font: PDFFont, bold: PDFFont) {
@@ -83,6 +164,12 @@ async function loadLogoBytes() {
   }
 }
 
+async function loadArabicFontBytes(weight: "regular" | "bold") {
+  const folder = weight === "bold" ? "700Bold" : "400Regular";
+  const filename = weight === "bold" ? "NotoNaskhArabic_700Bold.ttf" : "NotoNaskhArabic_400Regular.ttf";
+  return readFile(join(process.cwd(), "node_modules", "@expo-google-fonts", "noto-naskh-arabic", folder, filename));
+}
+
 function paymentTermsLabel(paymentTerms?: string | null) {
   if (paymentTerms === "MONTHLY") return "Monthly";
   if (paymentTerms === "QUARTERLY") return "Quarterly";
@@ -92,6 +179,7 @@ function paymentTermsLabel(paymentTerms?: string | null) {
 
 export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
   pdfDoc.setTitle(`Invoice ${data.invoiceNumber}`);
   pdfDoc.setAuthor(data.companyName);
   pdfDoc.setCreator("Accounting App");
@@ -99,6 +187,8 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> 
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const arabicFont = await pdfDoc.embedFont(await loadArabicFontBytes("regular"), { subset: true });
+  const arabicBold = await pdfDoc.embedFont(await loadArabicFontBytes("bold"), { subset: true });
   const logoBytes = await loadLogoBytes();
   const logo = logoBytes ? await pdfDoc.embedPng(logoBytes).catch(() => null) : null;
 
@@ -118,10 +208,19 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> 
     page.drawImage(logo, { x: MARGIN, y: y - 56, width: 56, height: 56 });
   }
 
-  const companyName = safePdfText(data.companyName, "Company");
+  const companyName = preparePdfText(data.companyName, "Company");
   const invoiceTitle = safePdfText(`INVOICE ${data.invoiceNumber}`, "INVOICE");
   const companyX = logo ? MARGIN + 72 : MARGIN;
-  page.drawText(companyName, { x: companyX, y: y - 6, size: 16, font: bold, color: COLORS.ink });
+  drawPreparedText(page, companyName, {
+    x: companyX,
+    y: y - 6,
+    size: 16,
+    font: bold,
+    arabicFont: arabicBold,
+    color: COLORS.ink,
+    boxWidth: 220,
+    maxWidth: 220,
+  });
   page.drawText("Invoice attachment", { x: companyX, y: y - 24, size: FONT_SIZE, font, color: COLORS.muted });
   const titleWidth = bold.widthOfTextAtSize(invoiceTitle, HEADER_FONT_SIZE);
   page.drawText(invoiceTitle, { x: PAGE_WIDTH - MARGIN - titleWidth, y: y - 6, size: HEADER_FONT_SIZE, font: bold, color: COLORS.accent });
@@ -135,19 +234,22 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> 
   y -= 18;
 
   const customerLines = [
-    safePdfText(data.customerName, "Customer"),
-    safePdfText(data.customerEmail, ""),
-    safePdfText(data.customerPhone, ""),
-    ...data.customerAddressLines.map((line) => safePdfText(line, "")),
+    preparePdfText(data.customerName, "Customer"),
+    preparePdfText(data.customerEmail, ""),
+    preparePdfText(data.customerPhone, ""),
+    ...data.customerAddressLines.map((line) => preparePdfText(line, "")),
   ].filter(Boolean);
 
   customerLines.slice(0, 5).forEach((line, index) => {
-    page.drawText(line, {
+    drawPreparedText(page, line, {
       x: MARGIN,
       y: y - index * LINE_HEIGHT,
       size: FONT_SIZE,
       font: index === 0 ? bold : font,
+      arabicFont: index === 0 ? arabicBold : arabicFont,
       color: index === 0 ? COLORS.ink : COLORS.muted,
+      boxWidth: 240,
+      maxWidth: 240,
     });
   });
 
@@ -194,9 +296,9 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> 
 
     page.drawLine({ start: { x: MARGIN, y: y - 2 }, end: { x: PAGE_WIDTH - MARGIN, y: y - 2 }, thickness: 1, color: COLORS.border });
     let x = MARGIN + 6;
-    const description = truncateText(safePdfText(item.description, `Item ${index + 1}`), TABLE_COLUMNS.description - 12, font, SMALL_FONT_SIZE);
+    const description = preparePdfText(item.description, `Item ${index + 1}`);
     const tax = item.taxRate ? `${formatAmount(item.taxRate * 100)}%` : "-";
-    const values = [
+    const values: Array<string | PreparedText> = [
       String(index + 1),
       description,
       formatAmount(item.quantity),
@@ -207,14 +309,27 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> 
 
     values.forEach((value, valueIndex) => {
       const width = widths[valueIndex]! - 12;
-      const rendered = valueIndex === 1 ? value : truncateText(value, width, font, SMALL_FONT_SIZE);
-      page.drawText(rendered, {
-        x,
-        y: y - 13,
-        size: SMALL_FONT_SIZE,
-        font: valueIndex === 5 ? bold : font,
-        color: COLORS.ink,
-      });
+      if (valueIndex === 1 && typeof value !== "string") {
+        drawPreparedText(page, value, {
+          x,
+          y: y - 13,
+          size: SMALL_FONT_SIZE,
+          font,
+          arabicFont,
+          color: COLORS.ink,
+          boxWidth: width,
+          maxWidth: width,
+        });
+      } else if (typeof value === "string") {
+        const rendered = truncateText(value, width, valueIndex === 5 ? bold : font, SMALL_FONT_SIZE);
+        page.drawText(rendered, {
+          x,
+          y: y - 13,
+          size: SMALL_FONT_SIZE,
+          font: valueIndex === 5 ? bold : font,
+          color: COLORS.ink,
+        });
+      }
       x += widths[valueIndex]!;
     });
 
@@ -254,7 +369,7 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> 
   y -= 14;
   page.drawText(truncateText(safePdfText(data.invoiceUrl), CONTENT_WIDTH, font, SMALL_FONT_SIZE), { x: MARGIN, y, size: SMALL_FONT_SIZE, font, color: COLORS.success });
   y -= 18;
-  page.drawText("Note: non-Latin characters may appear simplified in this PDF attachment.", { x: MARGIN, y, size: 8, font, color: COLORS.muted });
+  page.drawText("Embedded Arabic font support enabled for customer-facing text.", { x: MARGIN, y, size: 8, font, color: COLORS.muted });
 
   return Buffer.from(await pdfDoc.save());
 }
