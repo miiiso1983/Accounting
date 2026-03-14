@@ -56,12 +56,15 @@ export function ImportClient({ labels }: Props) {
   return (
     <div className="mt-4 space-y-4">
       <div className="flex items-center gap-3">
-        <a
-          href="/api/customers/import"
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = "/api/customers/import";
+          }}
           className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-sky-50 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
         >
           ↓ {labels.downloadTemplate}
-        </a>
+        </button>
       </div>
 
       <div

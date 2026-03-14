@@ -37,6 +37,7 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
   });
 
   if (!customer) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
+  const canWrite = hasPermission(session, PERMISSIONS.INVOICE_WRITE);
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -48,6 +49,11 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
           <div className="mt-1 text-xs text-zinc-500">{customer.email ?? ""}</div>
         </div>
         <div className="flex items-center gap-3">
+          {canWrite ? (
+            <Link className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50" href={`/app/customers/${customer.id}/edit`}>
+              Edit customer
+            </Link>
+          ) : null}
           <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href={`/app/invoices/new?customerId=${customer.id}`}>
             New invoice
           </Link>

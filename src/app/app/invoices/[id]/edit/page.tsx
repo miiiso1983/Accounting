@@ -9,7 +9,6 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 import { InvoiceEditForm } from "./ui";
 
-type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
 
 export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
