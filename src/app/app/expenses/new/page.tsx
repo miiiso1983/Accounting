@@ -10,6 +10,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { ExpenseForm } from "./ui";
 
 type AccountOption = { id: string; code: string; name: string };
+type ProductOption = { id: string; name: string };
 
 export default async function NewExpensePage() {
   const session = await getServerSession(authOptions);
@@ -26,7 +27,7 @@ export default async function NewExpensePage() {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
-  const [expenseAccounts, paymentAccounts] = await Promise.all([
+  const [expenseAccounts, paymentAccounts, products] = await Promise.all([
     prisma.glAccount.findMany({
       where: { companyId, type: "EXPENSE", isPosting: true },
       orderBy: [{ code: "asc" }],
@@ -42,6 +43,12 @@ export default async function NewExpensePage() {
       orderBy: [{ code: "asc" }],
       select: { id: true, code: true, name: true },
       take: 20,
+    }),
+    prisma.product.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true },
+      take: 500,
     }),
   ]);
 
@@ -61,6 +68,7 @@ export default async function NewExpensePage() {
         <ExpenseForm
           expenseAccounts={expenseAccounts as AccountOption[]}
           paymentAccounts={paymentAccounts as AccountOption[]}
+          products={products as ProductOption[]}
           baseCurrencyCode={company.baseCurrencyCode}
         />
 

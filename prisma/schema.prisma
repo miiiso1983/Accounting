@@ -333,6 +333,7 @@ model Product {
   isActive      Boolean      @default(true)
 
   company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  expenses      Expense[]
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -468,6 +469,10 @@ model Expense {
   vendorName        String?
   description       String?
 
+  // Optional link to the product/item this expense was spent on
+  productId         String?
+  product           Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+
   currencyCode      CurrencyCode
   baseCurrencyCode  CurrencyCode
   exchangeRateId    String?
@@ -492,6 +497,7 @@ model Expense {
 
   @@index([companyId, expenseDate])
   @@index([companyId, status])
+  @@index([companyId, productId])
 }
 
 // --- Attachments (invoices + expenses) ---

@@ -9,9 +9,11 @@ import { z } from "zod";
 import { MAX_EXPENSE_ATTACHMENTS } from "@/lib/attachments/constants";
 
 type AccountOption = { id: string; code: string; name: string };
+type ProductOption = { id: string; name: string };
 type Props = {
   expenseAccounts: AccountOption[];
   paymentAccounts: AccountOption[];
+  products: ProductOption[];
   baseCurrencyCode: "IQD" | "USD";
 };
 
@@ -20,6 +22,7 @@ const FormSchema = z.object({
   expenseDate: z.string().min(1),
   vendorName: z.string().optional(),
   description: z.string().optional(),
+  productId: z.string().optional(),
   expenseAccountId: z.string().min(1),
   creditAccountId: z.string().min(1),
   currencyCode: z.enum(["IQD", "USD"]),
@@ -32,7 +35,7 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function ExpenseForm({ expenseAccounts, paymentAccounts, baseCurrencyCode }: Props) {
+export function ExpenseForm({ expenseAccounts, paymentAccounts, products, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -48,6 +51,7 @@ export function ExpenseForm({ expenseAccounts, paymentAccounts, baseCurrencyCode
       expenseDate: today,
       vendorName: "",
       description: "",
+      productId: "",
       expenseAccountId: defaultExpenseAccountId,
       creditAccountId: defaultPaymentAccountId,
       currencyCode: baseCurrencyCode,
@@ -77,6 +81,7 @@ export function ExpenseForm({ expenseAccounts, paymentAccounts, baseCurrencyCode
     payload.set("expenseDate", values.expenseDate);
     payload.set("vendorName", values.vendorName || "");
     payload.set("description", values.description || "");
+    payload.set("productId", values.productId || "");
     payload.set("expenseAccountId", values.expenseAccountId);
     payload.set("creditAccountId", values.creditAccountId);
     payload.set("currencyCode", values.currencyCode);
@@ -134,6 +139,21 @@ export function ExpenseForm({ expenseAccounts, paymentAccounts, baseCurrencyCode
             <label className="text-sm font-medium text-zinc-700">Vendor</label>
             <input className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Vendor name" {...form.register("vendorName")} />
           </div>
+
+          {products.length > 0 ? (
+            <div>
+              <label className="text-sm font-medium text-zinc-700">Product</label>
+              <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("productId")} defaultValue="">
+                <option value="">— None / بدون —</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <div className="mt-1 text-xs text-zinc-500">Optional: link this expense to a product/item.</div>
+            </div>
+          ) : null}
 
           <div>
             <label className="text-sm font-medium text-zinc-700">Category (expense account)</label>

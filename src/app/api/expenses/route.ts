@@ -17,6 +17,7 @@ const BodySchema = z.object({
   expenseDate: z.string().min(1),
   vendorName: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
+  productId: z.string().optional().or(z.literal("")),
   currencyCode: z.enum(["IQD", "USD"]),
   exchangeRate: z
     .object({
@@ -60,6 +61,7 @@ async function parseRequest(req: Request): Promise<{ body: ExpenseBody; attachme
       expenseDate: getFormString(formData, "expenseDate"),
       vendorName: getFormString(formData, "vendorName"),
       description: getFormString(formData, "description"),
+      productId: getFormString(formData, "productId"),
       currencyCode: getFormString(formData, "currencyCode"),
       exchangeRate: exchangeRate ? { rate: exchangeRate } : undefined,
       total: getFormString(formData, "total"),
@@ -135,6 +137,17 @@ export async function POST(req: Request) {
       if (!creditAccount) throw new Error("Credit account not found");
       if (!creditAccount.isPosting) throw new Error("Credit account must be a posting account");
 
+      let productId: string | null = null;
+      const requestedProductId = body.productId?.trim();
+      if (requestedProductId) {
+        const product = await tx.product.findFirst({
+          where: { id: requestedProductId, companyId: company.id, isActive: true },
+          select: { id: true },
+        });
+        if (!product) throw new Error("Product not found");
+        productId = product.id;
+      }
+
       let exchangeRateId: string | null = null;
       let rateDecimal: Prisma.Decimal | null = null;
       if (expenseCurrency !== baseCurrencyCode) {
@@ -167,6 +180,7 @@ export async function POST(req: Request) {
           expenseDate,
           vendorName: body.vendorName || null,
           description: body.description || null,
+          productId,
           currencyCode: expenseCurrency,
           baseCurrencyCode,
           exchangeRateId,
