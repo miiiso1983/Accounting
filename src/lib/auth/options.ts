@@ -9,6 +9,11 @@ async function getUserAuthz(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
+      permissions: {
+        include: {
+          permission: true,
+        },
+      },
       roles: {
         include: {
           role: {
@@ -21,7 +26,9 @@ async function getUserAuthz(userId: string) {
     },
   });
   const roleKeys = user?.roles.map((r) => r.role.key) ?? [];
-  const permissionKeys = user?.roles.flatMap((r) => r.role.permissions.map((p) => p.permission.key)) ?? [];
+  const rolePermissionKeys = user?.roles.flatMap((r) => r.role.permissions.map((p) => p.permission.key)) ?? [];
+  const directPermissionKeys = user?.permissions.map((p) => p.permission.key) ?? [];
+  const permissionKeys = Array.from(new Set([...rolePermissionKeys, ...directPermissionKeys]));
   return { roleKeys, permissionKeys };
 }
 
@@ -55,7 +62,7 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      const userId = user?.id;
+      const userId = typeof user?.id === "string" && user.id.length > 0 ? user.id : token.sub;
       if (typeof userId === "string" && userId.length > 0) {
         token.sub = userId;
         const authz = await getUserAuthz(userId);

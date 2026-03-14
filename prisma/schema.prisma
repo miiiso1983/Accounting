@@ -96,6 +96,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   roles         UserRole[]
+  permissions   UserPermission[]
 
   // Operational links
   createdJournalEntries JournalEntry[]
@@ -160,6 +161,7 @@ model Permission {
   description String?
 
   roles       RolePermission[]
+  users       UserPermission[]
 }
 
 model UserRole {
@@ -170,6 +172,16 @@ model UserRole {
   role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
 }
 
 model RolePermission {

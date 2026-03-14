@@ -6,7 +6,8 @@ import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 const BodySchema = z.object({
-  roleIds: z.array(z.string()),
+  roleIds: z.array(z.string()).default([]),
+  permissionIds: z.array(z.string()).default([]),
 });
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -31,13 +32,33 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const parsed = BodySchema.safeParse(json);
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { roleIds } = parsed.data;
+  const roleIds = Array.from(new Set(parsed.data.roleIds));
+  const permissionIds = Array.from(new Set(parsed.data.permissionIds));
 
-  // Replace all roles for this user
+  const [rolesCount, permissionsCount] = await Promise.all([
+    roleIds.length > 0 ? prisma.role.count({ where: { id: { in: roleIds } } }) : Promise.resolve(0),
+    permissionIds.length > 0
+      ? prisma.permission.count({ where: { id: { in: permissionIds } } })
+      : Promise.resolve(0),
+  ]);
+
+  if (rolesCount !== roleIds.length || permissionsCount !== permissionIds.length) {
+    return Response.json({ error: "Invalid roles or permissions" }, { status: 400 });
+  }
+
+  // Replace all roles and direct permissions for this user
   await prisma.$transaction([
     prisma.userRole.deleteMany({ where: { userId: targetUserId } }),
+    prisma.userPermission.deleteMany({ where: { userId: targetUserId } }),
     ...(roleIds.length > 0
       ? [prisma.userRole.createMany({ data: roleIds.map((roleId) => ({ userId: targetUserId, roleId })) })]
+      : []),
+    ...(permissionIds.length > 0
+      ? [
+          prisma.userPermission.createMany({
+            data: permissionIds.map((permissionId) => ({ userId: targetUserId, permissionId })),
+          }),
+        ]
       : []),
   ]);
 

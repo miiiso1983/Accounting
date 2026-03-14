@@ -27,7 +27,7 @@ export default async function UsersAdminPage() {
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
 
-  const [users, allRoles] = await Promise.all([
+  const [users, allRoles, allPermissions] = await Promise.all([
     prisma.user.findMany({
       where: { companyId },
       select: {
@@ -35,6 +35,11 @@ export default async function UsersAdminPage() {
         name: true,
         email: true,
         createdAt: true,
+        permissions: {
+          select: {
+            permission: { select: { id: true, key: true, description: true } },
+          },
+        },
         roles: {
           select: {
             role: { select: { id: true, key: true, name: true } },
@@ -47,17 +52,36 @@ export default async function UsersAdminPage() {
       select: { id: true, key: true, name: true },
       orderBy: { key: "asc" },
     }),
+    prisma.permission.findMany({
+      select: { id: true, key: true, description: true },
+      orderBy: { key: "asc" },
+    }),
   ]);
 
   const labels = {
     name: t("admin.users.name"),
     email: t("admin.users.email"),
+    password: t("admin.users.password"),
+    confirmPassword: t("admin.users.confirmPassword"),
+    permissions: t("admin.users.permissions"),
     roles: t("admin.users.roles"),
     noRoles: t("admin.users.noRoles"),
-    saveRoles: t("admin.users.saveRoles"),
+    noPermissions: t("admin.users.noPermissions"),
+    saveAccess: t("admin.users.saveAccess"),
     saving: t("admin.users.saving"),
     saved: t("admin.users.saved"),
     noUsers: t("admin.users.noUsers"),
+    createUser: t("admin.users.createUser"),
+    createHint: t("admin.users.createHint"),
+    create: t("admin.users.create"),
+    creating: t("admin.users.creating"),
+    createdUser: t("admin.users.createdUser"),
+    failedCreate: t("admin.users.failedCreate"),
+    failedSave: t("admin.users.failedSave"),
+    passwordMismatch: t("admin.users.passwordMismatch"),
+    passwordMin: t("admin.users.passwordMin"),
+    namePlaceholder: t("admin.users.namePlaceholder"),
+    emailPlaceholder: t("admin.users.emailPlaceholder"),
   };
 
   return (
@@ -65,7 +89,7 @@ export default async function UsersAdminPage() {
       <div className="text-sm text-zinc-500">{t("admin.users.subtitle")}</div>
       <div className="mt-1 text-base font-medium text-zinc-900">{t("admin.users.title")}</div>
 
-      <UsersClient users={users} allRoles={allRoles} labels={labels} />
+      <UsersClient users={users} allRoles={allRoles} allPermissions={allPermissions} labels={labels} />
     </div>
   );
 }
