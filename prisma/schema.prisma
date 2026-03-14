@@ -59,6 +59,18 @@ enum AttachmentOwnerType {
   EXPENSE
 }
 
+enum InstallmentFrequency {
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum InstallmentContractStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 model Company {
   id                 String       @id @default(cuid())
   name               String
@@ -76,6 +88,7 @@ model Company {
   journalEntries     JournalEntry[]
   attachments        Attachment[]
   products           Product[]
+  installmentContracts InstallmentContract[]
 }
 
 // --- Auth.js / NextAuth v4 models (Prisma Adapter) ---
@@ -344,6 +357,7 @@ model Customer {
 
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices   Invoice[]
+  installmentContracts InstallmentContract[]
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -409,6 +423,36 @@ model InvoiceLineItem {
   taxRate     Decimal? @db.Decimal(20, 6) // e.g. 0.05
 
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model InstallmentContract {
+  id                    String                    @id @default(cuid())
+  companyId             String
+  customerId            String
+
+  productName           String
+  invoiceNumber         String
+  invoiceDate           DateTime
+
+  durationMonths        Int
+  totalAmount           Decimal                   @db.Decimal(20, 6)
+  currencyCode          CurrencyCode
+
+  installmentFrequency  InstallmentFrequency
+  numberOfInstallments  Int
+  amountPerInstallment  Decimal                   @db.Decimal(20, 6)
+  status                InstallmentContractStatus @default(ACTIVE)
+
+  company               Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer              Customer                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId, invoiceDate])
+  @@index([companyId, customerId])
+  @@index([companyId, status])
 }
 
 // --- Expenses ---
