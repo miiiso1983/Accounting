@@ -114,10 +114,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   if (amount.lte(0)) return Response.json({ error: "Amount must be > 0" }, { status: 400 });
 
-  try {
-    await ensurePaymentPostingAccounts(prisma, invoice.companyId);
+	let created: { paymentId: string; journalEntryId: string; invoiceStatus: string };
+	try {
+		await ensurePaymentPostingAccounts(prisma, invoice.companyId);
 
-    const created = await prisma.$transaction(async (tx) => {
+		created = await prisma.$transaction(async (tx) => {
       const accountsByCode = await getPaymentPostingAccountsTx(tx, invoice.companyId);
       const arId = mustGetPostingAccountIdByCode({ accountsByCode, code: "1200" });
       const depositCode = selectDepositAccountCode(body.method, paymentCurrency);
@@ -205,21 +206,29 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         await tx.invoice.update({ where: { id: invoice.id }, data: { status: "PAID" }, select: { id: true } });
       }
 
-      return { paymentId: payment.id, journalEntryId: entry.id, invoiceStatus: isPaid ? ("PAID" as const) : (invoice.status as string) };
+			return { paymentId: payment.id, journalEntryId: entry.id, invoiceStatus: isPaid ? ("PAID" as const) : (invoice.status as string) };
     }, INTERACTIVE_TRANSACTION_OPTIONS);
-
-    let notifications: Record<string, unknown> | undefined;
-    if (notify) {
-      const [emailRes, waRes] = await Promise.all([
-        notifyPaymentReceipt({ paymentId: created.paymentId, companyId: invoice.companyId, channel: "email" }),
-        notifyPaymentReceipt({ paymentId: created.paymentId, companyId: invoice.companyId, channel: "whatsapp" }),
-      ]);
-      notifications = { email: emailRes, whatsapp: waRes };
-    }
-
-    return Response.json({ ...created, notifications }, { status: 201 });
   } catch (e) {
     const message = readTransactionErrorMessage(e);
     return Response.json({ error: message }, { status: 400 });
   }
+
+	// Notifications should never fail payment creation.
+	let notifications: Record<string, unknown> | undefined;
+	if (notify) {
+		const normalize = (res: PromiseSettledResult<unknown>) => {
+			if (res.status === "fulfilled") return res.value;
+			const reason = res.reason;
+			const error = reason instanceof Error ? reason.message : "Notification failed";
+			return { success: false, error };
+		};
+
+		const [emailRes, waRes] = await Promise.allSettled([
+			notifyPaymentReceipt({ paymentId: created.paymentId, companyId: invoice.companyId, channel: "email" }),
+			notifyPaymentReceipt({ paymentId: created.paymentId, companyId: invoice.companyId, channel: "whatsapp" }),
+		]);
+		notifications = { email: normalize(emailRes), whatsapp: normalize(waRes) };
+	}
+
+	return Response.json({ ...created, notifications }, { status: 201 });
 }

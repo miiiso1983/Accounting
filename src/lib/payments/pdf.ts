@@ -153,7 +153,19 @@ export async function generatePaymentReceiptPdf(data: PaymentReceiptPdfData): Pr
   page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 1, color: COLORS.border });
   y -= 22;
 
-  page.drawText("Received From / استلمنا من", { x: MARGIN, y, size: SMALL_FONT_SIZE, font: bold, color: COLORS.muted });
+	// Never draw Arabic text with StandardFonts (WinAnsi). Draw bilingual labels in two parts.
+	const receivedPrefix = "Received From / ";
+	page.drawText(receivedPrefix, { x: MARGIN, y, size: SMALL_FONT_SIZE, font: bold, color: COLORS.muted });
+	const receivedPrefixW = bold.widthOfTextAtSize(receivedPrefix, SMALL_FONT_SIZE);
+	drawPreparedText(page, preparePdfText("استلمنا من", ""), {
+		x: MARGIN + receivedPrefixW,
+		y,
+		size: SMALL_FONT_SIZE,
+		font: bold,
+		arabicFont: arabicBold,
+		color: COLORS.muted,
+		maxWidth: 240 - receivedPrefixW,
+	});
   page.drawText("Receipt Details", { x: MARGIN + 280, y, size: SMALL_FONT_SIZE, font: bold, color: COLORS.muted });
   y -= 18;
 
@@ -189,12 +201,44 @@ export async function generatePaymentReceiptPdf(data: PaymentReceiptPdfData): Pr
 
   y -= 86;
   page.drawRectangle({ x: MARGIN, y: y - 56, width: CONTENT_WIDTH, height: 56, color: COLORS.panel, borderColor: COLORS.border, borderWidth: 1 });
-  page.drawText("Amount Paid / المبلغ المدفوع", { x: MARGIN + 14, y: y - 20, size: FONT_SIZE, font: bold, color: COLORS.muted });
+	const amountPaidPrefix = "Amount Paid / ";
+	page.drawText(amountPaidPrefix, { x: MARGIN + 14, y: y - 20, size: FONT_SIZE, font: bold, color: COLORS.muted });
+	const amountPaidPrefixW = bold.widthOfTextAtSize(amountPaidPrefix, FONT_SIZE);
+	drawPreparedText(page, preparePdfText("المبلغ المدفوع", ""), {
+		x: MARGIN + 14 + amountPaidPrefixW,
+		y: y - 20,
+		size: FONT_SIZE,
+		font: bold,
+		arabicFont: arabicBold,
+		color: COLORS.muted,
+			maxWidth: Math.max(CONTENT_WIDTH - 28 - amountPaidPrefixW, 40),
+	});
   const amountText = `${safePdfText(data.amount)} ${safePdfText(data.currencyCode)}`;
   const amountW = bold.widthOfTextAtSize(amountText, 16);
   page.drawText(amountText, { x: PAGE_WIDTH - MARGIN - 14 - amountW, y: y - 24, size: 16, font: bold, color: COLORS.accent });
-  const baseText = `${safePdfText(data.amountBase)} ${safePdfText(data.baseCurrencyCode)}`;
-  page.drawText(`Base / الأساس: ${baseText}`, { x: MARGIN + 14, y: y - 42, size: SMALL_FONT_SIZE, font, color: COLORS.muted });
+	const baseText = `${safePdfText(data.amountBase)} ${safePdfText(data.baseCurrencyCode)}`;
+	const basePrefix = "Base / ";
+	page.drawText(basePrefix, { x: MARGIN + 14, y: y - 42, size: SMALL_FONT_SIZE, font, color: COLORS.muted });
+	const basePrefixW = font.widthOfTextAtSize(basePrefix, SMALL_FONT_SIZE);
+	const baseAr = preparePdfText("الأساس:", "");
+	drawPreparedText(page, baseAr, {
+		x: MARGIN + 14 + basePrefixW,
+		y: y - 42,
+		size: SMALL_FONT_SIZE,
+		font,
+		arabicFont,
+		color: COLORS.muted,
+	});
+	const baseArFont = baseAr.rtl ? arabicFont : font;
+	const baseArW = baseArFont.widthOfTextAtSize(baseAr.text, SMALL_FONT_SIZE);
+	const baseValueX = MARGIN + 14 + basePrefixW + baseArW + 6;
+		page.drawText(truncateText(baseText, Math.max(PAGE_WIDTH - MARGIN - 14 - baseValueX, 40), font, SMALL_FONT_SIZE), {
+		x: baseValueX,
+		y: y - 42,
+		size: SMALL_FONT_SIZE,
+		font,
+		color: COLORS.muted,
+	});
 
   y -= 92;
   if (data.note && data.note.trim()) {
