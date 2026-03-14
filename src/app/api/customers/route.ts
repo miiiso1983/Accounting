@@ -8,6 +8,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 const BodySchema = z.object({
   name: z.string().min(1),
+  companyName: z.string().optional().or(z.literal("")),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
   address1: z.string().optional().or(z.literal("")),
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
       data: {
         companyId: user.companyId,
         name: body.name,
+        companyName: body.companyName || null,
         email: body.email || null,
         phone: body.phone || null,
         address1: body.address1 || null,

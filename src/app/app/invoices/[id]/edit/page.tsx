@@ -9,7 +9,7 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 import { InvoiceEditForm } from "./ui";
 
-type CustomerOption = { id: string; name: string };
+type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
 
 export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
@@ -47,7 +47,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     prisma.customer.findMany({
       where: { companyId },
       orderBy: [{ name: "asc" }],
-      select: { id: true, name: true },
+      select: { id: true, name: true, companyName: true },
       take: 500,
     }),
     prisma.product.findMany({

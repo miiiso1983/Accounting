@@ -44,6 +44,7 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
         <div>
           <div className="text-sm text-zinc-500">Customer</div>
           <div className="mt-1 text-base font-medium text-zinc-900">{customer.name}</div>
+          {customer.companyName ? <div className="mt-1 text-sm text-zinc-600">{customer.companyName}</div> : null}
           <div className="mt-1 text-xs text-zinc-500">{customer.email ?? ""}</div>
         </div>
         <div className="flex items-center gap-3">
@@ -57,6 +58,10 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="rounded-xl border p-3 text-sm">
+          <div className="text-xs text-zinc-500">Company name</div>
+          <div className="mt-1 text-zinc-900">{customer.companyName ?? "-"}</div>
+        </div>
         <div className="rounded-xl border p-3 text-sm">
           <div className="text-xs text-zinc-500">Phone</div>
           <div className="mt-1 text-zinc-900">{customer.phone ?? "-"}</div>

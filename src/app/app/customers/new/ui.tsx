@@ -8,6 +8,7 @@ import { z } from "zod";
 
 const FormSchema = z.object({
   name: z.string().min(1),
+  companyName: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   address1: z.string().optional(),
@@ -27,7 +28,7 @@ export function CustomerForm() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
-    defaultValues: { name: "", email: "", phone: "", address1: "", address2: "", city: "", country: "" },
+    defaultValues: { name: "", companyName: "", email: "", phone: "", address1: "", address2: "", city: "", country: "" },
   });
 
   async function onSubmit(values: FormValues) {
@@ -64,6 +65,11 @@ export function CustomerForm() {
         <div className="md:col-span-2">
           <label className="text-sm font-medium text-zinc-700">Name</label>
           <input className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Customer name" {...form.register("name")} />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="text-sm font-medium text-zinc-700">Company name / اسم الشركة</label>
+          <input className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Customer company name" {...form.register("companyName")} />
         </div>
 
         <div>

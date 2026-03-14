@@ -47,6 +47,7 @@ export default async function CustomersIndexPage() {
           <thead className="text-xs text-zinc-500">
             <tr className="border-b">
               <th className="py-2 pr-3">Name</th>
+              <th className="py-2 pr-3">Company name</th>
               <th className="py-2 pr-3">Email</th>
               <th className="py-2 pr-3">Phone</th>
               <th className="py-2 pr-3">City</th>
@@ -60,6 +61,7 @@ export default async function CustomersIndexPage() {
 	                    {c.name}
 	                  </Link>
 	                </td>
+	                <td className="py-2 pr-3 text-zinc-700">{c.companyName ?? "-"}</td>
                 <td className="py-2 pr-3 text-zinc-700">{c.email ?? "-"}</td>
                 <td className="py-2 pr-3 text-zinc-700">{c.phone ?? "-"}</td>
                 <td className="py-2 pr-3 text-zinc-700">{c.city ?? "-"}</td>

@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-type CustomerOption = { id: string; name: string };
+type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
 type Props = { customers: CustomerOption[]; products: ProductOption[]; baseCurrencyCode: "IQD" | "USD"; defaultCustomerId?: string };
 
@@ -92,6 +92,11 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
 
   const currencyCode = useWatch({ control: form.control, name: "currencyCode" });
+  const selectedCustomerId = useWatch({ control: form.control, name: "customerId" });
+  const selectedCustomer = useMemo(
+    () => customers.find((customer) => customer.id === selectedCustomerId) ?? null,
+    [customers, selectedCustomerId],
+  );
   const showFx = currencyCode && currencyCode !== baseCurrencyCode;
 
   async function submit(values: SubmitValues, mode: "DRAFT" | "SEND") {
@@ -149,6 +154,16 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-zinc-700">Company name / اسم الشركة</label>
+            <input
+              className="mt-1 w-full rounded-xl border bg-zinc-50 px-3 py-2 text-zinc-700"
+              value={selectedCustomer?.companyName ?? ""}
+              placeholder="Will appear automatically / يظهر تلقائيًا"
+              readOnly
+            />
           </div>
 
           <div>

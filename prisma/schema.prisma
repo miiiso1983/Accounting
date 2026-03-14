@@ -321,6 +321,7 @@ model Customer {
   id         String   @id @default(cuid())
   companyId  String
   name       String
+  companyName String?
   email      String?
   phone      String?
   address1   String?
