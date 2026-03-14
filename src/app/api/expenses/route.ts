@@ -4,9 +4,13 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
 import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
+import { MAX_EXPENSE_ATTACHMENTS } from "@/lib/attachments/constants";
+import { cleanupStoredAttachments, saveExpenseAttachmentFile } from "@/lib/attachments/storage";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
+
+export const runtime = "nodejs";
 
 const BodySchema = z.object({
   expenseNumber: z.string().optional().or(z.literal("")),
@@ -24,6 +28,66 @@ const BodySchema = z.object({
   creditAccountId: z.string().min(1),
 });
 
+type ExpenseBody = z.infer<typeof BodySchema>;
+
+function errorMessage(error: z.ZodError<ExpenseBody>) {
+  return error.issues.map((issue) => issue.message).join(", ") || "Invalid expense payload";
+}
+
+function getFormString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+function isUploadedFile(value: FormDataEntryValue): value is File {
+  return typeof value !== "string";
+}
+
+async function parseRequest(req: Request): Promise<{ body: ExpenseBody; attachments: File[] }> {
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.includes("multipart/form-data")) {
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      throw new Error("Invalid form data");
+    }
+
+    const exchangeRate = getFormString(formData, "exchangeRate");
+    const parsed = BodySchema.safeParse({
+      expenseNumber: getFormString(formData, "expenseNumber"),
+      expenseDate: getFormString(formData, "expenseDate"),
+      vendorName: getFormString(formData, "vendorName"),
+      description: getFormString(formData, "description"),
+      currencyCode: getFormString(formData, "currencyCode"),
+      exchangeRate: exchangeRate ? { rate: exchangeRate } : undefined,
+      total: getFormString(formData, "total"),
+      expenseAccountId: getFormString(formData, "expenseAccountId"),
+      creditAccountId: getFormString(formData, "creditAccountId"),
+    });
+    if (!parsed.success) throw new Error(errorMessage(parsed.error));
+
+    const attachments = formData.getAll("attachments").filter(isUploadedFile).filter((file) => file.size > 0);
+    if (attachments.length > MAX_EXPENSE_ATTACHMENTS) {
+      throw new Error(`You can upload up to ${MAX_EXPENSE_ATTACHMENTS} attachments per expense`);
+    }
+
+    return { body: parsed.data, attachments };
+  }
+
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    throw new Error("Invalid JSON");
+  }
+
+  const parsed = BodySchema.safeParse(json);
+  if (!parsed.success) throw new Error(errorMessage(parsed.error));
+  return { body: parsed.data, attachments: [] };
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
@@ -37,14 +101,20 @@ export async function POST(req: Request) {
   const company = await prisma.company.findUnique({ where: { id: user.companyId }, select: { id: true, baseCurrencyCode: true } });
   if (!company) return Response.json({ error: "Company not found" }, { status: 400 });
 
-  const json = await req.json();
-  const parsed = BodySchema.safeParse(json);
-  if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
-  const body = parsed.data;
+  let requestData: { body: ExpenseBody; attachments: File[] };
+  try {
+    requestData = await parseRequest(req);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Invalid expense payload";
+    return Response.json({ error: message }, { status: 400 });
+  }
+
+  const { body, attachments } = requestData;
 
   const expenseDate = new Date(`${body.expenseDate}T00:00:00.000Z`);
   const baseCurrencyCode = company.baseCurrencyCode;
   const expenseCurrency = body.currencyCode;
+  const writtenStorageKeys: string[] = [];
 
   try {
     const created = await prisma.$transaction(async (tx) => {
@@ -126,11 +196,30 @@ export async function POST(req: Request) {
       const status = creditAccount.code === "2100" ? "SUBMITTED" : "PAID";
       await tx.expense.update({ where: { id: expense.id }, data: { journalEntryId: entry.id, status } });
 
+      for (const file of attachments) {
+        const stored = await saveExpenseAttachmentFile({ companyId: company.id, expenseId: expense.id, file });
+        writtenStorageKeys.push(stored.storageKey);
+
+        await tx.attachment.create({
+          data: {
+            companyId: company.id,
+            ownerType: "EXPENSE",
+            expenseId: expense.id,
+            originalName: stored.originalName,
+            mimeType: stored.mimeType,
+            sizeBytes: stored.sizeBytes,
+            storageKey: stored.storageKey,
+            uploadedById: session.user.id,
+          },
+        });
+      }
+
       return expense;
     });
 
     return Response.json({ id: created.id }, { status: 201 });
   } catch (e) {
+    await cleanupStoredAttachments(writtenStorageKeys);
     const message = e instanceof Error ? e.message : "Unknown error";
     return Response.json({ error: message }, { status: 400 });
   }

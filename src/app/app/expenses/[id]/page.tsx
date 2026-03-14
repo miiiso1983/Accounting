@@ -13,6 +13,13 @@ function fmt(n: unknown) {
   return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
+function fmtBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "-";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default async function ExpenseDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
@@ -32,6 +39,10 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
       exchangeRate: true,
       expenseAccount: { select: { code: true, name: true } },
       journalEntry: { select: { id: true } },
+      attachments: {
+        select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -106,6 +117,36 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
           </Link>
         </div>
       ) : null}
+
+      <div className="mt-3 rounded-xl border p-3 text-sm">
+        <div className="text-xs text-zinc-500">Attachments</div>
+
+        {expense.attachments.length === 0 ? (
+          <div className="mt-1 text-zinc-600">No attachments uploaded.</div>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {expense.attachments.map((attachment) => (
+              <div key={attachment.id} className="flex flex-col gap-2 rounded-xl border border-zinc-200 px-3 py-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="font-medium text-zinc-900">{attachment.originalName}</div>
+                  <div className="text-xs text-zinc-500">
+                    {attachment.mimeType || "application/octet-stream"} · {fmtBytes(attachment.sizeBytes)} · {attachment.createdAt.toISOString().slice(0, 10)}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm">
+                  <a className="underline text-zinc-700" href={`/api/attachments/${attachment.id}`} rel="noreferrer" target="_blank">
+                    Open
+                  </a>
+                  <a className="underline text-zinc-700" href={`/api/attachments/${attachment.id}?download=1`}>
+                    Download
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

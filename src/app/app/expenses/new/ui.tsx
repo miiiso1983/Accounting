@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
+import { MAX_EXPENSE_ATTACHMENTS } from "@/lib/attachments/constants";
+
 type AccountOption = { id: string; code: string; name: string };
 type Props = {
   expenseAccounts: AccountOption[];
@@ -33,6 +35,7 @@ type FormValues = z.infer<typeof FormSchema>;
 export function ExpenseForm({ expenseAccounts, paymentAccounts, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const defaultExpenseAccountId = expenseAccounts[0]?.id ?? "";
@@ -64,15 +67,28 @@ export function ExpenseForm({ expenseAccounts, paymentAccounts, baseCurrencyCode
       return;
     }
 
-    const payload = {
-      ...values,
-      exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
-    };
+    if (attachments.length > MAX_EXPENSE_ATTACHMENTS) {
+      setServerError(`You can upload up to ${MAX_EXPENSE_ATTACHMENTS} attachments`);
+      return;
+    }
+
+    const payload = new FormData();
+    payload.set("expenseNumber", values.expenseNumber || "");
+    payload.set("expenseDate", values.expenseDate);
+    payload.set("vendorName", values.vendorName || "");
+    payload.set("description", values.description || "");
+    payload.set("expenseAccountId", values.expenseAccountId);
+    payload.set("creditAccountId", values.creditAccountId);
+    payload.set("currencyCode", values.currencyCode);
+    payload.set("total", values.total);
+    if (showFx && values.exchangeRate) {
+      payload.set("exchangeRate", values.exchangeRate);
+    }
+    attachments.forEach((file) => payload.append("attachments", file));
 
     const res = await fetch("/api/expenses", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
+      body: payload,
     });
 
     const data: unknown = await res.json();
@@ -186,6 +202,30 @@ export function ExpenseForm({ expenseAccounts, paymentAccounts, baseCurrencyCode
               placeholder="Optional notes"
               {...form.register("description")}
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-sm font-medium text-zinc-700">Attachments</label>
+            <input
+              className="mt-1 block w-full rounded-xl border px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-white"
+              type="file"
+              multiple
+              onChange={(event) => setAttachments(Array.from(event.target.files ?? []))}
+            />
+            <div className="mt-1 text-xs text-zinc-500">
+              Optional. Up to {MAX_EXPENSE_ATTACHMENTS} files, 10 MB each.
+            </div>
+
+            {attachments.length > 0 ? (
+              <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                <div className="font-medium text-zinc-800">Selected files</div>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {attachments.map((file) => (
+                    <li key={`${file.name}-${file.size}-${file.lastModified}`}>{file.name}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </div>
 
