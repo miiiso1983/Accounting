@@ -53,11 +53,27 @@ export default async function ReportsIndexPage() {
         </Link>
 
         <Link
+          href="/app/reports/income-statement"
+          className="rounded-2xl border border-emerald-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-emerald-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">Income Statement / قائمة الدخل</div>
+          <div className="mt-1 text-xs text-zinc-500">Revenues, expenses, and net profit / الإيرادات والمصروفات وصافي الربح</div>
+        </Link>
+
+        <Link
           href="/app/reports/balance-sheet"
           className="rounded-2xl border border-purple-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-purple-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
         >
           <div className="font-medium text-zinc-900">Balance Sheet / الميزانية العمومية</div>
           <div className="mt-1 text-xs text-zinc-500">Assets = Liabilities + Equity / الأصول = الالتزامات + حقوق الملكية</div>
+        </Link>
+
+        <Link
+          href="/app/reports/cash-flow"
+          className="rounded-2xl border border-sky-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">Cash Flow Statement / قائمة التدفقات النقدية</div>
+          <div className="mt-1 text-xs text-zinc-500">Operating / Investing / Financing / تشغيلية / استثمارية / تمويلية</div>
         </Link>
 
         <Link

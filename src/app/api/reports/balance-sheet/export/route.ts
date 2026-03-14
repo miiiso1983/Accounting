@@ -62,8 +62,15 @@ export async function GET(req: Request) {
 
   function displayBal(n: ANode) { return (n.type === "LIABILITY" || n.type === "EQUITY") ? -n.balance : n.balance; }
 
+  const totalAssets = roots.filter((r) => r.type === "ASSET").reduce((s, r) => s + r.balance, 0);
+  const totalLiabilities = roots.filter((r) => r.type === "LIABILITY").reduce((s, r) => s + -r.balance, 0);
+  const totalEquity = roots.filter((r) => r.type === "EQUITY").reduce((s, r) => s + -r.balance, 0);
+  const totalLE = totalLiabilities + totalEquity;
+  const diff = totalAssets - totalLE;
+  const balanced = Math.abs(diff) < 0.01;
+
   // Flatten tree for Excel
-  const rows: { Section: string; Code: string; Account: string; Balance: number }[] = [];
+  const rows: { Section: string; Code: string; Account: string; Balance: number | string }[] = [];
   function flatten(nodes: ANode[], section: string, depth: number) {
     for (const n of nodes) {
       rows.push({ Section: depth === 0 ? section : "", Code: n.code, Account: "  ".repeat(depth) + n.name, Balance: displayBal(n) });
@@ -71,13 +78,18 @@ export async function GET(req: Request) {
     }
   }
   flatten(roots.filter((r) => r.type === "ASSET"), "Assets", 0);
-  rows.push({ Section: "", Code: "", Account: "Total Assets", Balance: roots.filter((r) => r.type === "ASSET").reduce((s, r) => s + r.balance, 0) });
+  rows.push({ Section: "", Code: "", Account: "Total Assets", Balance: totalAssets });
   rows.push({ Section: "", Code: "", Account: "", Balance: 0 });
   flatten(roots.filter((r) => r.type === "LIABILITY"), "Liabilities", 0);
-  rows.push({ Section: "", Code: "", Account: "Total Liabilities", Balance: roots.filter((r) => r.type === "LIABILITY").reduce((s, r) => s + -r.balance, 0) });
+  rows.push({ Section: "", Code: "", Account: "Total Liabilities", Balance: totalLiabilities });
   rows.push({ Section: "", Code: "", Account: "", Balance: 0 });
   flatten(roots.filter((r) => r.type === "EQUITY"), "Equity", 0);
-  rows.push({ Section: "", Code: "", Account: "Total Equity", Balance: roots.filter((r) => r.type === "EQUITY").reduce((s, r) => s + -r.balance, 0) });
+  rows.push({ Section: "", Code: "", Account: "Total Equity", Balance: totalEquity });
+
+  rows.push({ Section: "", Code: "", Account: "", Balance: 0 });
+  rows.push({ Section: "", Code: "", Account: "Liabilities + Equity", Balance: totalLE });
+  rows.push({ Section: "", Code: "", Account: "Difference (Assets - (L+E))", Balance: diff });
+  rows.push({ Section: "", Code: "", Account: "Balanced?", Balance: balanced ? "YES" : "NO" });
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
