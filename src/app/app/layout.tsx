@@ -24,6 +24,7 @@ import { createTranslator } from "@/lib/i18n/translate";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
+  if (!session.user.isActive) redirect("/login");
 
   const locale = await getRequestLocale();
   const messages = getMessages(locale);

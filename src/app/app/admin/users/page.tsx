@@ -34,6 +34,7 @@ export default async function UsersAdminPage() {
         id: true,
         name: true,
         email: true,
+        isActive: true,
         createdAt: true,
         permissions: {
           select: {
@@ -82,6 +83,28 @@ export default async function UsersAdminPage() {
     passwordMin: t("admin.users.passwordMin"),
     namePlaceholder: t("admin.users.namePlaceholder"),
     emailPlaceholder: t("admin.users.emailPlaceholder"),
+    status: t("admin.users.status"),
+    active: t("admin.users.active"),
+    inactive: t("admin.users.inactive"),
+    activate: t("admin.users.activate"),
+    deactivate: t("admin.users.deactivate"),
+    updatingStatus: t("admin.users.updatingStatus"),
+    statusUpdated: t("admin.users.statusUpdated"),
+    failedStatus: t("admin.users.failedStatus"),
+    actions: t("admin.users.actions"),
+    resetPassword: t("admin.users.resetPassword"),
+    reset: t("admin.users.reset"),
+    resetting: t("admin.users.resetting"),
+    passwordReset: t("admin.users.passwordReset"),
+    failedResetPassword: t("admin.users.failedResetPassword"),
+    deleteUser: t("admin.users.deleteUser"),
+    deleting: t("admin.users.deleting"),
+    confirmDelete: t("admin.users.confirmDelete"),
+    deletedUser: t("admin.users.deletedUser"),
+    failedDelete: t("admin.users.failedDelete"),
+    cannotDeleteSelf: t("admin.users.cannotDeleteSelf"),
+    cannotDeactivateSelf: t("admin.users.cannotDeactivateSelf"),
+    self: t("admin.users.self"),
   };
 
   return (
@@ -89,7 +112,13 @@ export default async function UsersAdminPage() {
       <div className="text-sm text-zinc-500">{t("admin.users.subtitle")}</div>
       <div className="mt-1 text-base font-medium text-zinc-900">{t("admin.users.title")}</div>
 
-      <UsersClient users={users} allRoles={allRoles} allPermissions={allPermissions} labels={labels} />
+      <UsersClient
+        users={users}
+        allRoles={allRoles}
+        allPermissions={allPermissions}
+        labels={labels}
+        currentUserId={session.user.id}
+      />
     </div>
   );
 }

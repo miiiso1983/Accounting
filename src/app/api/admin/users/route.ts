@@ -54,6 +54,7 @@ export async function GET() {
       id: true,
       name: true,
       email: true,
+      isActive: true,
       createdAt: true,
       permissions: {
         select: {
@@ -124,6 +125,7 @@ export async function POST(req: Request) {
       id: true,
       name: true,
       email: true,
+      isActive: true,
       createdAt: true,
       permissions: {
         select: {

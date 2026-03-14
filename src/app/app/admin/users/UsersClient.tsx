@@ -18,6 +18,7 @@ interface UserRecord {
   id: string;
   name: string | null;
   email: string | null;
+  isActive: boolean;
   permissions: Array<{ permission: Permission }>;
   roles: Array<{ role: Role }>;
 }
@@ -26,6 +27,7 @@ interface Props {
   users: UserRecord[];
   allRoles: Role[];
   allPermissions: Permission[];
+  currentUserId: string;
   labels: {
     name: string;
     email: string;
@@ -50,6 +52,28 @@ interface Props {
     passwordMin: string;
     namePlaceholder: string;
     emailPlaceholder: string;
+    status: string;
+    active: string;
+    inactive: string;
+    activate: string;
+    deactivate: string;
+    updatingStatus: string;
+    statusUpdated: string;
+    failedStatus: string;
+    actions: string;
+    resetPassword: string;
+    reset: string;
+    resetting: string;
+    passwordReset: string;
+    failedResetPassword: string;
+    deleteUser: string;
+    deleting: string;
+    confirmDelete: string;
+    deletedUser: string;
+    failedDelete: string;
+    cannotDeleteSelf: string;
+    cannotDeactivateSelf: string;
+    self: string;
   };
 }
 
@@ -87,12 +111,16 @@ async function readErrorMessage(res: Response, fallback: string) {
   return fallback;
 }
 
-export function UsersClient({ users, allRoles, allPermissions, labels }: Props) {
+export function UsersClient({ users, allRoles, allPermissions, labels, currentUserId }: Props) {
   const [items, setItems] = useState(users);
   const [saving, setSaving] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState<string | null>(null);
+  const [statusLoading, setStatusLoading] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<Record<string, string>>({});
   const [userRoles, setUserRoles] = useState<Record<string, Set<string>>>(
     () =>
       Object.fromEntries(
@@ -113,6 +141,30 @@ export function UsersClient({ users, allRoles, allPermissions, labels }: Props) 
   });
   const [createRoles, setCreateRoles] = useState<Set<string>>(() => new Set());
   const [createPermissions, setCreatePermissions] = useState<Set<string>>(() => new Set());
+  const [resetForms, setResetForms] = useState<Record<string, { password: string; confirmPassword: string }>>({});
+
+  const upsertUser = (user: UserRecord) => {
+    setItems((prev) => prev.map((item) => (item.id === user.id ? user : item)));
+    setUserRoles((prev) => ({
+      ...prev,
+      [user.id]: new Set(user.roles.map((role) => role.role.id)),
+    }));
+    setUserPermissions((prev) => ({
+      ...prev,
+      [user.id]: new Set(user.permissions.map((permission) => permission.permission.id)),
+    }));
+  };
+
+  const updateResetForm = (userId: string, field: "password" | "confirmPassword", value: string) => {
+    setResetForms((prev) => ({
+      ...prev,
+      [userId]: {
+        password: prev[userId]?.password ?? "",
+        confirmPassword: prev[userId]?.confirmPassword ?? "",
+        [field]: value,
+      },
+    }));
+  };
 
   const toggleRole = (userId: string, roleId: string) => {
     setUserRoles((prev) => {
@@ -155,6 +207,7 @@ export function UsersClient({ users, allRoles, allPermissions, labels }: Props) 
   const saveAccess = async (userId: string) => {
     setSaving(userId);
     setSavedMsg(null);
+    setActionMsg((prev) => ({ ...prev, [userId]: "" }));
     try {
       const res = await fetch(`/api/admin/users/${userId}/roles`, {
         method: "PUT",
@@ -223,6 +276,111 @@ export function UsersClient({ users, allRoles, allPermissions, labels }: Props) 
       alert(error instanceof Error ? error.message : labels.failedCreate);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const toggleStatus = async (user: UserRecord) => {
+    if (user.id === currentUserId) {
+      alert(labels.cannotDeactivateSelf);
+      return;
+    }
+
+    setStatusLoading(user.id);
+    setActionMsg((prev) => ({ ...prev, [user.id]: "" }));
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !user.isActive }),
+      });
+
+      if (!res.ok) throw new Error(await readErrorMessage(res, labels.failedStatus));
+
+      const data = (await res.json()) as { user: UserRecord };
+      upsertUser(data.user);
+      setActionMsg((prev) => ({ ...prev, [user.id]: labels.statusUpdated }));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : labels.failedStatus);
+    } finally {
+      setStatusLoading(null);
+    }
+  };
+
+  const resetPassword = async (userId: string) => {
+    const values = resetForms[userId] ?? { password: "", confirmPassword: "" };
+
+    if (values.password.length < 8) {
+      alert(labels.passwordMin);
+      return;
+    }
+
+    if (values.password !== values.confirmPassword) {
+      alert(labels.passwordMismatch);
+      return;
+    }
+
+    setResetLoading(userId);
+    setActionMsg((prev) => ({ ...prev, [userId]: "" }));
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: values.password }),
+      });
+
+      if (!res.ok) throw new Error(await readErrorMessage(res, labels.failedResetPassword));
+
+      const data = (await res.json()) as { user: UserRecord };
+      upsertUser(data.user);
+      setResetForms((prev) => ({
+        ...prev,
+        [userId]: { password: "", confirmPassword: "" },
+      }));
+      setActionMsg((prev) => ({ ...prev, [userId]: labels.passwordReset }));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : labels.failedResetPassword);
+    } finally {
+      setResetLoading(null);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    if (userId === currentUserId) {
+      alert(labels.cannotDeleteSelf);
+      return;
+    }
+
+    if (!window.confirm(labels.confirmDelete)) return;
+
+    setDeleteLoading(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error(await readErrorMessage(res, labels.failedDelete));
+
+      setItems((prev) => prev.filter((user) => user.id !== userId));
+      setUserRoles((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      setUserPermissions((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      setResetForms((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      alert(labels.deletedUser);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : labels.failedDelete);
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -336,12 +494,29 @@ export function UsersClient({ users, allRoles, allPermissions, labels }: Props) 
         <div className="divide-y divide-sky-100">
           {items.map((u) => {
             const saveLabel = saving === u.id ? labels.saving : savedMsg === u.id ? labels.saved : labels.saveAccess;
+            const isSelf = u.id === currentUserId;
+            const statusLabel = u.isActive ? labels.active : labels.inactive;
+            const toggleLabel =
+              statusLoading === u.id ? labels.updatingStatus : u.isActive ? labels.deactivate : labels.activate;
+            const deleteLabel = deleteLoading === u.id ? labels.deleting : labels.deleteUser;
+            const resetLabel = resetLoading === u.id ? labels.resetting : labels.reset;
+            const resetForm = resetForms[u.id] ?? { password: "", confirmPassword: "" };
 
             return (
               <div key={u.id} className="py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="font-medium text-zinc-900">{u.name ?? "—"}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="font-medium text-zinc-900">{u.name ?? "—"}</div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          u.isActive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                        }`}
+                      >
+                        {statusLabel}
+                      </span>
+                      {isSelf ? <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">{labels.self}</span> : null}
+                    </div>
                     <div className="text-xs text-zinc-500">{u.email ?? "—"}</div>
                   </div>
                   <button
@@ -353,6 +528,60 @@ export function UsersClient({ users, allRoles, allPermissions, labels }: Props) 
                     {saveLabel}
                   </button>
                 </div>
+
+                <div className="mt-4 grid gap-3 rounded-2xl border border-sky-100 bg-sky-50/40 p-3 md:grid-cols-[0.9fr_1.1fr]">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{labels.actions}</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleStatus(u)}
+                        disabled={statusLoading === u.id || deleteLoading === u.id || isSelf}
+                        className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-sky-50 disabled:opacity-60 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+                      >
+                        {toggleLabel}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteUser(u.id)}
+                        disabled={deleteLoading === u.id || statusLoading === u.id || isSelf}
+                        className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60 focus:outline-none focus:ring-4 focus:ring-rose-100"
+                      >
+                        {deleteLabel}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{labels.resetPassword}</div>
+                    <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                      <input
+                        type="password"
+                        value={resetForm.password}
+                        onChange={(event) => updateResetForm(u.id, "password", event.target.value)}
+                        placeholder={labels.password}
+                        className="rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-300"
+                      />
+                      <input
+                        type="password"
+                        value={resetForm.confirmPassword}
+                        onChange={(event) => updateResetForm(u.id, "confirmPassword", event.target.value)}
+                        placeholder={labels.confirmPassword}
+                        className="rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => resetPassword(u.id)}
+                        disabled={resetLoading === u.id}
+                        className="rounded-xl bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 focus:outline-none focus:ring-4 focus:ring-zinc-200"
+                      >
+                        {resetLabel}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {actionMsg[u.id] ? <div className="mt-3 text-xs text-emerald-700">{actionMsg[u.id]}</div> : null}
 
                 <div className="mt-4">
                   <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{labels.roles}</div>

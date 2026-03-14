@@ -25,11 +25,14 @@ async function getUserAuthz(userId: string) {
       },
     },
   });
+  if (!user?.isActive) {
+    return { roleKeys: [], permissionKeys: [], isActive: false };
+  }
   const roleKeys = user?.roles.map((r) => r.role.key) ?? [];
   const rolePermissionKeys = user?.roles.flatMap((r) => r.role.permissions.map((p) => p.permission.key)) ?? [];
   const directPermissionKeys = user?.permissions.map((p) => p.permission.key) ?? [];
   const permissionKeys = Array.from(new Set([...rolePermissionKeys, ...directPermissionKeys]));
-  return { roleKeys, permissionKeys };
+  return { roleKeys, permissionKeys, isActive: true };
 }
 
 export const authOptions: NextAuthOptions = {
@@ -51,7 +54,7 @@ export const authOptions: NextAuthOptions = {
         if (!email || !password) return null;
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user?.passwordHash) return null;
+        if (!user?.passwordHash || !user.isActive) return null;
 
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
@@ -68,6 +71,7 @@ export const authOptions: NextAuthOptions = {
         const authz = await getUserAuthz(userId);
         token.roleKeys = authz.roleKeys;
         token.permissionKeys = authz.permissionKeys;
+        token.isActive = authz.isActive;
       }
       return token;
     },
@@ -75,6 +79,7 @@ export const authOptions: NextAuthOptions = {
       if (token.sub) session.user.id = token.sub;
       session.user.roleKeys = token.roleKeys ?? [];
       session.user.permissionKeys = token.permissionKeys ?? [];
+      session.user.isActive = token.isActive ?? false;
       return session;
     },
   },

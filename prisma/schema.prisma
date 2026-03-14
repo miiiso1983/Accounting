@@ -86,6 +86,7 @@ model User {
   email         String?    @unique
   emailVerified DateTime?
   image         String?
+  isActive      Boolean    @default(true)
 
   // Credentials auth support
   passwordHash  String?
