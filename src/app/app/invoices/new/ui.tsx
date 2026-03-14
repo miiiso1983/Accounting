@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
+import { CustomerAutocompleteField } from "@/components/fields/CustomerAutocompleteField";
+
 type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
 type Props = { customers: CustomerOption[]; products: ProductOption[]; baseCurrencyCode: "IQD" | "USD"; defaultCustomerId?: string };
@@ -147,13 +149,16 @@ export function InvoiceForm({ customers, products, baseCurrencyCode, defaultCust
 
           <div>
             <label className="text-sm font-medium text-zinc-700">Customer</label>
-            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("customerId")}> 
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+	            <input type="hidden" {...form.register("customerId")} />
+	            <CustomerAutocompleteField
+	              customers={customers}
+	              defaultCustomerId={initialCustomerId}
+	              placeholder="Search customer / ابحث عن زبون"
+	              noResultsLabel="No customers found / لا يوجد زبائن"
+	              clearLabel="Clear"
+	              disabled={customers.length === 0}
+	              onSelectedIdChange={(id) => form.setValue("customerId", id, { shouldDirty: true, shouldValidate: true })}
+	            />
           </div>
 
           <div>

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import { CustomerAutocompleteField } from "@/components/fields/CustomerAutocompleteField";
 
 import { getMessages } from "@/lib/i18n/messages";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -173,12 +174,15 @@ export default async function InstallmentSalesReportPage({
         </div>
         <div className="md:col-span-3">
           <label className="text-xs font-medium text-zinc-600">{t("reports.filters.customer")}</label>
-          <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="customerId" defaultValue={customerId ?? ""}>
-            <option value="">--</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+		          <CustomerAutocompleteField
+		            key={customerId ?? ""}
+	            customers={customers}
+	            name="customerId"
+	            defaultCustomerId={customerId ?? ""}
+	            placeholder="Search customer / ابحث عن زبون"
+	            noResultsLabel="No customers found / لا يوجد زبائن"
+	            clearLabel="Clear"
+	          />
         </div>
         <div className="md:col-span-2">
           <label className="text-xs font-medium text-zinc-600">{t("reports.filters.currency")}</label>

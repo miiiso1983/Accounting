@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -39,6 +39,9 @@ export function InstallmentSalesNewClient(props: {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerOpen, setCustomerOpen] = useState(false);
+
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -64,6 +67,23 @@ export function InstallmentSalesNewClient(props: {
   const durationMonths = Number(form.watch("durationMonths")) || 0;
   const frequency = form.watch("installmentFrequency");
   const totalAmountNum = toNumber(form.watch("totalAmount"));
+
+  const selectedCustomerId = form.watch("customerId");
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c.id === selectedCustomerId) ?? null,
+    [customers, selectedCustomerId],
+  );
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerQuery.trim().toLowerCase();
+    const list = q ? customers.filter((c) => c.name.toLowerCase().includes(q)) : customers;
+    return list.slice(0, 50);
+  }, [customers, customerQuery]);
+
+  useEffect(() => {
+    // Keep the visible input in sync when a customer is selected programmatically.
+    if (selectedCustomer && customerQuery !== selectedCustomer.name) setCustomerQuery(selectedCustomer.name);
+  }, [selectedCustomer, customerQuery]);
 
   const computed = useMemo(() => {
     const numberOfInstallments = calculateNumberOfInstallments(durationMonths || 0, frequency);
@@ -151,12 +171,84 @@ export function InstallmentSalesNewClient(props: {
 
           <div className="md:col-span-2">
             <label className="text-sm font-medium text-zinc-700">{labels.customerName}</label>
-            <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2" {...form.register("customerId")}>
-              <option value="">--</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+	            <input type="hidden" {...form.register("customerId")} />
+	            <div className="relative mt-1">
+	              <div className="relative">
+	                <input
+	                  className="w-full rounded-xl border bg-white px-3 py-2 pr-9"
+	                  placeholder="Search customer / ابحث عن زبون"
+	                  value={customerQuery}
+	                  onChange={(e) => {
+	                    setCustomerQuery(e.target.value);
+	                    setCustomerOpen(true);
+	                    if (form.getValues("customerId")) {
+	                      form.setValue("customerId", "", { shouldDirty: true, shouldValidate: true });
+	                    }
+	                  }}
+	                  onFocus={() => setCustomerOpen(true)}
+	                  onBlur={() => {
+	                    // allow click selection
+	                    setTimeout(() => setCustomerOpen(false), 150);
+	                  }}
+	                  onKeyDown={(e) => {
+	                    if (e.key === "Enter" && customerOpen && customerQuery.trim()) {
+	                      // prevent form submit while selecting
+	                      e.preventDefault();
+	                      const first = filteredCustomers[0];
+	                      if (first) {
+	                        form.setValue("customerId", first.id, { shouldDirty: true, shouldValidate: true });
+	                        setCustomerQuery(first.name);
+	                        setCustomerOpen(false);
+	                      }
+	                    }
+	                  }}
+	                />
+	                <button
+	                  type="button"
+	                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50"
+	                  onMouseDown={(e) => e.preventDefault()}
+	                  onClick={() => {
+	                    setCustomerQuery("");
+	                    form.setValue("customerId", "", { shouldDirty: true, shouldValidate: true });
+	                    setCustomerOpen(true);
+	                  }}
+	                  aria-label="Clear"
+	                  title="Clear"
+	                >
+	                  ×
+	                </button>
+	              </div>
+
+	              {customerOpen ? (
+	                <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border bg-white shadow-sm">
+	                  {filteredCustomers.length === 0 ? (
+	                    <div className="px-3 py-2 text-sm text-zinc-500">No customers found / لا يوجد زبائن</div>
+	                  ) : (
+	                    filteredCustomers.map((c) => (
+	                      <button
+	                        key={c.id}
+	                        type="button"
+	                        className="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50"
+	                        onMouseDown={(e) => e.preventDefault()}
+	                        onClick={() => {
+	                          form.setValue("customerId", c.id, { shouldDirty: true, shouldValidate: true });
+	                          setCustomerQuery(c.name);
+	                          setCustomerOpen(false);
+	                        }}
+	                      >
+	                        {c.name}
+	                      </button>
+	                    ))
+	                  )}
+	                </div>
+	              ) : null}
+	            </div>
+	            {form.formState.errors.customerId ? (
+	              <div className="mt-1 text-xs text-red-600">Customer is required / الزبون مطلوب</div>
+	            ) : null}
+	            {selectedCustomer ? (
+	              <div className="mt-1 text-xs text-zinc-500">Selected: {selectedCustomer.name}</div>
+	            ) : null}
           </div>
 
           <div>
