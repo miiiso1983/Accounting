@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { generateInvoicePdf } from "@/lib/invoices/pdf";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { sendEmail, buildInvoiceCreatedEmail } from "@/lib/notifications/email";
@@ -11,6 +12,10 @@ import { sendWhatsApp, buildInvoiceCreatedMessage, generateWhatsAppLink } from "
 const BodySchema = z.object({
   channel: z.enum(["email", "whatsapp"]),
 });
+
+function formatDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -26,7 +31,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: user.companyId },
-    include: { customer: true, company: true },
+    include: { customer: true, company: true, lineItems: true },
   });
 
   if (!invoice) return Response.json({ error: "Not found" }, { status: 404 });
@@ -47,13 +52,51 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     currencyCode: invoice.currencyCode,
     invoiceUrl,
   };
+  const issueDate = formatDate(invoice.issueDate);
+  const dueDate = invoice.dueDate ? formatDate(invoice.dueDate) : undefined;
 
   if (channel === "email") {
     if (!invoice.customer.email) {
       return Response.json({ error: "Customer has no email address" }, { status: 400 });
     }
-    const { subject, html } = buildInvoiceCreatedEmail({ ...notifData, issueDate: invoice.issueDate.toISOString().slice(0, 10), dueDate: invoice.dueDate?.toISOString().slice(0, 10) });
-    const result = await sendEmail({ to: invoice.customer.email, subject, html });
+    const pdfBuffer = await generateInvoicePdf({
+      companyName: invoice.company.name,
+      customerName: invoice.customer.name,
+      customerEmail: invoice.customer.email,
+      customerPhone: invoice.customer.phone,
+      customerAddressLines: [invoice.customer.address1, invoice.customer.address2, invoice.customer.city, invoice.customer.country].filter(
+        (value): value is string => typeof value === "string" && value.trim().length > 0,
+      ),
+      invoiceNumber: invoice.invoiceNumber,
+      issueDate,
+      dueDate,
+      status: invoice.status,
+      currencyCode: invoice.currencyCode,
+      paymentTerms: invoice.paymentTerms,
+      subtotal: Number(invoice.subtotal),
+      discountAmount: Number(invoice.discountAmount),
+      discountLabel:
+        invoice.discountAmount.gt(0) && invoice.discountType === "PERCENTAGE"
+          ? `Discount (${Number(invoice.discountValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}%)`
+          : "Discount",
+      taxTotal: Number(invoice.taxTotal),
+      total: Number(invoice.total),
+      invoiceUrl,
+      lineItems: invoice.lineItems.map((item) => ({
+        description: item.description,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        taxRate: item.taxRate ? Number(item.taxRate) : null,
+        lineTotal: Number(item.lineTotal),
+      })),
+    });
+    const { subject, html } = buildInvoiceCreatedEmail({ ...notifData, issueDate, dueDate });
+    const result = await sendEmail({
+      to: invoice.customer.email,
+      subject,
+      html,
+      attachments: [{ filename: `invoice-${invoice.invoiceNumber}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+    });
     if (!result.ok) {
       return Response.json({ error: `Failed to send email: ${result.error}` }, { status: 500 });
     }

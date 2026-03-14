@@ -45,6 +45,11 @@ type SendEmailArgs = {
   to: string;
   subject: string;
   html: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }>;
 };
 
 export type SendEmailResult =
@@ -73,7 +78,7 @@ function getErrorMessage(err: unknown) {
   return "Unknown SMTP error";
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailArgs) {
+export async function sendEmail({ to, subject, html, attachments }: SendEmailArgs) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn("[Email] SMTP not configured, skipping email to:", to);
     return { ok: false, error: "SMTP is not configured. Set SMTP_USER and SMTP_PASS." } satisfies SendEmailResult;
@@ -86,6 +91,7 @@ export async function sendEmail({ to, subject, html }: SendEmailArgs) {
       to,
       subject,
       html,
+      attachments,
     });
     console.log("[Email] Sent:", info.messageId);
     return { ok: true, messageId: info.messageId } satisfies SendEmailResult;
@@ -118,6 +124,7 @@ export function buildInvoiceCreatedEmail(data: InvoiceEmailData): { subject: str
       <div style="border: 1px solid #e4e4e7; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
         <p>Dear <strong>${data.customerName}</strong>,</p>
         <p>A new invoice has been issued for you:</p>
+        <p style="margin-top: 8px; color: #52525b;">A PDF copy is attached to this email / تم إرفاق نسخة PDF مع الرسالة.</p>
         <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
           <tr><td style="padding: 8px; color: #71717a;">Invoice #</td><td style="padding: 8px; font-weight: bold;">${data.invoiceNumber}</td></tr>
           <tr><td style="padding: 8px; color: #71717a;">Date</td><td style="padding: 8px;">${data.issueDate}</td></tr>
