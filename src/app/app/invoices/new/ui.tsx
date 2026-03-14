@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -24,6 +24,8 @@ const LineSchema = z.object({
 	costCenterId: z.string().optional(),
   quantity: z.string().min(1),
   unitPrice: z.string().min(1),
+  discountType: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["PERCENTAGE", "FIXED"]).optional()),
+  discountValue: z.string().optional(),
   taxRate: z.string().optional(), // e.g. 0.15
 });
 
@@ -60,6 +62,22 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 type FormValues = z.input<typeof FormSchema>;
 type SubmitValues = z.output<typeof FormSchema>;
 
+/** Compute line total: (qty * price) - discount */
+function calcLineTotal(qty: string, price: string, discType?: string, discVal?: string): number {
+  const q = parseFloat(qty) || 0;
+  const p = parseFloat(price) || 0;
+  const gross = q * p;
+  const dv = parseFloat(discVal ?? "") || 0;
+  if (discType === "PERCENTAGE" && dv > 0) return gross - (gross * dv) / 100;
+  if (discType === "FIXED" && dv > 0) return gross - dv;
+  return gross;
+}
+
+function fmtNum(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return "0";
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
 async function readResponseData(res: Response) {
   const text = await res.text();
   if (!text) return null;
@@ -71,9 +89,14 @@ async function readResponseData(res: Response) {
   }
 }
 
-export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode, defaultCustomerId }: Props) {
+export function InvoiceForm({ customers: initialCustomers, products, costCenters, baseCurrencyCode, defaultCustomerId }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [customers, setCustomers] = useState(initialCustomers);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCustName, setNewCustName] = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [newCustSaving, setNewCustSaving] = useState(false);
 
   const initialCustomerId = useMemo(() => {
     if (defaultCustomerId && customers.some((c) => c.id === defaultCustomerId)) return defaultCustomerId;
@@ -93,9 +116,22 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
       discountType: "",
       discountValue: "",
       paymentTerms: "",
-			lines: [{ description: "", costCenterId: "", quantity: "1", unitPrice: "", taxRate: "" }],
+			lines: [{ description: "", costCenterId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" }],
     },
   });
+
+  // Auto-fetch next invoice number
+  useEffect(() => {
+    fetch("/api/invoices")
+      .then((r) => r.json())
+      .then((d: { nextNumber?: string }) => {
+        if (d.nextNumber) {
+          form.setValue("invoiceNumber", d.nextNumber);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { errors, isSubmitting } = form.formState;
 
@@ -103,17 +139,73 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
 
   const currencyCode = useWatch({ control: form.control, name: "currencyCode" });
   const selectedCustomerId = useWatch({ control: form.control, name: "customerId" });
+  const watchedLines = useWatch({ control: form.control, name: "lines" });
+  const watchedDiscountType = useWatch({ control: form.control, name: "discountType" });
+  const watchedDiscountValue = useWatch({ control: form.control, name: "discountValue" });
+
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === selectedCustomerId) ?? null,
     [customers, selectedCustomerId],
   );
   const showFx = currencyCode && currencyCode !== baseCurrencyCode;
 
+  // Real-time totals
+  const totals = useMemo(() => {
+    const lineTotals = (watchedLines ?? []).map((l) =>
+      calcLineTotal(l.quantity ?? "0", l.unitPrice ?? "0", l.discountType as string | undefined, l.discountValue),
+    );
+    const subtotal = lineTotals.reduce((a, b) => a + b, 0);
+    const dv = parseFloat(watchedDiscountValue ?? "") || 0;
+    let discountAmount = 0;
+    if (watchedDiscountType === "PERCENTAGE" && dv > 0) discountAmount = (subtotal * dv) / 100;
+    else if (watchedDiscountType === "FIXED" && dv > 0) discountAmount = dv;
+    const afterDiscount = subtotal - discountAmount;
+    const taxTotal = (watchedLines ?? []).reduce((acc, l, i) => {
+      const tr = parseFloat(l.taxRate ?? "") || 0;
+      return acc + lineTotals[i] * tr;
+    }, 0);
+    const total = afterDiscount + taxTotal;
+    return { lineTotals, subtotal, discountAmount, afterDiscount, taxTotal, total };
+  }, [watchedLines, watchedDiscountType, watchedDiscountValue]);
+
+  // Quick-add customer handler
+  const handleAddCustomer = useCallback(async () => {
+    if (!newCustName.trim()) return;
+    setNewCustSaving(true);
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: newCustName.trim(), phone: newCustPhone.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok && data.id) {
+        const newCust: CustomerOption = { id: data.id, name: newCustName.trim(), companyName: null };
+        setCustomers((prev) => [...prev, newCust].sort((a, b) => a.name.localeCompare(b.name)));
+        form.setValue("customerId", data.id, { shouldDirty: true, shouldValidate: true });
+        setShowNewCustomer(false);
+        setNewCustName("");
+        setNewCustPhone("");
+      } else {
+        setServerError(data.error || "Failed to create customer");
+      }
+    } catch {
+      setServerError("Failed to create customer");
+    } finally {
+      setNewCustSaving(false);
+    }
+  }, [newCustName, newCustPhone, form]);
+
   async function submit(values: SubmitValues, mode: "DRAFT" | "SEND") {
     setServerError(null);
     const payload = {
       ...values,
       mode,
+      lines: values.lines.map((l) => ({
+        ...l,
+        discountType: l.discountValue && Number(l.discountValue) > 0 ? (l.discountType || "FIXED") : undefined,
+        discountValue: l.discountValue && Number(l.discountValue) > 0 ? l.discountValue : undefined,
+      })),
       exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
       discountType: values.discountValue && Number(values.discountValue) > 0 ? (values.discountType || "FIXED") : undefined,
       discountValue: values.discountValue && Number(values.discountValue) > 0 ? values.discountValue : undefined,
@@ -157,6 +249,8 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
 
           <div>
             <label className="text-sm font-medium text-zinc-700">Customer</label>
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
 	            <input type="hidden" {...form.register("customerId")} />
 	            <CustomerAutocompleteField
 	              customers={customers}
@@ -167,6 +261,10 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
 	              disabled={customers.length === 0}
 	              onSelectedIdChange={(id) => form.setValue("customerId", id, { shouldDirty: true, shouldValidate: true })}
 	            />
+              </div>
+              <button type="button" className="mt-1 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" title="Add new customer / إضافة زبون جديد" onClick={() => setShowNewCustomer(true)}>+</button>
+            </div>
+            {errors.customerId ? <div className="mt-1 text-xs text-red-600">Customer is required.</div> : null}
           </div>
 
           <div>
@@ -237,19 +335,19 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
 
         <div className="rounded-2xl border p-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="text-sm font-medium text-zinc-900">Line items</div>
+            <div className="text-sm font-medium text-zinc-900">Line items / بنود الفاتورة</div>
             <button
               type="button"
               className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-				onClick={() => append({ description: "", costCenterId: "", quantity: "1", unitPrice: "", taxRate: "" })}
+				onClick={() => append({ description: "", costCenterId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" })}
             >
-              Add line
+              Add line / إضافة بند
             </button>
           </div>
 
           <div className="mt-4 grid gap-3">
             {fields.map((f, idx) => (
-              <div key={f.id} className="grid gap-3">
+              <div key={f.id} className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-3 grid gap-3">
                 {/* Product selector */}
                 {products.length > 0 && (
                   <div>
@@ -275,14 +373,14 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
                     </select>
                   </div>
                 )}
-					<div className="grid gap-3 md:grid-cols-12">
-						<div className="md:col-span-4">
-                    <input className="w-full rounded-xl border px-3 py-2" placeholder="Description" {...form.register(`lines.${idx}.description` as const)} />
+					<div className="grid gap-2 md:grid-cols-12">
+						<div className="md:col-span-3">
+                    <input className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Description / الوصف" {...form.register(`lines.${idx}.description` as const)} />
                     {errors.lines?.[idx]?.description ? <div className="mt-1 text-xs text-red-600">Description is required.</div> : null}
                   </div>
-						<div className="md:col-span-3">
+						<div className="md:col-span-2">
 							<select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
-								<option value="">— Cost Center / مركز كلفة —</option>
+								<option value="">— مركز كلفة —</option>
 								{costCenters.map((cc) => (
 									<option key={cc.id} value={cc.id}>
 										{cc.code} — {cc.name}
@@ -291,15 +389,26 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
 							</select>
 						</div>
 						<div className="md:col-span-1">
-                    <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Qty" {...form.register(`lines.${idx}.quantity` as const)} />
-                    {errors.lines?.[idx]?.quantity ? <div className="mt-1 text-xs text-red-600">Qty is required.</div> : null}
+                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Qty" {...form.register(`lines.${idx}.quantity` as const)} />
                   </div>
-						<div className="md:col-span-2">
-                    <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Unit price" {...form.register(`lines.${idx}.unitPrice` as const)} />
-                    {errors.lines?.[idx]?.unitPrice ? <div className="mt-1 text-xs text-red-600">Unit price is required.</div> : null}
+						<div className="md:col-span-1">
+                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Price" {...form.register(`lines.${idx}.unitPrice` as const)} />
                   </div>
                   <div className="md:col-span-1">
-                    <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Tax" {...form.register(`lines.${idx}.taxRate` as const)} />
+                    <select className="w-full rounded-xl border px-3 py-2 text-xs" {...form.register(`lines.${idx}.discountType` as const)}>
+                      <option value="">خصم—</option>
+                      <option value="PERCENTAGE">%</option>
+                      <option value="FIXED">ثابت</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-1">
+                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Disc" {...form.register(`lines.${idx}.discountValue` as const)} />
+                  </div>
+                  <div className="md:col-span-1">
+                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Tax" {...form.register(`lines.${idx}.taxRate` as const)} />
+                  </div>
+                  <div className="md:col-span-1 flex items-center">
+                    <span className="font-mono text-sm font-medium text-zinc-900 w-full text-right">{fmtNum(totals.lineTotals[idx] ?? 0)}</span>
                   </div>
                   <div className="md:col-span-1">
                     <button
@@ -317,7 +426,34 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
             ))}
           </div>
 
-          <div className="mt-2 text-xs text-zinc-500">Tax rate example: 0.15 (15%). Leave blank for 0.</div>
+          <div className="mt-2 text-xs text-zinc-500">Tax rate example: 0.15 (15%). Leave blank for 0. / مثال ضريبة: 0.15 (15%)</div>
+        </div>
+
+        {/* Real-time totals summary */}
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+          <div className="text-sm font-medium text-sky-900 mb-3">Invoice Summary / ملخص الفاتورة</div>
+          <div className="grid gap-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-zinc-600">Subtotal / المجموع الفرعي</span>
+              <span className="font-mono font-medium">{fmtNum(totals.subtotal)} {currencyCode}</span>
+            </div>
+            {totals.discountAmount > 0 && (
+              <div className="flex justify-between text-amber-700">
+                <span>Discount / خصم {watchedDiscountType === "PERCENTAGE" ? `(${watchedDiscountValue}%)` : ""}</span>
+                <span className="font-mono font-medium">-{fmtNum(totals.discountAmount)} {currencyCode}</span>
+              </div>
+            )}
+            {totals.taxTotal > 0 && (
+              <div className="flex justify-between">
+                <span className="text-zinc-600">Tax / ضريبة</span>
+                <span className="font-mono font-medium">{fmtNum(totals.taxTotal)} {currencyCode}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-sky-200 pt-2 text-base font-bold">
+              <span className="text-sky-900">Net Total / الصافي</span>
+              <span className="font-mono text-sky-700">{fmtNum(totals.total)} {currencyCode}</span>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -327,7 +463,7 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
             onClick={form.handleSubmit((v) => submit(v, "DRAFT"), () => setServerError("Please complete the required invoice fields before saving."))}
             disabled={customers.length === 0 || isSubmitting}
           >
-            {isSubmitting ? "Saving..." : "Save draft"}
+            {isSubmitting ? "Saving..." : "Save draft / حفظ مسودة"}
           </button>
           <button
             className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
@@ -335,10 +471,37 @@ export function InvoiceForm({ customers, products, costCenters, baseCurrencyCode
             onClick={form.handleSubmit((v) => submit(v, "SEND"), () => setServerError("Please complete the required invoice fields before sending."))}
             disabled={customers.length === 0 || isSubmitting}
           >
-            {isSubmitting ? "Sending..." : "Send & post"}
+            {isSubmitting ? "Sending..." : "Send & post / إرسال وترحيل"}
           </button>
         </div>
       </form>
+
+      {/* New Customer Modal */}
+      {showNewCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-lg">
+            <div className="text-base font-medium text-zinc-900 mb-4">Add New Customer / إضافة زبون جديد</div>
+            <div className="grid gap-3">
+              <div>
+                <label className="text-sm font-medium text-zinc-700">Name / الاسم *</label>
+                <input className="mt-1 w-full rounded-xl border px-3 py-2" value={newCustName} onChange={(e) => setNewCustName(e.target.value)} placeholder="Customer name" autoFocus />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-700">Phone / الهاتف</label>
+                <input className="mt-1 w-full rounded-xl border px-3 py-2" value={newCustPhone} onChange={(e) => setNewCustPhone(e.target.value)} placeholder="Phone number" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <button type="button" className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800" onClick={handleAddCustomer} disabled={newCustSaving || !newCustName.trim()}>
+                {newCustSaving ? "Saving..." : "Save / حفظ"}
+              </button>
+              <button type="button" className="rounded-xl border px-4 py-2 text-sm hover:bg-zinc-50" onClick={() => setShowNewCustomer(false)}>
+                Cancel / إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -32,6 +32,8 @@ const BodySchema = z.object({
 				costCenterId: z.string().optional().or(z.literal("")),
         quantity: z.string().min(1),
         unitPrice: z.string().min(1),
+        discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+        discountValue: z.string().optional().or(z.literal("")),
         taxRate: z.string().optional().or(z.literal("")),
       }),
     )
@@ -42,6 +44,38 @@ function mustGetPostingAccountIdByCode(args: { accountsByCode: Map<string, { id:
   const a = args.accountsByCode.get(args.code);
   if (!a) throw new Error(`Missing required GL account code ${args.code}. Seed Chart of Accounts for the company.`);
   return a.id;
+}
+
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
+  if (!hasPermission(session, PERMISSIONS.INVOICE_READ)) {
+    return Response.json({ error: "Not authorized" }, { status: 403 });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
+  if (!user?.companyId) return Response.json({ error: "No company assigned" }, { status: 400 });
+
+  // Find the highest numeric invoice number to suggest the next one
+  const latestInvoice = await prisma.invoice.findFirst({
+    where: { companyId: user.companyId },
+    orderBy: { createdAt: "desc" },
+    select: { invoiceNumber: true },
+    take: 1,
+  });
+
+  let nextNumber = "INV-0001";
+  if (latestInvoice?.invoiceNumber) {
+    // Try to extract numeric portion from the end of the invoice number
+    const match = latestInvoice.invoiceNumber.match(/([0-9]+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10) + 1;
+      const prefix = latestInvoice.invoiceNumber.slice(0, -match[1].length);
+      nextNumber = prefix + String(num).padStart(match[1].length, "0");
+    }
+  }
+
+  return Response.json({ nextNumber });
 }
 
 export async function POST(req: Request) {
@@ -116,7 +150,19 @@ export async function POST(req: Request) {
         if (qty.lte(0)) throw new Error("Quantity must be > 0");
         if (price.lt(0)) throw new Error("Unit price must be >= 0");
 
-        const lineTotal = qty.mul(price);
+        const grossTotal = qty.mul(price);
+
+        // Line-level discount
+        const lineDiscountType = l.discountType ?? null;
+        const lineDiscountValue = l.discountValue ? new Prisma.Decimal(l.discountValue) : zero;
+        let lineDiscountAmount = zero;
+        if (lineDiscountType === "PERCENTAGE" && lineDiscountValue.gt(0)) {
+          lineDiscountAmount = grossTotal.mul(lineDiscountValue).div(100).toDecimalPlaces(6);
+        } else if (lineDiscountType === "FIXED" && lineDiscountValue.gt(0)) {
+          lineDiscountAmount = lineDiscountValue.toDecimalPlaces(6);
+        }
+        const lineTotal = grossTotal.minus(lineDiscountAmount);
+
         const taxRate = l.taxRate ? new Prisma.Decimal(l.taxRate) : null;
         if (taxRate && taxRate.lt(0)) throw new Error("Tax rate must be >= 0");
         const lineTax = taxRate ? lineTotal.mul(taxRate) : zero;
@@ -127,6 +173,8 @@ export async function POST(req: Request) {
 					costCenterId,
           quantity: qty,
           unitPrice: price,
+          discountType: lineDiscountType,
+          discountValue: lineDiscountValue,
           lineTotal,
           taxRate,
           lineTax,
@@ -190,6 +238,8 @@ export async function POST(req: Request) {
 							costCenterId: l.costCenterId,
               quantity: l.quantity.toDecimalPlaces(6).toFixed(6),
               unitPrice: l.unitPrice.toDecimalPlaces(6).toFixed(6),
+              discountType: l.discountType,
+              discountValue: l.discountValue.toDecimalPlaces(6).toFixed(6),
               lineTotal: l.lineTotal.toDecimalPlaces(6).toFixed(6),
               taxRate: l.taxRate ? l.taxRate.toDecimalPlaces(6).toFixed(6) : null,
             })),

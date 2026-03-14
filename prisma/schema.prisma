@@ -493,6 +493,8 @@ model InvoiceLineItem {
   description String
   quantity    Decimal  @db.Decimal(20, 6)
   unitPrice   Decimal  @db.Decimal(20, 6)
+  discountType String? // "PERCENTAGE" | "FIXED"
+  discountValue Decimal @default(0) @db.Decimal(20, 6)
   lineTotal   Decimal  @db.Decimal(20, 6)
   taxRate     Decimal? @db.Decimal(20, 6) // e.g. 0.05
 

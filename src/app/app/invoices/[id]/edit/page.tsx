@@ -87,6 +87,8 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
       costCenterId: li.costCenterId ?? "",
       quantity: String(li.quantity),
       unitPrice: String(li.unitPrice),
+      discountType: li.discountType ?? "",
+      discountValue: li.discountValue ? String(li.discountValue) : "",
       taxRate: li.taxRate ? String(li.taxRate) : "",
     })),
   };

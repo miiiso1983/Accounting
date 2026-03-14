@@ -112,6 +112,7 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
           <div>
             <div className="text-xs font-semibold uppercase text-zinc-400">Bill To / فاتورة إلى</div>
             <div className="mt-2 text-sm text-zinc-900 font-medium">{invoice.customer.name}</div>
+            {invoice.customer.companyName && <div className="text-sm text-zinc-700">{invoice.customer.companyName}</div>}
             {invoice.customer.email && <div className="text-sm text-zinc-600">{invoice.customer.email}</div>}
             {invoice.customer.phone && <div className="text-sm text-zinc-600">{invoice.customer.phone}</div>}
             {invoice.customer.address1 && <div className="text-sm text-zinc-600">{invoice.customer.address1}</div>}
@@ -141,21 +142,31 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
                 <th className="py-3 text-left text-xs font-semibold uppercase text-zinc-400">Description / الوصف</th>
                 <th className="py-3 text-right text-xs font-semibold uppercase text-zinc-400">Qty / الكمية</th>
                 <th className="py-3 text-right text-xs font-semibold uppercase text-zinc-400">Price / السعر</th>
+                <th className="py-3 text-right text-xs font-semibold uppercase text-zinc-400">Discount / خصم</th>
                 <th className="py-3 text-right text-xs font-semibold uppercase text-zinc-400">Tax / ضريبة</th>
                 <th className="py-3 text-right text-xs font-semibold uppercase text-zinc-400">Total / المجموع</th>
               </tr>
             </thead>
             <tbody>
-              {invoice.lineItems.map((li, idx) => (
-                <tr key={li.id} className="border-b border-zinc-100">
-                  <td className="py-3 text-zinc-400">{idx + 1}</td>
-                  <td className="py-3 text-zinc-900">{li.description}</td>
-                  <td className="py-3 text-right font-mono text-zinc-700">{fmt(li.quantity)}</td>
-                  <td className="py-3 text-right font-mono text-zinc-700">{fmt(li.unitPrice)}</td>
-                  <td className="py-3 text-right font-mono text-zinc-700">{li.taxRate ? `${fmt(Number(li.taxRate) * 100)}%` : "-"}</td>
-                  <td className="py-3 text-right font-mono text-zinc-900 font-medium">{fmt(li.lineTotal)}</td>
-                </tr>
-              ))}
+              {invoice.lineItems.map((li, idx) => {
+                const hasLineDiscount = li.discountType && Number(li.discountValue) > 0;
+                const discountLabel = hasLineDiscount
+                  ? li.discountType === "PERCENTAGE"
+                    ? `${fmt(li.discountValue)}%`
+                    : fmt(li.discountValue)
+                  : "-";
+                return (
+                  <tr key={li.id} className="border-b border-zinc-100">
+                    <td className="py-3 text-zinc-400">{idx + 1}</td>
+                    <td className="py-3 text-zinc-900">{li.description}</td>
+                    <td className="py-3 text-right font-mono text-zinc-700">{fmt(li.quantity)}</td>
+                    <td className="py-3 text-right font-mono text-zinc-700">{fmt(li.unitPrice)}</td>
+                    <td className="py-3 text-right font-mono text-amber-700">{discountLabel}</td>
+                    <td className="py-3 text-right font-mono text-zinc-700">{li.taxRate ? `${fmt(Number(li.taxRate) * 100)}%` : "-"}</td>
+                    <td className="py-3 text-right font-mono text-zinc-900 font-medium">{fmt(li.lineTotal)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

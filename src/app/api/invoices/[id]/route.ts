@@ -27,6 +27,8 @@ const UpdateBodySchema = z.object({
 				costCenterId: z.string().optional().or(z.literal("")),
         quantity: z.string().min(1),
         unitPrice: z.string().min(1),
+        discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+        discountValue: z.string().optional().or(z.literal("")),
         taxRate: z.string().optional().or(z.literal("")),
       }),
     )
@@ -126,12 +128,23 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
         const price = new Prisma.Decimal(l.unitPrice);
         if (qty.lte(0)) throw new Error("Quantity must be > 0");
         if (price.lt(0)) throw new Error("Unit price must be >= 0");
-        const lineTotal = qty.mul(price);
+        const grossTotal = qty.mul(price);
+
+        const lineDiscountType = l.discountType ?? null;
+        const lineDiscountValue = l.discountValue ? new Prisma.Decimal(l.discountValue) : zero;
+        let lineDiscountAmount = zero;
+        if (lineDiscountType === "PERCENTAGE" && lineDiscountValue.gt(0)) {
+          lineDiscountAmount = grossTotal.mul(lineDiscountValue).div(100).toDecimalPlaces(6);
+        } else if (lineDiscountType === "FIXED" && lineDiscountValue.gt(0)) {
+          lineDiscountAmount = lineDiscountValue.toDecimalPlaces(6);
+        }
+        const lineTotal = grossTotal.minus(lineDiscountAmount);
+
         const taxRate = l.taxRate ? new Prisma.Decimal(l.taxRate) : null;
         if (taxRate && taxRate.lt(0)) throw new Error("Tax rate must be >= 0");
         const lineTax = taxRate ? lineTotal.mul(taxRate) : zero;
 				const costCenterId = l.costCenterId?.trim() ? l.costCenterId.trim() : null;
-				return { description: l.description, costCenterId, quantity: qty, unitPrice: price, lineTotal, taxRate, lineTax };
+				return { description: l.description, costCenterId, quantity: qty, unitPrice: price, discountType: lineDiscountType, discountValue: lineDiscountValue, lineTotal, taxRate, lineTax };
       });
 
       const subtotal = computedLines.reduce((acc, l) => acc.plus(l.lineTotal), zero).toDecimalPlaces(6);
@@ -193,6 +206,8 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
 						costCenterId: l.costCenterId,
               quantity: l.quantity.toDecimalPlaces(6).toFixed(6),
               unitPrice: l.unitPrice.toDecimalPlaces(6).toFixed(6),
+              discountType: l.discountType,
+              discountValue: l.discountValue.toDecimalPlaces(6).toFixed(6),
               lineTotal: l.lineTotal.toDecimalPlaces(6).toFixed(6),
               taxRate: l.taxRate ? l.taxRate.toDecimalPlaces(6).toFixed(6) : null,
             })),
