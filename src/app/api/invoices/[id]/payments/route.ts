@@ -12,16 +12,32 @@ import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 const BodySchema = z.object({
-  paymentDate: z.string().optional(), // yyyy-mm-dd
-  amount: z.string().min(1),
+  paymentDate: z.preprocess(
+    (v) => (typeof v === "string" ? (v.trim() ? v.trim() : undefined) : v),
+    z.string().optional(),
+  ), // yyyy-mm-dd
+  amount: z.preprocess((v) => (typeof v === "string" ? v.trim() : v), z.string().min(1)),
   currencyCode: z.enum(["IQD", "USD"]).optional(),
   method: z.enum(["CASH", "BANK", "TRANSFER"]).optional(),
-  note: z.string().optional(),
-  exchangeRate: z
-    .object({
-      rate: z.string().min(1),
-    })
-    .optional(),
+  note: z.preprocess(
+    (v) => (typeof v === "string" ? (v.trim() ? v.trim() : undefined) : v),
+    z.string().optional(),
+  ),
+  exchangeRate: z.preprocess(
+    (v) => {
+      if (!v || typeof v !== "object") return v;
+      const rate = (v as { rate?: unknown }).rate;
+      if (typeof rate !== "string") return v;
+      const trimmed = rate.trim();
+      if (!trimmed) return undefined;
+      return { rate: trimmed };
+    },
+    z
+      .object({
+        rate: z.string().min(1),
+      })
+      .optional(),
+  ),
   notify: z.boolean().optional(),
 });
 
@@ -58,7 +74,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const json = await req.json();
   const parsed = BodySchema.safeParse(json);
-  if (!parsed.success) return Response.json({ error: "Invalid payload" }, { status: 400 });
+  if (!parsed.success) {
+    const details = parsed.error.issues
+      .slice(0, 5)
+      .map((i) => `${i.path.join(".") || "body"}: ${i.message}`)
+      .join("; ");
+    return Response.json({ error: details ? `Invalid payload: ${details}` : "Invalid payload" }, { status: 400 });
+  }
 
   const body = parsed.data;
   const notify = body.notify ?? true;
@@ -82,8 +104,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (invoice.status === "DRAFT") return Response.json({ error: "Send/post the invoice before recording payments" }, { status: 400 });
 
   const paymentCurrency = (body.currencyCode ?? invoice.currencyCode) as "IQD" | "USD";
-  const paymentDate = parseDateOnly(body.paymentDate);
-  const amount = new Prisma.Decimal(body.amount);
+  let paymentDate: Date;
+  let amount: Prisma.Decimal;
+  try {
+    paymentDate = parseDateOnly(body.paymentDate);
+    amount = new Prisma.Decimal(body.amount);
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : "Invalid payment payload" }, { status: 400 });
+  }
   if (amount.lte(0)) return Response.json({ error: "Amount must be > 0" }, { status: 400 });
 
   try {

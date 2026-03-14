@@ -217,17 +217,18 @@ export function InvoicePaymentsPanel({
     setSuccess(null);
     setCreating(true);
     try {
+			const trimmedAmount = amount.trim();
+			const trimmedRate = rate.trim();
       const body: Record<string, unknown> = {
         paymentDate,
-        amount,
+				amount: trimmedAmount,
         currencyCode,
         method,
         note: note.trim() ? note : undefined,
         notify,
       };
-      if (needsFx) {
-        body.exchangeRate = { rate };
-      }
+			// Only send exchangeRate if user provided it; otherwise the API may reuse the invoice FX rate.
+			if (needsFx && trimmedRate) body.exchangeRate = { rate: trimmedRate };
 
       const res = await fetch(`/api/invoices/${invoiceId}/payments`, {
         method: "POST",
