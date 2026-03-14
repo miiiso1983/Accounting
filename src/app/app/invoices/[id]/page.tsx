@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { buildPublicReceiptUrl } from "@/lib/payments/public-link";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
-import { InvoiceActions } from "./ui";
+import { InvoiceActions, InvoicePaymentsPanel } from "./ui";
 
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
@@ -34,13 +35,28 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
       customer: true,
       exchangeRate: true,
       lineItems: true,
+      payments: { orderBy: { paymentDate: "desc" } },
       journalEntry: { select: { id: true } },
     },
   });
 
   if (!invoice) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
-	  const canSend = hasPermission(session, PERMISSIONS.INVOICE_SEND);
-	  const canEdit = hasPermission(session, PERMISSIONS.INVOICE_WRITE) && invoice.status === "DRAFT";
+		  const canSend = hasPermission(session, PERMISSIONS.INVOICE_SEND);
+		  const canEdit = hasPermission(session, PERMISSIONS.INVOICE_WRITE) && invoice.status === "DRAFT";
+		  const canPaymentRead = hasPermission(session, PERMISSIONS.INVOICE_PAYMENT_READ);
+		  const canPaymentWrite = hasPermission(session, PERMISSIONS.INVOICE_PAYMENT_WRITE);
+
+		  const payments = invoice.payments.map((p) => ({
+		    id: p.id,
+		    paymentDate: p.paymentDate.toISOString().slice(0, 10),
+		    amount: fmt(p.amount),
+		    currencyCode: p.currencyCode,
+		    amountBase: fmt(p.amountBase),
+		    baseCurrencyCode: p.baseCurrencyCode,
+		    method: p.method ?? "-",
+		    note: p.note ?? "",
+		    receiptUrl: buildPublicReceiptUrl(p.id),
+		  }));
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -124,6 +140,20 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
 	          customerPhone={invoice.customer?.phone}
 	        />
       </div>
+
+	    <div className="mt-4">
+	      <InvoicePaymentsPanel
+	        invoiceId={invoice.id}
+	        invoiceStatus={invoice.status}
+	        invoiceCurrencyCode={invoice.currencyCode}
+	        baseCurrencyCode={invoice.baseCurrencyCode}
+	        customerEmail={invoice.customer?.email}
+	        customerPhone={invoice.customer?.phone}
+	        canRead={canPaymentRead}
+	        canWrite={canPaymentWrite}
+	        payments={payments}
+	      />
+	    </div>
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">

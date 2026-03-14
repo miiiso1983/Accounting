@@ -18,6 +18,10 @@ export const PERMISSIONS = {
   INVOICE_WRITE: "invoice:write",
   INVOICE_SEND: "invoice:send",
 
+  // Invoice payments / receipts
+  INVOICE_PAYMENT_READ: "invoice_payment:read",
+  INVOICE_PAYMENT_WRITE: "invoice_payment:write",
+
   // Expenses
   EXPENSE_READ: "expense:read",
   EXPENSE_WRITE: "expense:write",

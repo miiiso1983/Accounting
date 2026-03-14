@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 function readErrorMessage(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
@@ -153,6 +153,283 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
             {deleting ? "Deleting..." : "🗑 Delete / حذف"}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+type PaymentRow = {
+  id: string;
+  paymentDate: string; // yyyy-mm-dd
+  amount: string;
+  currencyCode: string;
+  amountBase: string;
+  baseCurrencyCode: string;
+  method: string;
+  note: string;
+  receiptUrl: string;
+};
+
+type InvoicePaymentsPanelProps = {
+  invoiceId: string;
+  invoiceStatus: string;
+  invoiceCurrencyCode: string;
+  baseCurrencyCode: string;
+  canRead: boolean;
+  canWrite: boolean;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  payments: PaymentRow[];
+};
+
+export function InvoicePaymentsPanel({
+  invoiceId,
+  invoiceStatus,
+  invoiceCurrencyCode,
+  baseCurrencyCode,
+  canRead,
+  canWrite,
+  customerEmail,
+  customerPhone,
+  payments,
+}: InvoicePaymentsPanelProps) {
+  const router = useRouter();
+  const [creating, setCreating] = useState(false);
+  const [notifyLoading, setNotifyLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState<string>("");
+  const [currencyCode, setCurrencyCode] = useState<string>(invoiceCurrencyCode);
+  const [method, setMethod] = useState<string>("CASH");
+  const [note, setNote] = useState<string>("");
+  const [rate, setRate] = useState<string>("");
+  const [notify, setNotify] = useState<boolean>(true);
+
+  const needsFx = currencyCode !== baseCurrencyCode;
+  const canRecord = canWrite && invoiceStatus !== "DRAFT" && invoiceStatus !== "CANCELLED";
+  const canNotifyReceipt = canRead || canWrite;
+
+  async function onCreatePayment(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setCreating(true);
+    try {
+      const body: Record<string, unknown> = {
+        paymentDate,
+        amount,
+        currencyCode,
+        method,
+        note: note.trim() ? note : undefined,
+        notify,
+      };
+      if (needsFx) {
+        body.exchangeRate = { rate };
+      }
+
+      const res = await fetch(`/api/invoices/${invoiceId}/payments`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await readResponseData(res);
+      if (!res.ok) {
+        setError(readErrorMessage(data) ?? `Failed to record payment (HTTP ${res.status})`);
+        return;
+      }
+
+      setAmount("");
+      setNote("");
+      setRate("");
+      setSuccess("Payment recorded. Receipt notification attempted.");
+      router.refresh();
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function onNotifyPayment(paymentId: string, channel: "email" | "whatsapp") {
+    setError(null);
+    setSuccess(null);
+    setNotifyLoading(`${paymentId}:${channel}`);
+    try {
+      const res = await fetch(`/api/payments/${paymentId}/notify`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ channel }),
+      });
+      const data = (await readResponseData(res)) as Record<string, unknown> | null;
+      if (!res.ok) {
+        setError(readErrorMessage(data) ?? `Failed to send ${channel} receipt (HTTP ${res.status})`);
+        return;
+      }
+      if (data?.fallbackLink && typeof data.fallbackLink === "string") {
+        window.open(data.fallbackLink, "_blank");
+        setSuccess("WhatsApp link opened in new tab (API not configured)");
+      } else {
+        setSuccess(`Receipt sent successfully (${channel}).`);
+      }
+    } finally {
+      setNotifyLoading(null);
+    }
+  }
+
+  if (!canRead && !canWrite) {
+    return <div className="rounded-2xl border bg-white p-5 text-sm">Not authorized.</div>;
+  }
+
+  return (
+    <div className="rounded-2xl border bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium text-zinc-900">Payments / الدفعات</div>
+          <div className="mt-1 text-xs text-zinc-500">
+            Record payments and send bilingual receipt notifications (Email/WhatsApp).
+          </div>
+        </div>
+        <div className="text-right text-xs text-zinc-500">
+          Base currency: <span className="font-mono text-zinc-800">{baseCurrencyCode}</span>
+        </div>
+      </div>
+
+      {error ? <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div> : null}
+      {success ? <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{success}</div> : null}
+
+      {canWrite ? (
+        <form onSubmit={onCreatePayment} className="mt-4 grid gap-3 rounded-xl border bg-zinc-50 p-4">
+          <div className="grid gap-3 md:grid-cols-5">
+            <label className="grid gap-1">
+              <span className="text-xs text-zinc-500">Date</span>
+              <input className="rounded-lg border bg-white px-3 py-2 text-sm" type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+            </label>
+
+            <label className="grid gap-1 md:col-span-2">
+              <span className="text-xs text-zinc-500">Amount</span>
+              <input
+                className="rounded-lg border bg-white px-3 py-2 text-sm"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </label>
+
+            <label className="grid gap-1">
+              <span className="text-xs text-zinc-500">Currency</span>
+              <select className="rounded-lg border bg-white px-3 py-2 text-sm" value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)}>
+                <option value="IQD">IQD</option>
+                <option value="USD">USD</option>
+              </select>
+            </label>
+
+            <label className="grid gap-1">
+              <span className="text-xs text-zinc-500">Method</span>
+              <select className="rounded-lg border bg-white px-3 py-2 text-sm" value={method} onChange={(e) => setMethod(e.target.value)}>
+                <option value="CASH">Cash</option>
+                <option value="BANK">Bank</option>
+                <option value="TRANSFER">Transfer</option>
+              </select>
+            </label>
+          </div>
+
+          {needsFx ? (
+            <label className="grid gap-1">
+              <span className="text-xs text-zinc-500">Exchange rate (1 {currencyCode} = ? {baseCurrencyCode})</span>
+              <input className="rounded-lg border bg-white px-3 py-2 text-sm" inputMode="decimal" placeholder="e.g. 1300" value={rate} onChange={(e) => setRate(e.target.value)} />
+            </label>
+          ) : null}
+
+          <label className="grid gap-1">
+            <span className="text-xs text-zinc-500">Note (optional)</span>
+            <input className="rounded-lg border bg-white px-3 py-2 text-sm" value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+              Send receipt automatically
+            </label>
+
+            <button
+              type="submit"
+              className="rounded-xl bg-emerald-700 px-4 py-2 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+              disabled={!canRecord || creating}
+              title={!canRecord ? "Invoice must be SENT/POSTED and you must have permission" : ""}
+            >
+              {creating ? "Saving..." : "Record payment"}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="text-xs text-zinc-500">
+            <tr className="border-b">
+              <th className="py-2 pr-3">Date</th>
+              <th className="py-2 pr-3">Amount</th>
+              <th className="py-2 pr-3">Base</th>
+              <th className="py-2 pr-3">Method</th>
+              <th className="py-2 pr-3">Receipt</th>
+              <th className="py-2 pr-3">Send</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.length === 0 ? (
+              <tr>
+                <td className="py-3 text-sm text-zinc-600" colSpan={6}>
+                  No payments recorded yet.
+                </td>
+              </tr>
+            ) : (
+              payments.map((p) => (
+                <tr key={p.id} className="border-b last:border-b-0">
+                  <td className="py-2 pr-3 font-mono text-zinc-700">{p.paymentDate}</td>
+                  <td className="py-2 pr-3 font-mono text-zinc-900">
+                    {p.amount} {p.currencyCode}
+                  </td>
+                  <td className="py-2 pr-3 font-mono text-zinc-700">
+                    {p.amountBase} {p.baseCurrencyCode}
+                  </td>
+                  <td className="py-2 pr-3 text-zinc-700">{p.method}</td>
+                  <td className="py-2 pr-3">
+                    <a className="text-sm underline text-emerald-700" href={p.receiptUrl} target="_blank" rel="noreferrer">
+                      Open
+                    </a>
+                  </td>
+                  <td className="py-2 pr-3">
+                    {canNotifyReceipt ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+                          onClick={() => onNotifyPayment(p.id, "email")}
+                          disabled={!customerEmail || notifyLoading !== null}
+                          title={!customerEmail ? "Customer has no email" : ""}
+                        >
+                          {notifyLoading === `${p.id}:email` ? "Sending..." : "Email"}
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          onClick={() => onNotifyPayment(p.id, "whatsapp")}
+                          disabled={!customerPhone || notifyLoading !== null}
+                          title={!customerPhone ? "Customer has no phone" : ""}
+                        >
+                          {notifyLoading === `${p.id}:whatsapp` ? "Sending..." : "WhatsApp"}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-zinc-400">Not authorized</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -84,6 +84,7 @@ model Company {
   exchangeRates      ExchangeRate[]
   customers          Customer[]
   invoices           Invoice[]
+  invoicePayments    InvoicePayment[]
   expenses           Expense[]
   journalEntries     JournalEntry[]
   attachments        Attachment[]
@@ -114,6 +115,7 @@ model User {
 
   // Operational links
   createdJournalEntries JournalEntry[]
+  createdInvoicePayments InvoicePayment[]
   uploadedAttachments   Attachment[]
 
   createdAt     DateTime   @default(now())
@@ -227,6 +229,7 @@ model ExchangeRate {
   journalEntries    JournalEntry[]
   invoices          Invoice[]
   expenses          Expense[]
+  invoicePayments   InvoicePayment[]
 
   @@index([companyId, baseCurrencyCode, quoteCurrencyCode, effectiveAt])
 }
@@ -292,6 +295,7 @@ model JournalEntry {
   // Optional links from documents
   invoices         Invoice[]
   expenses         Expense[]
+  invoicePayments  InvoicePayment[]
 
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
@@ -401,6 +405,7 @@ model Invoice {
   company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   lineItems         InvoiceLineItem[]
   attachments       Attachment[]
+  payments          InvoicePayment[]
 
   // Optional linkage to posted accounting entry
   journalEntryId    String?
@@ -412,6 +417,41 @@ model Invoice {
   @@unique([companyId, invoiceNumber])
   @@index([companyId, issueDate])
   @@index([companyId, status])
+}
+
+model InvoicePayment {
+  id               String       @id @default(cuid())
+  companyId         String
+  invoiceId         String
+
+  paymentDate      DateTime
+  method           String? // CASH | BANK | TRANSFER ...
+  note             String?
+
+  amount           Decimal      @db.Decimal(20, 6)
+  currencyCode     CurrencyCode
+
+  // Snapshot of base currency used for conversion at posting time
+  baseCurrencyCode CurrencyCode
+  exchangeRateId   String?
+  exchangeRate     ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+  amountBase       Decimal      @db.Decimal(20, 6)
+
+  // Optional linkage to posted accounting entry
+  journalEntryId   String?
+  journalEntry     JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  createdById      String?
+  createdBy        User?        @relation(fields: [createdById], references: [id])
+
+  company          Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice          Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([companyId, paymentDate])
+  @@index([companyId, invoiceId])
 }
 
 model InvoiceLineItem {

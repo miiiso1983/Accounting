@@ -142,8 +142,12 @@ export function buildInvoiceCreatedEmail(data: InvoiceEmailData): { subject: str
   return { subject, html };
 }
 
-export function buildPaymentReceivedEmail(data: InvoiceEmailData & { paidAmount: string }): { subject: string; html: string } {
+export function buildPaymentReceivedEmail(
+  data: InvoiceEmailData & { paidAmount: string; receiptUrl?: string },
+): { subject: string; html: string } {
   const subject = `Payment received for ${data.invoiceNumber} | تم استلام الدفعة`;
+  const url = data.receiptUrl ?? data.invoiceUrl;
+  const linkLabel = data.receiptUrl ? "View Receipt / عرض الإيصال" : "View Invoice / عرض الفاتورة";
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: #10b981; color: white; padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
@@ -158,7 +162,7 @@ export function buildPaymentReceivedEmail(data: InvoiceEmailData & { paidAmount:
           <tr style="background: #f0fdf4;"><td style="padding: 8px; color: #71717a;">Amount Paid</td><td style="padding: 8px; font-weight: bold; color: #10b981; font-size: 18px;">${data.paidAmount} ${data.currencyCode}</td></tr>
         </table>
         <div style="text-align: center; margin: 24px 0;">
-          <a href="${data.invoiceUrl}" style="background: #18181b; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">View Invoice / عرض الفاتورة</a>
+          <a href="${url}" style="background: #18181b; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">${linkLabel}</a>
         </div>
         <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 20px 0;" />
         <p style="color: #a1a1aa; font-size: 12px; text-align: center;">Thank you for your business / شكراً لتعاملكم معنا</p>

@@ -79,7 +79,13 @@ export function buildInvoiceCreatedMessage(data: InvoiceWhatsAppData): string {
 شكراً لتعاملكم معنا ❤️`;
 }
 
-export function buildPaymentReceivedMessage(data: InvoiceWhatsAppData & { paidAmount: string }): string {
+export function buildPaymentReceivedMessage(
+  data: InvoiceWhatsAppData & { paidAmount: string; receiptUrl?: string },
+): string {
+  const url = data.receiptUrl ?? data.invoiceUrl;
+  const linkLabel = data.receiptUrl ? "عرض الإيصال" : "عرض الفاتورة";
+  const linkLabelEn = data.receiptUrl ? "View Receipt" : "View Invoice";
+
   return `✅ *تأكيد الدفع | Payment Received*
 
 مرحباً ${data.customerName},
@@ -88,7 +94,7 @@ export function buildPaymentReceivedMessage(data: InvoiceWhatsAppData & { paidAm
 📋 رقم الفاتورة: *${data.invoiceNumber}*
 💰 المبلغ المدفوع: *${data.paidAmount} ${data.currencyCode}*
 
-🔗 عرض الفاتورة: ${data.invoiceUrl}
+🔗 ${linkLabel} | ${linkLabelEn}: ${url}
 
 شكراً لكم 🙏`;
 }
