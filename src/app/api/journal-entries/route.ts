@@ -7,6 +7,10 @@ import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { createPostedJournalEntry } from "@/lib/accounting/journal/create";
 
+function errorMessage(error: z.ZodError) {
+  return error.issues.map((issue) => issue.message).join(", ") || "Invalid journal entry payload";
+}
+
 const BodySchema = z.object({
   entryDate: z.string().min(1), // yyyy-mm-dd
   description: z.string().optional(),
@@ -22,6 +26,7 @@ const BodySchema = z.object({
     .array(
       z.object({
         accountId: z.string().min(1),
+        costCenterId: z.string().optional().or(z.literal("")),
         dc: z.enum(["DEBIT", "CREDIT"]),
         amount: z.string().min(1),
         description: z.string().optional(),
@@ -52,7 +57,7 @@ export async function POST(req: Request) {
   const json = await req.json();
   const parsed = BodySchema.safeParse(json);
   if (!parsed.success) {
-    return Response.json({ error: parsed.error.flatten() }, { status: 400 });
+    return Response.json({ error: errorMessage(parsed.error) }, { status: 400 });
   }
 
   const body = parsed.data;
@@ -60,6 +65,19 @@ export async function POST(req: Request) {
   const entryCurrency = body.currencyCode;
 
   const entryDate = new Date(`${body.entryDate}T00:00:00.000Z`);
+
+  const requestedCostCenterIds = Array.from(
+    new Set(body.lines.map((l) => l.costCenterId).filter((id): id is string => !!id && id.trim().length > 0).map((id) => id.trim())),
+  );
+  if (requestedCostCenterIds.length > 0) {
+    const rows = await prisma.costCenter.findMany({
+      where: { companyId: company.id, isActive: true, id: { in: requestedCostCenterIds } },
+      select: { id: true },
+    });
+    if (rows.length !== requestedCostCenterIds.length) {
+      return Response.json({ error: "Invalid cost center" }, { status: 400 });
+    }
+  }
 
   let exchangeRateId: string | undefined;
   if (entryCurrency && entryCurrency !== baseCurrencyCode) {
@@ -99,6 +117,7 @@ export async function POST(req: Request) {
       createdById: session.user.id,
       lines: body.lines.map((l) => ({
         accountId: l.accountId,
+        costCenterId: l.costCenterId?.trim() ? l.costCenterId.trim() : undefined,
         dc: l.dc,
         amount: l.amount,
         currencyCode: entryCurrency ?? baseCurrencyCode,

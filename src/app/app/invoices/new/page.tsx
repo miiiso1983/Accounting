@@ -9,7 +9,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 import { InvoiceForm } from "./ui";
 
-type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
+type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
+type CostCenterOption = { id: string; code: string; name: string };
 
 export default async function NewInvoicePage({
   searchParams,
@@ -32,7 +33,7 @@ export default async function NewInvoicePage({
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
-  const [customers, productsRaw] = await Promise.all([
+  const [customers, productsRaw, costCenters] = await Promise.all([
     prisma.customer.findMany({
       where: { companyId },
       orderBy: [{ name: "asc" }],
@@ -42,7 +43,13 @@ export default async function NewInvoicePage({
     prisma.product.findMany({
       where: { companyId, isActive: true },
       orderBy: [{ name: "asc" }],
-      select: { id: true, name: true, description: true, unitPrice: true, currencyCode: true },
+      select: { id: true, name: true, description: true, unitPrice: true, currencyCode: true, costCenterId: true },
+      take: 500,
+    }),
+    prisma.costCenter.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ code: "asc" }],
+      select: { id: true, code: true, name: true },
       take: 500,
     }),
   ]);
@@ -51,6 +58,8 @@ export default async function NewInvoicePage({
     ...p,
     unitPrice: String(p.unitPrice),
   }));
+
+  const costCenterOptions: CostCenterOption[] = costCenters;
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -65,7 +74,13 @@ export default async function NewInvoicePage({
       </div>
 
       <div className="mt-4">
-        <InvoiceForm customers={customers} products={products} baseCurrencyCode={company.baseCurrencyCode} defaultCustomerId={defaultCustomerId} />
+        <InvoiceForm
+          customers={customers}
+          products={products}
+          costCenters={costCenterOptions}
+          baseCurrencyCode={company.baseCurrencyCode}
+          defaultCustomerId={defaultCustomerId}
+        />
         {customers.length === 0 ? (
           <div className="mt-3 text-sm text-zinc-600">
             You have no customers yet. <Link className="underline" href="/app/customers/new">Create a customer</Link> first.

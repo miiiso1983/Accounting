@@ -30,6 +30,10 @@ export const PERMISSIONS = {
   // Attachments
   ATTACHMENT_READ: "attachment:read",
   ATTACHMENT_WRITE: "attachment:write",
+
+  // Cost centers
+  COST_CENTERS_READ: "cost_centers:read",
+  COST_CENTERS_WRITE: "cost_centers:write",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

@@ -7,17 +7,14 @@ import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 const CreateSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().optional().or(z.literal("")),
-  unitPrice: z.string().min(1),
-  currencyCode: z.enum(["IQD", "USD"]),
-  costCenterId: z.string().optional().or(z.literal("")),
+  code: z.string().min(1).max(50).transform((s) => s.trim()),
+  name: z.string().min(1).max(200).transform((s) => s.trim()),
 });
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
-  if (!hasPermission(session, PERMISSIONS.INVOICE_READ)) {
+  if (!hasPermission(session, PERMISSIONS.COST_CENTERS_READ)) {
     return Response.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -27,19 +24,22 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const includeInactive = searchParams.get("all") === "1";
 
-  const products = await prisma.product.findMany({
-    where: { companyId: user.companyId, ...(includeInactive ? {} : { isActive: true }) },
-    orderBy: [{ name: "asc" }],
-    take: 500,
+  const centers = await prisma.costCenter.findMany({
+    where: {
+      companyId: user.companyId,
+      ...(includeInactive ? {} : { isActive: true }),
+    },
+    orderBy: [{ isActive: "desc" }, { code: "asc" }],
+    take: 1000,
   });
 
-  return Response.json(products.map((p) => ({ ...p, unitPrice: String(p.unitPrice) })));
+  return Response.json(centers);
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
-  if (!hasPermission(session, PERMISSIONS.INVOICE_WRITE)) {
+  if (!hasPermission(session, PERMISSIONS.COST_CENTERS_WRITE)) {
     return Response.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -49,30 +49,18 @@ export async function POST(req: Request) {
   const body = CreateSchema.safeParse(await req.json());
   if (!body.success) return Response.json({ error: body.error.issues.map((i) => i.message).join(", ") }, { status: 422 });
 
-  const { name, description, unitPrice, currencyCode } = body.data;
-
-  let costCenterId: string | null = null;
-  const requestedCostCenterId = body.data.costCenterId?.trim();
-  if (requestedCostCenterId) {
-    const cc = await prisma.costCenter.findFirst({
-      where: { id: requestedCostCenterId, companyId: user.companyId, isActive: true },
+  try {
+    const created = await prisma.costCenter.create({
+      data: {
+        companyId: user.companyId,
+        code: body.data.code,
+        name: body.data.name,
+      },
       select: { id: true },
     });
-    if (!cc) return Response.json({ error: "Cost center not found" }, { status: 400 });
-    costCenterId = cc.id;
+    return Response.json({ id: created.id }, { status: 201 });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return Response.json({ error: message }, { status: 400 });
   }
-
-  const product = await prisma.product.create({
-    data: {
-      companyId: user.companyId,
-      name,
-      description: description || null,
-      unitPrice: parseFloat(unitPrice),
-      currencyCode,
-      costCenterId,
-    },
-  });
-
-  return Response.json({ id: product.id }, { status: 201 });
 }
-

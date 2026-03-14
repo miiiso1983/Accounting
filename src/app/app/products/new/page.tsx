@@ -9,6 +9,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 import { ProductForm } from "./ui";
 
+type CostCenterOption = { id: string; code: string; name: string };
+
 export default async function NewProductPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
@@ -24,6 +26,13 @@ export default async function NewProductPage() {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
+  const costCenters: CostCenterOption[] = await prisma.costCenter.findMany({
+    where: { companyId, isActive: true },
+    orderBy: [{ code: "asc" }],
+    select: { id: true, code: true, name: true },
+    take: 1000,
+  });
+
   return (
     <div className="rounded-2xl border bg-white p-5">
       <div className="flex items-start justify-between gap-4">
@@ -37,7 +46,7 @@ export default async function NewProductPage() {
       </div>
 
       <div className="mt-4">
-        <ProductForm baseCurrencyCode={company.baseCurrencyCode} />
+        <ProductForm baseCurrencyCode={company.baseCurrencyCode} costCenters={costCenters} />
       </div>
     </div>
   );

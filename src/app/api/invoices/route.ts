@@ -29,6 +29,7 @@ const BodySchema = z.object({
     .array(
       z.object({
         description: z.string().min(1),
+				costCenterId: z.string().optional().or(z.literal("")),
         quantity: z.string().min(1),
         unitPrice: z.string().min(1),
         taxRate: z.string().optional().or(z.literal("")),
@@ -75,6 +76,17 @@ export async function POST(req: Request) {
       const customer = await tx.customer.findFirst({ where: { id: body.customerId, companyId: company.id }, select: { id: true } });
       if (!customer) throw new Error("Customer not found");
 
+			const costCenterIds = Array.from(
+				new Set(body.lines.map((l) => (l.costCenterId ?? "").trim()).filter(Boolean)),
+			);
+			if (costCenterIds.length > 0) {
+				const found = await tx.costCenter.findMany({
+					where: { companyId: company.id, id: { in: costCenterIds } },
+					select: { id: true },
+				});
+				if (found.length !== costCenterIds.length) throw new Error("Invalid cost center");
+			}
+
       let exchangeRateId: string | null = null;
       let rateDecimal: Prisma.Decimal | null = null;
       if (invoiceCurrency !== baseCurrencyCode) {
@@ -98,7 +110,7 @@ export async function POST(req: Request) {
       }
 
       const zero = new Prisma.Decimal(0);
-      const computedLines = body.lines.map((l) => {
+			const computedLines = body.lines.map((l) => {
         const qty = new Prisma.Decimal(l.quantity);
         const price = new Prisma.Decimal(l.unitPrice);
         if (qty.lte(0)) throw new Error("Quantity must be > 0");
@@ -108,9 +120,11 @@ export async function POST(req: Request) {
         const taxRate = l.taxRate ? new Prisma.Decimal(l.taxRate) : null;
         if (taxRate && taxRate.lt(0)) throw new Error("Tax rate must be >= 0");
         const lineTax = taxRate ? lineTotal.mul(taxRate) : zero;
+				const costCenterId = l.costCenterId?.trim() ? l.costCenterId.trim() : null;
 
         return {
           description: l.description,
+					costCenterId,
           quantity: qty,
           unitPrice: price,
           lineTotal,
@@ -173,6 +187,7 @@ export async function POST(req: Request) {
           lineItems: {
             create: computedLines.map((l) => ({
               description: l.description,
+							costCenterId: l.costCenterId,
               quantity: l.quantity.toDecimalPlaces(6).toFixed(6),
               unitPrice: l.unitPrice.toDecimalPlaces(6).toFixed(6),
               lineTotal: l.lineTotal.toDecimalPlaces(6).toFixed(6),

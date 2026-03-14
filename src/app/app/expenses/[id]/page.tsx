@@ -38,6 +38,7 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
     include: {
       exchangeRate: true,
       expenseAccount: { select: { code: true, name: true } },
+	      costCenter: { select: { code: true, name: true } },
       journalEntry: { select: { id: true } },
       attachments: {
         select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
@@ -80,7 +81,7 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+	  <div className="mt-3 grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border p-3 text-sm">
           <div className="text-xs text-zinc-500">Expense date</div>
           <div className="mt-1 text-zinc-900">{expense.expenseDate.toISOString().slice(0, 10)}</div>
@@ -91,6 +92,12 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
             {expense.expenseAccount ? `${expense.expenseAccount.code} · ${expense.expenseAccount.name}` : "-"}
           </div>
         </div>
+	    <div className="rounded-xl border p-3 text-sm">
+	      <div className="text-xs text-zinc-500">Cost center</div>
+	      <div className="mt-1 text-zinc-900">
+	        {expense.costCenter ? `${expense.costCenter.code} · ${expense.costCenter.name}` : "-"}
+	      </div>
+	    </div>
       </div>
 
       {expense.description ? (

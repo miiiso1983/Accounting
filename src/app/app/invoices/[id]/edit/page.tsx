@@ -9,7 +9,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 import { InvoiceEditForm } from "./ui";
 
-type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
+type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
+type CostCenterOption = { id: string; code: string; name: string };
 
 export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -42,7 +43,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     );
   }
 
-  const [customers, productsRaw] = await Promise.all([
+  const [customers, productsRaw, costCenters] = await Promise.all([
     prisma.customer.findMany({
       where: { companyId },
       orderBy: [{ name: "asc" }],
@@ -52,7 +53,13 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     prisma.product.findMany({
       where: { companyId, isActive: true },
       orderBy: [{ name: "asc" }],
-      select: { id: true, name: true, description: true, unitPrice: true, currencyCode: true },
+      select: { id: true, name: true, description: true, unitPrice: true, currencyCode: true, costCenterId: true },
+      take: 500,
+    }),
+    prisma.costCenter.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ code: "asc" }],
+      select: { id: true, code: true, name: true },
       take: 500,
     }),
   ]);
@@ -61,6 +68,8 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     ...p,
     unitPrice: String(p.unitPrice),
   }));
+
+  const costCenterOptions: CostCenterOption[] = costCenters;
 
   const invoiceData = {
     id: invoice.id,
@@ -75,6 +84,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     paymentTerms: invoice.paymentTerms ?? "",
     lines: invoice.lineItems.map((li) => ({
       description: li.description,
+      costCenterId: li.costCenterId ?? "",
       quantity: String(li.quantity),
       unitPrice: String(li.unitPrice),
       taxRate: li.taxRate ? String(li.taxRate) : "",
@@ -99,6 +109,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
           initialData={invoiceData}
           customers={customers}
           products={products}
+          costCenters={costCenterOptions}
           baseCurrencyCode={company.baseCurrencyCode}
         />
       </div>

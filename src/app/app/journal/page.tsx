@@ -7,13 +7,25 @@ import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
+import { JournalListFilters } from "./filters";
+
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
   if (!Number.isFinite(x)) return "-";
   return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-export default async function JournalIndexPage() {
+export default async function JournalIndexPage({
+	searchParams,
+}: {
+	searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+	const sp = (await searchParams) ?? {};
+	const q = typeof sp.q === "string" ? sp.q.trim() : "";
+	const referenceTypeParam = typeof sp.referenceType === "string" ? sp.referenceType.trim() : "";
+	const from = typeof sp.from === "string" ? sp.from.trim() : "";
+	const to = typeof sp.to === "string" ? sp.to.trim() : "";
+
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
@@ -25,12 +37,50 @@ export default async function JournalIndexPage() {
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
 
-  const entries = await prisma.journalEntry.findMany({
-    where: { companyId },
-    orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
-    include: { lines: true },
-    take: 50,
-  });
+	const [refTypeRows, entries] = await Promise.all([
+		prisma.journalEntry.findMany({
+			where: { companyId },
+			distinct: ["referenceType"],
+			select: { referenceType: true },
+		}),
+		prisma.journalEntry.findMany({
+			where: {
+				companyId,
+				...(q
+					? {
+						OR: [
+							{ description: { contains: q, mode: "insensitive" } },
+							{ referenceId: { contains: q, mode: "insensitive" } },
+						],
+					}
+					: {}),
+				...(referenceTypeParam
+					? referenceTypeParam === "MANUAL"
+						? { referenceType: null }
+						: { referenceType: referenceTypeParam }
+					: {}),
+				...((from || to)
+					? {
+						entryDate: {
+							...(from ? { gte: new Date(`${from}T00:00:00.000Z`) } : {}),
+							...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}),
+						},
+					}
+					: {}),
+			},
+			orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+			include: {
+				lines: {
+					include: { costCenter: { select: { code: true, name: true } } },
+				},
+			},
+			take: 50,
+		}),
+	]);
+
+	const refTypeOptions = Array.from(
+		new Set(refTypeRows.map((r) => (r.referenceType === null ? "MANUAL" : r.referenceType)).filter(Boolean)),
+	).sort();
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -44,12 +94,21 @@ export default async function JournalIndexPage() {
         </Link>
       </div>
 
+			<div className="mt-4">
+				<JournalListFilters
+					initial={{ q, referenceType: referenceTypeParam, from, to }}
+					referenceTypeOptions={refTypeOptions}
+				/>
+			</div>
+
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-zinc-500">
             <tr className="border-b">
               <th className="py-2 pr-3">Date</th>
               <th className="py-2 pr-3">Description</th>
+							<th className="py-2 pr-3">Reference</th>
+							<th className="py-2 pr-3">Cost Center</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3">Debit (base)</th>
               <th className="py-2 pr-3">Credit (base)</th>
@@ -57,6 +116,13 @@ export default async function JournalIndexPage() {
           </thead>
           <tbody>
             {entries.map((e) => {
+							const refLabel = e.referenceType ? e.referenceType : "MANUAL";
+							const refId = e.referenceId ?? "";
+
+							const costCenterCodes = Array.from(
+								new Set(e.lines.map((l) => l.costCenter?.code).filter(Boolean)),
+							).join(", ");
+
               const totals = e.lines.reduce(
                 (acc, l) => {
                   const v = l.amountBase;
@@ -75,6 +141,11 @@ export default async function JournalIndexPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3 text-zinc-900">{e.description ?? "-"}</td>
+										<td className="py-2 pr-3 text-zinc-700">
+											<div className="text-xs font-medium text-zinc-900">{refLabel}</div>
+											<div className="font-mono text-xs text-zinc-600">{refId || "-"}</div>
+										</td>
+										<td className="py-2 pr-3 text-zinc-700">{costCenterCodes || "-"}</td>
                   <td className="py-2 pr-3 text-zinc-700">{e.status}</td>
                   <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(totals.debit)}</td>
                   <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(totals.credit)}</td>

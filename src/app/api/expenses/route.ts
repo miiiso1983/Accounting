@@ -18,6 +18,7 @@ const BodySchema = z.object({
   vendorName: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
   productId: z.string().optional().or(z.literal("")),
+	  costCenterId: z.string().optional().or(z.literal("")),
   currencyCode: z.enum(["IQD", "USD"]),
   exchangeRate: z
     .object({
@@ -62,6 +63,7 @@ async function parseRequest(req: Request): Promise<{ body: ExpenseBody; attachme
       vendorName: getFormString(formData, "vendorName"),
       description: getFormString(formData, "description"),
       productId: getFormString(formData, "productId"),
+	      costCenterId: getFormString(formData, "costCenterId"),
       currencyCode: getFormString(formData, "currencyCode"),
       exchangeRate: exchangeRate ? { rate: exchangeRate } : undefined,
       total: getFormString(formData, "total"),
@@ -148,6 +150,17 @@ export async function POST(req: Request) {
         productId = product.id;
       }
 
+	    let costCenterId: string | null = null;
+	    const requestedCostCenterId = body.costCenterId?.trim();
+	    if (requestedCostCenterId) {
+	      const cc = await tx.costCenter.findFirst({
+	        where: { id: requestedCostCenterId, companyId: company.id, isActive: true },
+	        select: { id: true },
+	      });
+	      if (!cc) throw new Error("Cost center not found");
+	      costCenterId = cc.id;
+	    }
+
       let exchangeRateId: string | null = null;
       let rateDecimal: Prisma.Decimal | null = null;
       if (expenseCurrency !== baseCurrencyCode) {
@@ -181,6 +194,7 @@ export async function POST(req: Request) {
           vendorName: body.vendorName || null,
           description: body.description || null,
           productId,
+	        costCenterId,
           currencyCode: expenseCurrency,
           baseCurrencyCode,
           exchangeRateId,
@@ -202,7 +216,13 @@ export async function POST(req: Request) {
         referenceId: expense.id,
         createdById: session.user.id,
         lines: [
-          { accountId: expenseAccount.id, dc: "DEBIT", amount: total.toFixed(6), currencyCode: expenseCurrency },
+	        {
+	          accountId: expenseAccount.id,
+	          costCenterId: costCenterId ?? undefined,
+	          dc: "DEBIT",
+	          amount: total.toFixed(6),
+	          currencyCode: expenseCurrency,
+	        },
           { accountId: creditAccount.id, dc: "CREDIT", amount: total.toFixed(6), currencyCode: expenseCurrency },
         ],
       });

@@ -89,6 +89,7 @@ model Company {
   journalEntries     JournalEntry[]
   attachments        Attachment[]
   products           Product[]
+  costCenters        CostCenter[]
   installmentContracts InstallmentContract[]
 }
 
@@ -310,6 +311,8 @@ model JournalLine {
   journalEntryId   String
   accountId        String
 
+  costCenterId     String?
+
   dc               Dc
   // amount in the line currency
   amount           Decimal      @db.Decimal(20, 6)
@@ -321,9 +324,34 @@ model JournalLine {
 
   journalEntry     JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   account          GlAccount    @relation(fields: [accountId], references: [id])
+  costCenter       CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
 
   @@index([journalEntryId])
   @@index([accountId])
+  @@index([costCenterId])
+}
+
+model CostCenter {
+  id        String   @id @default(cuid())
+  companyId String
+
+  code      String
+  name      String
+  isActive  Boolean  @default(true)
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  journalLines      JournalLine[]
+  products          Product[]
+  expenses          Expense[]
+  invoiceLineItems  InvoiceLineItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+  @@index([companyId, name])
 }
 
 // --- Products/Items ---
@@ -337,7 +365,10 @@ model Product {
   currencyCode  CurrencyCode @default(IQD)
   isActive      Boolean      @default(true)
 
+  costCenterId   String?
+
   company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenter    CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   expenses      Expense[]
 
   createdAt     DateTime     @default(now())
@@ -345,6 +376,7 @@ model Product {
 
   @@index([companyId, isActive])
   @@index([companyId, name])
+  @@index([companyId, costCenterId])
 }
 
 // --- Sales/Invoicing ---
@@ -464,7 +496,13 @@ model InvoiceLineItem {
   lineTotal   Decimal  @db.Decimal(20, 6)
   taxRate     Decimal? @db.Decimal(20, 6) // e.g. 0.05
 
+  costCenterId String?
+
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  costCenter  CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([costCenterId])
 }
 
 model InstallmentContract {
@@ -514,6 +552,9 @@ model Expense {
   productId         String?
   product           Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
 
+  costCenterId      String?
+  costCenter        CostCenter?   @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+
   currencyCode      CurrencyCode
   baseCurrencyCode  CurrencyCode
   exchangeRateId    String?
@@ -539,6 +580,7 @@ model Expense {
   @@index([companyId, expenseDate])
   @@index([companyId, status])
   @@index([companyId, productId])
+  @@index([companyId, costCenterId])
 }
 
 // --- Attachments (invoices + expenses) ---

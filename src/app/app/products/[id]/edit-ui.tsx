@@ -11,14 +11,25 @@ const FormSchema = z.object({
   description: z.string().optional(),
   unitPrice: z.string().min(1),
   currencyCode: z.enum(["IQD", "USD"]),
+  costCenterId: z.string().optional(),
 });
 
 const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
-type ProductData = { id: string; name: string; description: string; unitPrice: string; currencyCode: "IQD" | "USD"; isActive: boolean };
+type ProductData = {
+  id: string;
+  name: string;
+  description: string;
+  unitPrice: string;
+  currencyCode: "IQD" | "USD";
+  isActive: boolean;
+  costCenterId?: string;
+};
 
-export function ProductEditForm({ product }: { product: ProductData }) {
+type CostCenterOption = { id: string; code: string; name: string };
+
+export function ProductEditForm({ product, costCenters }: { product: ProductData; costCenters: CostCenterOption[] }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -30,6 +41,7 @@ export function ProductEditForm({ product }: { product: ProductData }) {
       description: product.description,
       unitPrice: product.unitPrice,
       currencyCode: product.currencyCode,
+      costCenterId: product.costCenterId ?? "",
     },
   });
 
@@ -97,6 +109,18 @@ export function ProductEditForm({ product }: { product: ProductData }) {
             <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("currencyCode")}>
               <option value="IQD">IQD</option>
               <option value="USD">USD</option>
+            </select>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-sm font-medium text-zinc-700">Default Cost Center / مركز الكلفة الافتراضي</label>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("costCenterId")}>
+              <option value="">— None / بدون —</option>
+              {costCenters.map((cc) => (
+                <option key={cc.id} value={cc.id}>
+                  {cc.code} — {cc.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>

@@ -9,6 +9,8 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 import { ProductEditForm } from "./edit-ui";
 
+type CostCenterOption = { id: string; code: string; name: string };
+
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
   if (!Number.isFinite(x)) return "-";
@@ -28,8 +30,18 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
 
-  const product = await prisma.product.findFirst({ where: { id, companyId } });
+  const [product, costCenters] = await Promise.all([
+    prisma.product.findFirst({ where: { id, companyId }, include: { costCenter: { select: { id: true, code: true, name: true } } } }),
+    prisma.costCenter.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ code: "asc" }],
+      select: { id: true, code: true, name: true },
+      take: 1000,
+    }),
+  ]);
   if (!product) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
+
+  const costCenterLabel = product.costCenter ? `${product.costCenter.code} — ${product.costCenter.name}` : "-";
 
   const canWrite = hasPermission(session, PERMISSIONS.INVOICE_WRITE);
 
@@ -62,6 +74,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <div className="text-xs text-zinc-500">Status / الحالة</div>
           <div className="mt-1 text-sm text-zinc-900">{product.isActive ? "Active / نشط" : "Inactive / غير نشط"}</div>
         </div>
+
+        <div className="rounded-xl border p-3 md:col-span-3">
+          <div className="text-xs text-zinc-500">Default Cost Center / مركز الكلفة الافتراضي</div>
+          <div className="mt-1 text-sm text-zinc-900">{costCenterLabel}</div>
+        </div>
       </div>
 
       {/* Edit form */}
@@ -76,7 +93,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               unitPrice: String(product.unitPrice),
               currencyCode: product.currencyCode,
               isActive: product.isActive,
+              costCenterId: product.costCenterId ?? "",
             }}
+            costCenters={costCenters as CostCenterOption[]}
           />
         </div>
       )}

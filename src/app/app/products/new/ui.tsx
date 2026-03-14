@@ -11,6 +11,7 @@ const FormSchema = z.object({
   description: z.string().optional(),
   unitPrice: z.string().min(1),
   currencyCode: z.enum(["IQD", "USD"]),
+  costCenterId: z.string().optional(),
 });
 
 const ApiOkSchema = z.object({ id: z.string().min(1) });
@@ -18,13 +19,21 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function ProductForm({ baseCurrencyCode }: { baseCurrencyCode: "IQD" | "USD" }) {
+type CostCenterOption = { id: string; code: string; name: string };
+
+export function ProductForm({
+  baseCurrencyCode,
+  costCenters,
+}: {
+  baseCurrencyCode: "IQD" | "USD";
+  costCenters: CostCenterOption[];
+}) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
-    defaultValues: { name: "", description: "", unitPrice: "", currencyCode: baseCurrencyCode },
+    defaultValues: { name: "", description: "", unitPrice: "", currencyCode: baseCurrencyCode, costCenterId: "" },
   });
 
   async function onSubmit(values: FormValues) {
@@ -78,6 +87,18 @@ export function ProductForm({ baseCurrencyCode }: { baseCurrencyCode: "IQD" | "U
           <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("currencyCode")}>
             <option value="IQD">IQD</option>
             <option value="USD">USD</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="text-sm font-medium text-zinc-700">Default Cost Center / مركز الكلفة الافتراضي</label>
+          <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("costCenterId")}>
+            <option value="">— None / بدون —</option>
+            {costCenters.map((cc) => (
+              <option key={cc.id} value={cc.id}>
+                {cc.code} — {cc.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>

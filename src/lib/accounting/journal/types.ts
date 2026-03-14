@@ -3,6 +3,8 @@ import type { CurrencyCode, Dc } from "../../../generated/prisma/client";
 export type JournalLineInput = {
   accountId: string;
   dc: Dc;
+  /** optional cost center dimension */
+  costCenterId?: string;
   /** amount in `currencyCode` */
   amount: string;
   currencyCode: CurrencyCode;

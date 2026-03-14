@@ -40,6 +40,7 @@ export async function createPostedJournalEntryTx(tx: Prisma.TransactionClient, i
       lines: {
         create: normalizedLines.map((l) => ({
           accountId: l.accountId,
+          costCenterId: l.costCenterId ?? null,
           dc: l.dc,
           amount: l.amount,
           currencyCode: l.currencyCode,

@@ -9,7 +9,8 @@ import { z } from "zod";
 import { CustomerAutocompleteField } from "@/components/fields/CustomerAutocompleteField";
 
 type CustomerOption = { id: string; name: string; companyName: string | null };
-type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string };
+type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
+type CostCenterOption = { id: string; code: string; name: string };
 
 type InvoiceData = {
   id: string;
@@ -22,7 +23,7 @@ type InvoiceData = {
   discountType: string;
   discountValue: string;
   paymentTerms: string;
-  lines: { description: string; quantity: string; unitPrice: string; taxRate: string }[];
+	lines: { description: string; costCenterId?: string; quantity: string; unitPrice: string; taxRate: string }[];
 };
 
 type Props = {
@@ -30,11 +31,13 @@ type Props = {
   initialData: InvoiceData;
   customers: CustomerOption[];
   products: ProductOption[];
+	costCenters: CostCenterOption[];
   baseCurrencyCode: "IQD" | "USD";
 };
 
 const LineSchema = z.object({
   description: z.string().min(1),
+	costCenterId: z.string().optional(),
   quantity: z.string().min(1),
   unitPrice: z.string().min(1),
   taxRate: z.string().optional(),
@@ -80,7 +83,7 @@ async function readResponseData(res: Response) {
   }
 }
 
-export function InvoiceEditForm({ invoiceId, initialData, customers, products, baseCurrencyCode }: Props) {
+export function InvoiceEditForm({ invoiceId, initialData, customers, products, costCenters, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -231,7 +234,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
             <button
               type="button"
               className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-              onClick={() => append({ description: "", quantity: "1", unitPrice: "", taxRate: "" })}
+				onClick={() => append({ description: "", costCenterId: "", quantity: "1", unitPrice: "", taxRate: "" })}
             >
               Add line
             </button>
@@ -250,6 +253,8 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
                         if (prod) {
                           form.setValue(`lines.${idx}.description`, prod.description || prod.name);
                           form.setValue(`lines.${idx}.unitPrice`, prod.unitPrice);
+								const ccId = prod.costCenterId && costCenters.some((cc) => cc.id === prod.costCenterId) ? prod.costCenterId : "";
+								form.setValue(`lines.${idx}.costCenterId`, ccId);
                         }
                       }}
                     >
@@ -262,16 +267,26 @@ export function InvoiceEditForm({ invoiceId, initialData, customers, products, b
                     </select>
                   </div>
                 )}
-                <div className="grid gap-3 md:grid-cols-12">
-                  <div className="md:col-span-5">
+					<div className="grid gap-3 md:grid-cols-12">
+						<div className="md:col-span-4">
                     <input className="w-full rounded-xl border px-3 py-2" placeholder="Description" {...form.register(`lines.${idx}.description` as const)} />
                     {errors.lines?.[idx]?.description ? <div className="mt-1 text-xs text-red-600">Description is required.</div> : null}
                   </div>
-                  <div className="md:col-span-2">
+						<div className="md:col-span-3">
+							<select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
+								<option value="">— Cost Center / مركز كلفة —</option>
+								{costCenters.map((cc) => (
+									<option key={cc.id} value={cc.id}>
+										{cc.code} — {cc.name}
+									</option>
+								))}
+							</select>
+						</div>
+						<div className="md:col-span-1">
                     <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Qty" {...form.register(`lines.${idx}.quantity` as const)} />
                     {errors.lines?.[idx]?.quantity ? <div className="mt-1 text-xs text-red-600">Qty is required.</div> : null}
                   </div>
-                  <div className="md:col-span-3">
+						<div className="md:col-span-2">
                     <input className="w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="Unit price" {...form.register(`lines.${idx}.unitPrice` as const)} />
                     {errors.lines?.[idx]?.unitPrice ? <div className="mt-1 text-xs text-red-600">Unit price is required.</div> : null}
                   </div>

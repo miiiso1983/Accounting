@@ -7,11 +7,13 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 type AccountOption = { id: string; code: string; name: string };
-type Props = { accounts: AccountOption[]; baseCurrencyCode: "IQD" | "USD" };
+type CostCenterOption = { id: string; code: string; name: string };
+type Props = { accounts: AccountOption[]; costCenters: CostCenterOption[]; baseCurrencyCode: "IQD" | "USD" };
 
 const LineSchema = z.object({
   accountId: z.string().min(1),
   dc: z.enum(["DEBIT", "CREDIT"]),
+  costCenterId: z.string().optional(),
   amount: z.string().min(1),
   description: z.string().optional(),
 });
@@ -29,7 +31,7 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function JournalEntryForm({ accounts, baseCurrencyCode }: Props) {
+export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -40,8 +42,8 @@ export function JournalEntryForm({ accounts, baseCurrencyCode }: Props) {
       entryDate: today,
       currencyCode: baseCurrencyCode,
       lines: [
-        { dc: "DEBIT", accountId: "", amount: "", description: "" },
-        { dc: "CREDIT", accountId: "", amount: "", description: "" },
+        { dc: "DEBIT", accountId: "", costCenterId: "", amount: "", description: "" },
+        { dc: "CREDIT", accountId: "", costCenterId: "", amount: "", description: "" },
       ],
     },
   });
@@ -58,7 +60,10 @@ export function JournalEntryForm({ accounts, baseCurrencyCode }: Props) {
       description: values.description,
       currencyCode: values.currencyCode,
       exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
-      lines: values.lines,
+      lines: values.lines.map((l) => ({
+        ...l,
+        costCenterId: l.costCenterId?.trim() ? l.costCenterId.trim() : undefined,
+      })),
     };
 
     const res = await fetch("/api/journal-entries", {
@@ -130,7 +135,7 @@ export function JournalEntryForm({ accounts, baseCurrencyCode }: Props) {
           <button
             type="button"
             className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-            onClick={() => append({ dc: "DEBIT", accountId: "", amount: "", description: "" })}
+            onClick={() => append({ dc: "DEBIT", accountId: "", costCenterId: "", amount: "", description: "" })}
           >
             Add line
           </button>
@@ -145,12 +150,22 @@ export function JournalEntryForm({ accounts, baseCurrencyCode }: Props) {
                   <option value="CREDIT">CREDIT</option>
                 </select>
               </div>
-              <div className="md:col-span-5">
+              <div className="md:col-span-4">
                 <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.accountId` as const)}>
                   <option value="">Select account…</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.code} — {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-3">
+                <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.costCenterId` as const)}>
+                  <option value="">— Cost Center / مركز كلفة —</option>
+                  {costCenters.map((cc) => (
+                    <option key={cc.id} value={cc.id}>
+                      {cc.code} — {cc.name}
                     </option>
                   ))}
                 </select>
@@ -161,13 +176,6 @@ export function JournalEntryForm({ accounts, baseCurrencyCode }: Props) {
                   inputMode="decimal"
                   placeholder="0"
                   {...form.register(`lines.${idx}.amount` as const)}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <input
-                  className="w-full rounded-xl border px-3 py-2"
-                  placeholder="Line note"
-                  {...form.register(`lines.${idx}.description` as const)}
                 />
               </div>
               <div className="md:col-span-1">
@@ -181,6 +189,13 @@ export function JournalEntryForm({ accounts, baseCurrencyCode }: Props) {
                   ×
                 </button>
               </div>
+					<div className="md:col-span-12">
+						<input
+							className="w-full rounded-xl border px-3 py-2"
+							placeholder="Line note"
+							{...form.register(`lines.${idx}.description` as const)}
+						/>
+					</div>
             </div>
           ))}
         </div>

@@ -36,6 +36,12 @@ export default async function NewJournalEntryPage() {
     select: { id: true, code: true, name: true },
   });
 
+	const costCenters = await prisma.costCenter.findMany({
+		where: { companyId, isActive: true },
+		orderBy: [{ code: "asc" }],
+		select: { id: true, code: true, name: true },
+	});
+
   return (
     <div className="rounded-2xl border bg-white p-5">
       <div className="flex items-start justify-between gap-4">
@@ -49,7 +55,7 @@ export default async function NewJournalEntryPage() {
       </div>
 
       <div className="mt-4">
-        <JournalEntryForm accounts={accounts} baseCurrencyCode={company.baseCurrencyCode} />
+		<JournalEntryForm accounts={accounts} costCenters={costCenters} baseCurrencyCode={company.baseCurrencyCode} />
       </div>
     </div>
   );
