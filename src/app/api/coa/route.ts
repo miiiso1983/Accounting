@@ -13,15 +13,31 @@ const normalBalanceForType = {
   INCOME: "CREDIT",
 } as const;
 
+const SUBTYPES_BY_TYPE = {
+  ASSET: ["أصول متداولة", "أصول ثابتة", "أصول أخرى"],
+  LIABILITY: ["التزامات متداولة", "التزامات طويلة الأجل", "التزامات أخرى"],
+  EQUITY: ["رأس المال", "الأرباح المحتجزة", "حقوق ملكية أخرى"],
+  INCOME: ["إيرادات تشغيلية", "إيرادات أخرى"],
+  EXPENSE: ["مصروفات تشغيلية", "مصروفات إدارية", "مصروفات أخرى"],
+} as const;
+
 const CreateSchema = z.object({
   code: z.string().min(1).max(20),
   name: z.string().min(1).max(200),
   type: z.enum(["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"]),
+  subType: z.string().max(200).optional().nullable(),
   isPosting: z.boolean().default(true),
   parentId: z.string().optional().nullable(),
+}).superRefine((val, ctx) => {
+  if (val.subType) {
+    const allowed = SUBTYPES_BY_TYPE[val.type] as readonly string[];
+    if (!allowed.includes(val.subType)) {
+      ctx.addIssue({ code: "custom", path: ["subType"], message: "Invalid subType for selected type" });
+    }
+  }
 });
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
   if (!hasPermission(session, PERMISSIONS.COA_READ)) {
@@ -37,7 +53,7 @@ export async function GET(req: Request) {
   const accounts = await prisma.glAccount.findMany({
     where: { companyId: user.companyId },
     orderBy: [{ code: "asc" }],
-    select: { id: true, code: true, name: true, type: true, normalBalance: true, isPosting: true, parentId: true },
+    select: { id: true, code: true, name: true, type: true, subType: true, normalBalance: true, isPosting: true, parentId: true },
   });
 
   return Response.json({ accounts });
@@ -66,7 +82,7 @@ export async function POST(req: Request) {
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 422 });
 
-  const { code, name, type, isPosting, parentId } = parsed.data;
+  const { code, name, type, subType, isPosting, parentId } = parsed.data;
 
   // Validate parent belongs to same company
   if (parentId) {
@@ -88,6 +104,7 @@ export async function POST(req: Request) {
       code,
       name,
       type,
+      subType: subType ?? null,
       normalBalance: normalBalanceForType[type],
       isPosting,
       parentId: parentId ?? null,

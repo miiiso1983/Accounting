@@ -13,10 +13,19 @@ const normalBalanceForType = {
   INCOME: "CREDIT",
 } as const;
 
+const SUBTYPES_BY_TYPE = {
+  ASSET: ["أصول متداولة", "أصول ثابتة", "أصول أخرى"],
+  LIABILITY: ["التزامات متداولة", "التزامات طويلة الأجل", "التزامات أخرى"],
+  EQUITY: ["رأس المال", "الأرباح المحتجزة", "حقوق ملكية أخرى"],
+  INCOME: ["إيرادات تشغيلية", "إيرادات أخرى"],
+  EXPENSE: ["مصروفات تشغيلية", "مصروفات إدارية", "مصروفات أخرى"],
+} as const;
+
 const UpdateSchema = z.object({
   code: z.string().min(1).max(20).optional(),
   name: z.string().min(1).max(200).optional(),
   type: z.enum(["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"]).optional(),
+  subType: z.string().max(200).optional().nullable(),
   isPosting: z.boolean().optional(),
 });
 
@@ -49,7 +58,21 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 422 });
 
-  const { code, name, type, isPosting } = parsed.data;
+  const { code, name, type, subType, isPosting } = parsed.data;
+
+  const effectiveType = type ?? (account.type as keyof typeof SUBTYPES_BY_TYPE);
+  if (subType) {
+    const allowed = SUBTYPES_BY_TYPE[effectiveType] as readonly string[];
+    if (!allowed.includes(subType)) {
+      return Response.json({ error: { fieldErrors: { subType: ["Invalid subType for selected type"] } } }, { status: 422 });
+    }
+  }
+  if (type && subType === undefined && account.subType) {
+    const allowed = SUBTYPES_BY_TYPE[effectiveType] as readonly string[];
+    if (!allowed.includes(account.subType)) {
+      return Response.json({ error: { fieldErrors: { subType: ["Please select a subType for the new type (or set it to empty)"] } } }, { status: 422 });
+    }
+  }
 
   // Check code uniqueness if changing code
   if (code && code !== account.code) {
@@ -65,6 +88,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       ...(code ? { code } : {}),
       ...(name ? { name } : {}),
       ...(type ? { type, normalBalance: normalBalanceForType[type] } : {}),
+      ...(subType !== undefined ? { subType } : {}),
       ...(isPosting !== undefined ? { isPosting } : {}),
     },
   });

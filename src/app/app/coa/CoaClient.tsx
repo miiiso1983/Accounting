@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useCallback } from "react";
 
 export type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "EXPENSE";
@@ -9,6 +10,7 @@ export type TreeNode = {
   code: string;
   name: string;
   type: AccountType;
+  subType?: string | null;
   isPosting: boolean;
   children: TreeNode[];
 };
@@ -21,8 +23,32 @@ type FormState = {
   code: string;
   name: string;
   type: AccountType;
+  subType: string | null;
   isPosting: boolean;
 };
+
+type StatementLine = {
+  id: string;
+  dc: "DEBIT" | "CREDIT";
+  amountBase: string;
+  amount: string;
+  currencyCode: string;
+  description: string | null;
+  running: number;
+  journalEntry: {
+    id: string;
+    entryDate: string;
+    description: string | null;
+    referenceType: string | null;
+    referenceId: string | null;
+  };
+};
+
+function fmt(n: unknown) {
+  const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
+  if (!Number.isFinite(x)) return "-";
+  return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
 
 const TYPE_LABELS: Record<AccountType, string> = {
   ASSET: "Asset / أصول",
@@ -40,6 +66,14 @@ const TYPE_COLORS: Record<AccountType, string> = {
   EXPENSE: "text-orange-700 bg-orange-50",
 };
 
+const SUBTYPE_OPTIONS: Record<AccountType, string[]> = {
+  ASSET: ["أصول متداولة", "أصول ثابتة", "أصول أخرى"],
+  LIABILITY: ["التزامات متداولة", "التزامات طويلة الأجل", "التزامات أخرى"],
+  EQUITY: ["رأس المال", "الأرباح المحتجزة", "حقوق ملكية أخرى"],
+  INCOME: ["إيرادات تشغيلية", "إيرادات أخرى"],
+  EXPENSE: ["مصروفات تشغيلية", "مصروفات إدارية", "مصروفات أخرى"],
+};
+
 function defaultForm(override: Partial<FormState> = {}): FormState {
   return {
     mode: "create",
@@ -48,6 +82,7 @@ function defaultForm(override: Partial<FormState> = {}): FormState {
     code: "",
     name: "",
     type: "ASSET",
+    subType: null,
     isPosting: true,
     ...override,
   };
@@ -56,21 +91,60 @@ function defaultForm(override: Partial<FormState> = {}): FormState {
 export function CoaClient({
   initialRoots,
   canWrite,
+  canReadStatement = false,
 }: {
   initialRoots: TreeNode[];
   canWrite: boolean;
+  canReadStatement?: boolean;
 }) {
   const [roots, setRoots] = useState<TreeNode[]>(initialRoots);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [statementNode, setStatementNode] = useState<TreeNode | null>(null);
+  const [statementFrom, setStatementFrom] = useState<string>("");
+  const [statementTo, setStatementTo] = useState<string>("");
+  const [statementLines, setStatementLines] = useState<StatementLine[]>([]);
+  const [statementLoading, setStatementLoading] = useState(false);
+  const [statementError, setStatementError] = useState<string | null>(null);
+
+  const fetchStatement = useCallback(async ({ accountId, from, to }: { accountId: string; from?: string; to?: string }) => {
+    setStatementLoading(true);
+    setStatementError(null);
+    try {
+      const qs = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString();
+      const url = `/api/coa/${accountId}/statement${qs ? `?${qs}` : ""}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) {
+        setStatementError(typeof data?.error === "string" ? data.error : "Failed to load statement");
+        setStatementLines([]);
+        return;
+      }
+      setStatementLines(Array.isArray(data?.lines) ? (data.lines as StatementLine[]) : []);
+    } catch (e) {
+      setStatementError(e instanceof Error ? e.message : "Failed to load statement");
+      setStatementLines([]);
+    } finally {
+      setStatementLoading(false);
+    }
+  }, []);
+
   const refresh = useCallback(async () => {
     const res = await fetch("/api/coa");
     if (!res.ok) return;
     const data = await res.json();
-    const flat: { id: string; code: string; name: string; type: AccountType; isPosting: boolean; parentId: string | null }[] =
-      data.accounts;
+    const flat: {
+      id: string;
+      code: string;
+      name: string;
+      type: AccountType;
+      subType?: string | null;
+      isPosting: boolean;
+      parentId: string | null;
+    }[] = data.accounts;
+
     const byId = new Map<string, TreeNode>();
     for (const a of flat) byId.set(a.id, { ...a, children: [] });
     const newRoots: TreeNode[] = [];
@@ -89,7 +163,17 @@ export function CoaClient({
 
   const openEdit = (node: TreeNode) => {
     setError(null);
-    setForm({ mode: "edit", parentId: null, parentType: null, id: node.id, code: node.code, name: node.name, type: node.type, isPosting: node.isPosting });
+    setForm({
+      mode: "edit",
+      parentId: null,
+      parentType: null,
+      id: node.id,
+      code: node.code,
+      name: node.name,
+      type: node.type,
+      subType: node.subType ?? null,
+      isPosting: node.isPosting,
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -113,17 +197,39 @@ export function CoaClient({
       const url = isEdit ? `/api/coa/${form.id}` : "/api/coa";
       const method = isEdit ? "PUT" : "POST";
       const body = isEdit
-        ? { code: form.code, name: form.name, type: form.type, isPosting: form.isPosting }
-        : { code: form.code, name: form.name, type: form.type, isPosting: form.isPosting, parentId: form.parentId };
+        ? { code: form.code, name: form.name, type: form.type, subType: form.subType, isPosting: form.isPosting }
+        : { code: form.code, name: form.name, type: form.type, subType: form.subType, isPosting: form.isPosting, parentId: form.parentId };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) { setError(typeof data.error === "string" ? data.error : "Error saving account"); return; }
+      if (!res.ok) {
+        const err = data?.error;
+        const msg =
+          typeof err === "string"
+            ? err
+            : typeof err === "object" && err
+              ? (err.fieldErrors && Object.values(err.fieldErrors as Record<string, string[]>).flat()[0]) || "Error saving account"
+              : "Error saving account";
+        setError(msg);
+        return;
+      }
       setForm(null);
       await refresh();
     } finally {
       setSaving(false);
     }
   };
+
+  const openStatement = useCallback(
+    async (node: TreeNode) => {
+      setStatementNode(node);
+      setStatementFrom("");
+      setStatementTo("");
+      setStatementLines([]);
+      setStatementError(null);
+      await fetchStatement({ accountId: node.id });
+    },
+    [fetchStatement],
+  );
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -141,7 +247,17 @@ export function CoaClient({
 
       <div className="space-y-0.5 text-sm">
         {roots.map((r) => (
-          <TreeRow key={r.id} node={r} depth={0} canWrite={canWrite} onAddChild={openCreate} onEdit={openEdit} onDelete={handleDelete} />
+          <TreeRow
+            key={r.id}
+            node={r}
+            depth={0}
+            canWrite={canWrite}
+            canReadStatement={canReadStatement}
+            onStatement={openStatement}
+            onAddChild={openCreate}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
         ))}
         {roots.length === 0 && <div className="text-zinc-400 text-center py-8">No accounts yet. Click &quot;+ New Account&quot; to begin.</div>}
       </div>
@@ -156,6 +272,21 @@ export function CoaClient({
           error={error}
         />
       )}
+
+      {statementNode && (
+        <AccountStatementModal
+          node={statementNode}
+          from={statementFrom}
+          to={statementTo}
+          onChangeFrom={setStatementFrom}
+          onChangeTo={setStatementTo}
+          onApply={() => fetchStatement({ accountId: statementNode.id, from: statementFrom || undefined, to: statementTo || undefined })}
+          onClose={() => setStatementNode(null)}
+          lines={statementLines}
+          loading={statementLoading}
+          error={statementError}
+        />
+      )}
     </div>
   );
 }
@@ -164,6 +295,8 @@ function TreeRow({
   node,
   depth,
   canWrite,
+  canReadStatement,
+  onStatement,
   onAddChild,
   onEdit,
   onDelete,
@@ -171,6 +304,8 @@ function TreeRow({
   node: TreeNode;
   depth: number;
   canWrite: boolean;
+  canReadStatement: boolean;
+  onStatement: (node: TreeNode) => void;
   onAddChild: (parentId: string, parentType: AccountType) => void;
   onEdit: (node: TreeNode) => void;
   onDelete: (id: string) => void;
@@ -192,11 +327,22 @@ function TreeRow({
         </button>
         <span className="w-20 font-mono text-xs text-zinc-500 shrink-0">{node.code}</span>
         <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${TYPE_COLORS[node.type]}`}>
-          {node.type}
+
+          {TYPE_LABELS[node.type]}{node.subType ? ` - ${node.subType}` : ""}
         </span>
-        <span className={`flex-1 ${node.isPosting ? "text-zinc-900" : "font-medium text-zinc-700"}`}>
-          {node.name}
-        </span>
+        <div className={`flex-1 flex items-center gap-2 ${node.isPosting ? "text-zinc-900" : "font-medium text-zinc-700"}`}>
+          <span>{node.name}</span>
+          {canReadStatement && node.isPosting ? (
+            <button
+              type="button"
+              onClick={() => onStatement(node)}
+              title="Account Statement / كشف الحساب"
+              className="rounded border border-emerald-200/70 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800 hover:bg-emerald-100"
+            >
+              كشف
+            </button>
+          ) : null}
+        </div>
         {!node.isPosting && (
           <span className="text-xs text-zinc-400 shrink-0">[Header]</span>
         )}
@@ -230,8 +376,126 @@ function TreeRow({
       </div>
       {expanded &&
         node.children.map((c) => (
-          <TreeRow key={c.id} node={c} depth={depth + 1} canWrite={canWrite} onAddChild={onAddChild} onEdit={onEdit} onDelete={onDelete} />
+          <TreeRow
+            key={c.id}
+            node={c}
+            depth={depth + 1}
+            canWrite={canWrite}
+            canReadStatement={canReadStatement}
+            onStatement={onStatement}
+            onAddChild={onAddChild}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         ))}
+    </div>
+  );
+}
+
+function AccountStatementModal({
+  node,
+  from,
+  to,
+  onChangeFrom,
+  onChangeTo,
+  onApply,
+  onClose,
+  lines,
+  loading,
+  error,
+}: {
+  node: TreeNode;
+  from: string;
+  to: string;
+  onChangeFrom: (v: string) => void;
+  onChangeTo: (v: string) => void;
+  onApply: () => void;
+  onClose: () => void;
+  lines: StatementLine[];
+  loading: boolean;
+  error: string | null;
+}) {
+  const reportHref = `/app/reports/general-ledger?${new URLSearchParams({ accountId: node.id, ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-5xl rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div>
+            <div className="text-xs text-zinc-500">Account Statement / كشف الحساب</div>
+            <div className="mt-0.5 text-sm font-semibold text-zinc-900">
+              {node.code} — {node.name}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div className="px-5 py-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600">From / من</label>
+              <input className="mt-1 w-40 rounded-lg border px-3 py-2 text-sm" type="date" value={from} onChange={(e) => onChangeFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600">To / إلى</label>
+              <input className="mt-1 w-40 rounded-lg border px-3 py-2 text-sm" type="date" value={to} onChange={(e) => onChangeTo(e.target.value)} />
+            </div>
+            <button
+              type="button"
+              onClick={onApply}
+              disabled={loading}
+              className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            >
+              Apply / تطبيق
+            </button>
+            <Link href={reportHref} className="text-sm underline text-zinc-700 hover:text-zinc-900">
+              Open in General Ledger report
+            </Link>
+          </div>
+
+          {error ? <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</div> : null}
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-zinc-500">
+                <tr className="border-b">
+                  <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Description</th>
+                  <th className="py-2 pr-3">Debit</th>
+                  <th className="py-2 pr-3">Credit</th>
+                  <th className="py-2 pr-3">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l) => (
+                  <tr key={l.id} className="border-b last:border-b-0">
+                    <td className="py-2 pr-3 text-zinc-700">{l.journalEntry.entryDate.slice(0, 10)}</td>
+                    <td className="py-2 pr-3">
+                      <Link className="underline text-zinc-700" href={`/app/journal/${l.journalEntry.id}`}>
+                        {l.journalEntry.description ?? l.journalEntry.id}
+                      </Link>
+                      {l.journalEntry.referenceType ? (
+                        <div className="mt-1 text-xs text-zinc-500">
+                          {l.journalEntry.referenceType}
+                          {l.journalEntry.referenceId ? ` · ${l.journalEntry.referenceId}` : ""}
+                        </div>
+                      ) : null}
+                      {l.description ? <div className="mt-1 text-xs text-zinc-500">{l.description}</div> : null}
+                    </td>
+                    <td className="py-2 pr-3 font-mono text-zinc-900">{l.dc === "DEBIT" ? fmt(l.amountBase) : "-"}</td>
+                    <td className="py-2 pr-3 font-mono text-zinc-900">{l.dc === "CREDIT" ? fmt(l.amountBase) : "-"}</td>
+                    <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(l.running)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {loading ? <div className="mt-3 text-sm text-zinc-600">Loading…</div> : null}
+            {!loading && lines.length === 0 ? <div className="mt-3 text-sm text-zinc-600">No lines found.</div> : null}
+            {lines.length >= 500 ? <div className="mt-2 text-xs text-zinc-500">Showing first 500 lines.</div> : null}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -254,6 +518,7 @@ function AccountModal({
   const isEdit = form.mode === "edit";
   const typeOptions: AccountType[] = ["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"];
   const typeDisabled = !!form.parentType;
+  const subTypeOptions = SUBTYPE_OPTIONS[form.type] ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -280,7 +545,12 @@ function AccountModal({
               <label className="block text-xs font-medium text-zinc-600 mb-1">Type / النوع</label>
               <select
                 value={form.type}
-                onChange={(e) => onChange({ ...form, type: e.target.value as AccountType })}
+                onChange={(e) => {
+                  const nextType = e.target.value as AccountType;
+                  const allowed = SUBTYPE_OPTIONS[nextType] ?? [];
+                  const nextSubType = form.subType && allowed.includes(form.subType) ? form.subType : null;
+                  onChange({ ...form, type: nextType, subType: nextSubType });
+                }}
                 disabled={typeDisabled}
                 className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-zinc-50 disabled:text-zinc-400"
               >
@@ -290,6 +560,21 @@ function AccountModal({
               </select>
               {typeDisabled && <p className="text-xs text-zinc-400 mt-0.5">Inherited from parent</p>}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">Sub-category / التصنيف الفرعي</label>
+            <select
+              value={form.subType ?? ""}
+              onChange={(e) => onChange({ ...form, subType: e.target.value ? e.target.value : null })}
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="">—</option>
+              {subTypeOptions.map((st) => (
+                <option key={st} value={st}>{st}</option>
+              ))}
+            </select>
+            <p className="text-xs text-zinc-400 mt-0.5">Options depend on Type</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-1">Name / الاسم</label>

@@ -15,6 +15,7 @@ export default async function CoaPage() {
   }
 
   const canWrite = hasPermission(session, PERMISSIONS.COA_WRITE);
+  const canReadStatement = hasPermission(session, PERMISSIONS.REPORTS_READ);
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
   const companyId = user?.companyId;
@@ -23,12 +24,12 @@ export default async function CoaPage() {
   const accounts = await prisma.glAccount.findMany({
     where: { companyId },
     orderBy: [{ code: "asc" }],
-    select: { id: true, code: true, name: true, type: true, isPosting: true, parentId: true },
+    select: { id: true, code: true, name: true, type: true, subType: true, isPosting: true, parentId: true },
   });
 
   const byId = new Map<string, TreeNode>();
   for (const a of accounts) {
-    byId.set(a.id, { id: a.id, code: a.code, name: a.name, type: a.type as AccountType, isPosting: a.isPosting, children: [] });
+    byId.set(a.id, { id: a.id, code: a.code, name: a.name, type: a.type as AccountType, subType: a.subType, isPosting: a.isPosting, children: [] });
   }
 
   const roots: TreeNode[] = [];
@@ -38,5 +39,5 @@ export default async function CoaPage() {
     else roots.push(node);
   }
 
-  return <CoaClient initialRoots={roots} canWrite={canWrite} />;
+  return <CoaClient initialRoots={roots} canWrite={canWrite} canReadStatement={canReadStatement} />;
 }

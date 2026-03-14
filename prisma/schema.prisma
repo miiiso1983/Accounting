@@ -242,6 +242,7 @@ model GlAccount {
   code          String
   name          String
   type          AccountType
+  subType       String?
   normalBalance Dc
 
   parentId      String?
