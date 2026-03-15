@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedCostCenters, getCachedGlAccounts } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -19,26 +20,17 @@ export default async function NewProductPage() {
     return <div className="rounded-2xl border bg-white p-5 text-sm">Not authorized.</div>;
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { companyId: true, company: { select: { baseCurrencyCode: true } } },
+  });
   const companyId = user?.companyId;
-  if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
-
-  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
-  if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
+  const company = user?.company;
+  if (!companyId || !company) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
 
   const [costCenters, revenueAccounts] = await Promise.all([
-    prisma.costCenter.findMany({
-      where: { companyId, isActive: true },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 1000,
-    }),
-    prisma.glAccount.findMany({
-      where: { companyId, type: "INCOME", isPosting: true },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 1000,
-    }),
+    getCachedCostCenters(companyId),
+    getCachedGlAccounts(companyId, "INCOME"),
   ]);
 
   return (

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedCostCenters, getCachedGlAccounts } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -38,18 +39,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         revenueAccount: { select: { id: true, code: true, name: true } },
       },
     }),
-    prisma.costCenter.findMany({
-      where: { companyId, isActive: true },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 1000,
-    }),
-    prisma.glAccount.findMany({
-      where: { companyId, type: "INCOME", isPosting: true },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 1000,
-    }),
+    getCachedCostCenters(companyId),
+    getCachedGlAccounts(companyId, "INCOME"),
   ]);
   if (!product) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
 

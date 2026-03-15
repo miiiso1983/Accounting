@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedCustomers, getCachedProducts, getCachedCostCenters, getCachedSalesReps } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -37,30 +38,10 @@ export default async function NewInvoicePage({
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
   const [customers, productsRaw, costCenters, salesReps] = await Promise.all([
-    prisma.customer.findMany({
-      where: { companyId },
-      orderBy: [{ name: "asc" }],
-      select: { id: true, name: true, companyName: true },
-      take: 500,
-    }),
-    prisma.product.findMany({
-      where: { companyId, isActive: true },
-      orderBy: [{ name: "asc" }],
-      select: { id: true, name: true, description: true, unitPrice: true, currencyCode: true, costCenterId: true },
-      take: 500,
-    }),
-    prisma.costCenter.findMany({
-      where: { companyId, isActive: true },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 500,
-    }),
-    prisma.salesRepresentative.findMany({
-      where: { companyId, isActive: true },
-      orderBy: [{ name: "asc" }],
-      select: { id: true, name: true },
-      take: 500,
-    }),
+    getCachedCustomers(companyId),
+    getCachedProducts(companyId),
+    getCachedCostCenters(companyId),
+    getCachedSalesReps(companyId),
   ]);
 
   const products: ProductOption[] = productsRaw.map((p) => ({

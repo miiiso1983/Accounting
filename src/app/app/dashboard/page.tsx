@@ -6,6 +6,7 @@ import { ArrowUpRight, BookOpen, FileText, Landmark, NotebookPen, ReceiptText, U
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedDashboardCounts } from "@/lib/db/cached-queries";
 
 import { getMessages } from "@/lib/i18n/messages";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -67,20 +68,14 @@ export default async function DashboardPage() {
   const chartStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
   const [
-    accountsCount,
-    customersCount,
-    invoicesCount,
-    postedEntriesCount,
+    dashboardCounts,
     salesThisMonthAgg,
     receivablesAgg,
     recentInvoices,
     recentEntries,
     invoicesForChart,
   ] = await Promise.all([
-    prisma.glAccount.count({ where: { companyId } }),
-    prisma.customer.count({ where: { companyId } }),
-    prisma.invoice.count({ where: { companyId } }),
-    prisma.journalEntry.count({ where: { companyId, status: "POSTED" } }),
+    getCachedDashboardCounts(companyId),
     prisma.invoice.aggregate({
       where: {
         companyId,
@@ -118,6 +113,7 @@ export default async function DashboardPage() {
     }),
   ]);
 
+  const [accountsCount, customersCount, invoicesCount, postedEntriesCount] = dashboardCounts;
   const salesThisMonth = toNumberSafe(salesThisMonthAgg._sum.totalBase);
   const receivables = toNumberSafe(receivablesAgg._sum.totalBase);
 

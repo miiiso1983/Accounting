@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedGlAccounts, getCachedPaymentAccounts, getCachedCostCenters } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -21,42 +22,24 @@ export default async function NewExpensePage() {
     return <div className="rounded-2xl border bg-white p-5 text-sm">Not authorized.</div>;
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { companyId: true, company: { select: { baseCurrencyCode: true } } },
+  });
   const companyId = user?.companyId;
-  if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
-
-  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
-  if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
+  const company = user?.company;
+  if (!companyId || !company) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
 
   const [expenseAccounts, paymentAccounts, products, costCenters] = await Promise.all([
-    prisma.glAccount.findMany({
-      where: { companyId, type: "EXPENSE", isPosting: true },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 500,
-    }),
-    prisma.glAccount.findMany({
-      where: {
-        companyId,
-        isPosting: true,
-        code: { in: ["1110", "1111", "1120", "1121", "2100"] },
-      },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 20,
-    }),
+    getCachedGlAccounts(companyId, "EXPENSE"),
+    getCachedPaymentAccounts(companyId),
     prisma.product.findMany({
       where: { companyId, isActive: true },
       orderBy: [{ name: "asc" }],
       select: { id: true, name: true, costCenterId: true },
       take: 500,
     }),
-    prisma.costCenter.findMany({
-      where: { companyId, isActive: true },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
-      take: 1000,
-    }),
+    getCachedCostCenters(companyId),
   ]);
 
   return (
