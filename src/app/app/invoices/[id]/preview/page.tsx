@@ -38,19 +38,20 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
     return <div className="p-5 text-sm">Not authorized.</div>;
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { companyId: true, company: true },
+  });
   const companyId = user?.companyId;
-  if (!companyId) return <div className="p-5 text-sm">No company assigned.</div>;
+  const company = user?.company;
+  if (!companyId || !company) return <div className="p-5 text-sm">No company assigned.</div>;
 
-  const [invoice, company] = await Promise.all([
-    prisma.invoice.findFirst({
-      where: { id, companyId },
-      include: { customer: true, lineItems: true },
-    }),
-    prisma.company.findUnique({ where: { id: companyId } }),
-  ]);
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, companyId },
+    include: { customer: true, lineItems: true },
+  });
 
-  if (!invoice || !company) return <div className="p-5 text-sm">Not found.</div>;
+  if (!invoice) return <div className="p-5 text-sm">Not found.</div>;
 
   // Generate QR code — use a public signed URL so scanning opens the invoice without login
   const qrPayload = buildPublicInvoiceUrl(id);
@@ -58,8 +59,8 @@ export default async function InvoicePreviewPage({ params }: { params: Promise<{
   let qrDataUrl = "";
   try {
     qrDataUrl = await QRCode.toDataURL(qrPayload, { width: 120, margin: 1 });
-    // Update qrPayload in DB
-    await prisma.invoice.update({ where: { id }, data: { qrPayload } });
+    // Update qrPayload in DB (fire-and-forget, don't block rendering)
+    prisma.invoice.update({ where: { id }, data: { qrPayload } }).catch(() => {});
   } catch {
     // QR generation failed, continue without it
   }

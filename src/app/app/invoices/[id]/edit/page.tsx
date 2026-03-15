@@ -22,11 +22,13 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     return <div className="rounded-2xl border bg-white p-5 text-sm">Not authorized.</div>;
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { companyId: true, company: { select: { baseCurrencyCode: true } } },
+  });
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
-
-  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
+  const company = user.company;
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
   const invoice = await prisma.invoice.findFirst({

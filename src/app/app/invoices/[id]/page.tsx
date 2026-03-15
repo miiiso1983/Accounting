@@ -32,7 +32,7 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId },
     include: {
-      customer: true,
+      customer: { select: { id: true, name: true, companyName: true, email: true, phone: true } },
       exchangeRate: true,
       lineItems: true,
       payments: { orderBy: { paymentDate: "desc" } },
