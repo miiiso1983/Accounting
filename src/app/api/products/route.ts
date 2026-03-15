@@ -12,6 +12,7 @@ const CreateSchema = z.object({
   unitPrice: z.string().min(1),
   currencyCode: z.enum(["IQD", "USD"]),
   costCenterId: z.string().optional().or(z.literal("")),
+  revenueAccountId: z.string().optional().or(z.literal("")),
 });
 
 export async function GET(req: Request) {
@@ -62,6 +63,17 @@ export async function POST(req: Request) {
     costCenterId = cc.id;
   }
 
+  let revenueAccountId: string | null = null;
+  const requestedRevenueAccountId = body.data.revenueAccountId?.trim();
+  if (requestedRevenueAccountId) {
+    const acc = await prisma.glAccount.findFirst({
+      where: { id: requestedRevenueAccountId, companyId: user.companyId, type: "INCOME", isPosting: true },
+      select: { id: true },
+    });
+    if (!acc) return Response.json({ error: "Revenue account not found or not an INCOME account" }, { status: 400 });
+    revenueAccountId = acc.id;
+  }
+
   const product = await prisma.product.create({
     data: {
       companyId: user.companyId,
@@ -70,6 +82,7 @@ export async function POST(req: Request) {
       unitPrice: parseFloat(unitPrice),
       currencyCode,
       costCenterId,
+      revenueAccountId,
     },
   });
 

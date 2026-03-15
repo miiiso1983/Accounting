@@ -30,10 +30,22 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
 
-  const [product, costCenters] = await Promise.all([
-    prisma.product.findFirst({ where: { id, companyId }, include: { costCenter: { select: { id: true, code: true, name: true } } } }),
+  const [product, costCenters, revenueAccounts] = await Promise.all([
+    prisma.product.findFirst({
+      where: { id, companyId },
+      include: {
+        costCenter: { select: { id: true, code: true, name: true } },
+        revenueAccount: { select: { id: true, code: true, name: true } },
+      },
+    }),
     prisma.costCenter.findMany({
       where: { companyId, isActive: true },
+      orderBy: [{ code: "asc" }],
+      select: { id: true, code: true, name: true },
+      take: 1000,
+    }),
+    prisma.glAccount.findMany({
+      where: { companyId, type: "INCOME", isPosting: true },
       orderBy: [{ code: "asc" }],
       select: { id: true, code: true, name: true },
       take: 1000,
@@ -42,6 +54,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   if (!product) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
 
   const costCenterLabel = product.costCenter ? `${product.costCenter.code} — ${product.costCenter.name}` : "-";
+  const revenueAccountLabel = product.revenueAccount ? `${product.revenueAccount.code} — ${product.revenueAccount.name}` : "— None / بدون —";
 
   const canWrite = hasPermission(session, PERMISSIONS.INVOICE_WRITE);
 
@@ -75,9 +88,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <div className="mt-1 text-sm text-zinc-900">{product.isActive ? "Active / نشط" : "Inactive / غير نشط"}</div>
         </div>
 
-        <div className="rounded-xl border p-3 md:col-span-3">
+        <div className="rounded-xl border p-3">
           <div className="text-xs text-zinc-500">Default Cost Center / مركز الكلفة الافتراضي</div>
           <div className="mt-1 text-sm text-zinc-900">{costCenterLabel}</div>
+        </div>
+        <div className="rounded-xl border p-3 md:col-span-2">
+          <div className="text-xs text-zinc-500">Revenue Account / حساب الإيرادات</div>
+          <div className="mt-1 text-sm text-zinc-900">{revenueAccountLabel}</div>
         </div>
       </div>
 
@@ -94,8 +111,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               currencyCode: product.currencyCode,
               isActive: product.isActive,
               costCenterId: product.costCenterId ?? "",
+              revenueAccountId: product.revenueAccountId ?? "",
             }}
             costCenters={costCenters as CostCenterOption[]}
+            revenueAccounts={revenueAccounts}
           />
         </div>
       )}

@@ -13,6 +13,7 @@ const UpdateSchema = z.object({
   currencyCode: z.enum(["IQD", "USD"]).optional(),
   isActive: z.boolean().optional(),
   costCenterId: z.string().optional().or(z.literal("")),
+  revenueAccountId: z.string().optional().or(z.literal("")),
 });
 
 async function getCompanyId(session: { user: { id: string } }) {
@@ -68,6 +69,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       });
       if (!cc) return Response.json({ error: "Cost center not found" }, { status: 400 });
       data.costCenterId = cc.id;
+    }
+  }
+
+  if (body.data.revenueAccountId !== undefined) {
+    const requestedRevenueAccountId = body.data.revenueAccountId?.trim();
+    if (!requestedRevenueAccountId) {
+      data.revenueAccountId = null;
+    } else {
+      const acc = await prisma.glAccount.findFirst({
+        where: { id: requestedRevenueAccountId, companyId, type: "INCOME", isPosting: true },
+        select: { id: true },
+      });
+      if (!acc) return Response.json({ error: "Revenue account not found or not an INCOME account" }, { status: 400 });
+      data.revenueAccountId = acc.id;
     }
   }
 

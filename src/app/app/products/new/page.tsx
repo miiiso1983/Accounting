@@ -26,12 +26,20 @@ export default async function NewProductPage() {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
-  const costCenters: CostCenterOption[] = await prisma.costCenter.findMany({
-    where: { companyId, isActive: true },
-    orderBy: [{ code: "asc" }],
-    select: { id: true, code: true, name: true },
-    take: 1000,
-  });
+  const [costCenters, revenueAccounts] = await Promise.all([
+    prisma.costCenter.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ code: "asc" }],
+      select: { id: true, code: true, name: true },
+      take: 1000,
+    }),
+    prisma.glAccount.findMany({
+      where: { companyId, type: "INCOME", isPosting: true },
+      orderBy: [{ code: "asc" }],
+      select: { id: true, code: true, name: true },
+      take: 1000,
+    }),
+  ]);
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -46,7 +54,7 @@ export default async function NewProductPage() {
       </div>
 
       <div className="mt-4">
-        <ProductForm baseCurrencyCode={company.baseCurrencyCode} costCenters={costCenters} />
+        <ProductForm baseCurrencyCode={company.baseCurrencyCode} costCenters={costCenters} revenueAccounts={revenueAccounts} />
       </div>
     </div>
   );

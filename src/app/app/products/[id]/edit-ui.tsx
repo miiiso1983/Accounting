@@ -12,6 +12,7 @@ const FormSchema = z.object({
   unitPrice: z.string().min(1),
   currencyCode: z.enum(["IQD", "USD"]),
   costCenterId: z.string().optional(),
+  revenueAccountId: z.string().optional(),
 });
 
 const ApiErrSchema = z.object({ error: z.string().min(1) });
@@ -25,11 +26,13 @@ type ProductData = {
   currencyCode: "IQD" | "USD";
   isActive: boolean;
   costCenterId?: string;
+  revenueAccountId?: string;
 };
 
 type CostCenterOption = { id: string; code: string; name: string };
+type RevenueAccountOption = { id: string; code: string; name: string };
 
-export function ProductEditForm({ product, costCenters }: { product: ProductData; costCenters: CostCenterOption[] }) {
+export function ProductEditForm({ product, costCenters, revenueAccounts }: { product: ProductData; costCenters: CostCenterOption[]; revenueAccounts: RevenueAccountOption[] }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -42,6 +45,7 @@ export function ProductEditForm({ product, costCenters }: { product: ProductData
       unitPrice: product.unitPrice,
       currencyCode: product.currencyCode,
       costCenterId: product.costCenterId ?? "",
+      revenueAccountId: product.revenueAccountId ?? "",
     },
   });
 
@@ -122,6 +126,18 @@ export function ProductEditForm({ product, costCenters }: { product: ProductData
                 </option>
               ))}
             </select>
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="text-sm font-medium text-zinc-700">Revenue Account / حساب الإيرادات</label>
+          <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("revenueAccountId")}>
+            <option value="">— None / بدون —</option>
+            {revenueAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.code} — {a.name}
+              </option>
+            ))}
+          </select>
           </div>
         </div>
 

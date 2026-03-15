@@ -261,6 +261,9 @@ model GlAccount {
   // Inverse relation for Expense.expenseAccount
   expenses      Expense[]
 
+  // Inverse relation for Product.revenueAccount
+  revenueProducts Product[]
+
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -365,10 +368,12 @@ model Product {
   currencyCode  CurrencyCode @default(IQD)
   isActive      Boolean      @default(true)
 
-  costCenterId   String?
+  costCenterId       String?
+  revenueAccountId   String?
 
   company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   costCenter    CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  revenueAccount GlAccount?  @relation(fields: [revenueAccountId], references: [id], onDelete: SetNull)
   expenses      Expense[]
 
   createdAt     DateTime     @default(now())
