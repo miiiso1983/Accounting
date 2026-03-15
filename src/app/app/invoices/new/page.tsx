@@ -11,6 +11,7 @@ import { InvoiceForm } from "./ui";
 
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
 type CostCenterOption = { id: string; code: string; name: string };
+type SalesRepOption = { id: string; name: string };
 
 export default async function NewInvoicePage({
   searchParams,
@@ -33,7 +34,7 @@ export default async function NewInvoicePage({
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { baseCurrencyCode: true } });
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
-  const [customers, productsRaw, costCenters] = await Promise.all([
+  const [customers, productsRaw, costCenters, salesReps] = await Promise.all([
     prisma.customer.findMany({
       where: { companyId },
       orderBy: [{ name: "asc" }],
@@ -52,6 +53,12 @@ export default async function NewInvoicePage({
       select: { id: true, code: true, name: true },
       take: 500,
     }),
+    prisma.salesRepresentative.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true },
+      take: 500,
+    }),
   ]);
 
   const products: ProductOption[] = productsRaw.map((p) => ({
@@ -60,6 +67,7 @@ export default async function NewInvoicePage({
   }));
 
   const costCenterOptions: CostCenterOption[] = costCenters;
+  const salesRepOptions: SalesRepOption[] = salesReps;
 
   return (
     <div className="rounded-2xl border bg-white p-5">
@@ -78,6 +86,7 @@ export default async function NewInvoicePage({
           customers={customers}
           products={products}
           costCenters={costCenterOptions}
+          salesReps={salesRepOptions}
           baseCurrencyCode={company.baseCurrencyCode}
           defaultCustomerId={defaultCustomerId}
         />

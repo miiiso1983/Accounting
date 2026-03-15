@@ -37,6 +37,7 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
       lineItems: true,
       payments: { orderBy: { paymentDate: "desc" } },
       journalEntry: { select: { id: true } },
+      salesRepresentative: { select: { id: true, name: true } },
     },
   });
 
@@ -65,6 +66,9 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
           <div className="text-sm text-zinc-500">Invoice</div>
           <div className="mt-1 text-base font-medium text-zinc-900">{invoice.invoiceNumber}</div>
           <div className="mt-1 text-xs text-zinc-500">Customer: {invoice.customer.name}</div>
+          {invoice.salesRepresentative ? (
+            <div className="mt-0.5 text-xs text-zinc-500">Sales Rep / المندوب: {invoice.salesRepresentative.name}</div>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <Link className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" href={`/app/invoices/${invoice.id}/preview`}>

@@ -107,6 +107,14 @@ export default async function ReportsIndexPage() {
           <div className="font-medium text-zinc-900">Installment Sales / مبيعات التقسيط</div>
           <div className="mt-1 text-xs text-zinc-500">Contracts, monthly sales, and due installments / العقود والمبيعات الشهرية والأقساط المستحقة</div>
         </Link>
+
+        <Link
+          href="/app/reports/sales-by-rep"
+          className="rounded-2xl border border-sky-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">Sales by Rep / المبيعات حسب المندوب</div>
+          <div className="mt-1 text-xs text-zinc-500">Invoice totals grouped by sales representative / إجماليات الفواتير حسب المندوب</div>
+        </Link>
       </div>
     </div>
   );

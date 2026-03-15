@@ -11,6 +11,7 @@ import { InvoiceEditForm } from "./ui";
 
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
 type CostCenterOption = { id: string; code: string; name: string };
+type SalesRepOption = { id: string; name: string };
 
 export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -43,7 +44,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     );
   }
 
-  const [customers, productsRaw, costCenters] = await Promise.all([
+  const [customers, productsRaw, costCenters, salesReps] = await Promise.all([
     prisma.customer.findMany({
       where: { companyId },
       orderBy: [{ name: "asc" }],
@@ -62,6 +63,12 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
       select: { id: true, code: true, name: true },
       take: 500,
     }),
+    prisma.salesRepresentative.findMany({
+      where: { companyId, isActive: true },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true },
+      take: 500,
+    }),
   ]);
 
   const products: ProductOption[] = productsRaw.map((p) => ({
@@ -70,6 +77,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   }));
 
   const costCenterOptions: CostCenterOption[] = costCenters;
+  const salesRepOptions: SalesRepOption[] = salesReps;
 
   const invoiceData = {
     id: invoice.id,
@@ -82,6 +90,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     discountType: invoice.discountType ?? "",
     discountValue: invoice.discountValue ? String(invoice.discountValue) : "",
     paymentTerms: invoice.paymentTerms ?? "",
+    salesRepresentativeId: invoice.salesRepresentativeId ?? "",
     lines: invoice.lineItems.map((li) => ({
       description: li.description,
       costCenterId: li.costCenterId ?? "",
@@ -112,6 +121,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
           customers={customers}
           products={products}
           costCenters={costCenterOptions}
+          salesReps={salesRepOptions}
           baseCurrencyCode={company.baseCurrencyCode}
         />
       </div>

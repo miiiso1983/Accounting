@@ -11,6 +11,7 @@ import { CustomerAutocompleteField } from "@/components/fields/CustomerAutocompl
 type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
 type CostCenterOption = { id: string; code: string; name: string };
+type SalesRepOption = { id: string; name: string };
 
 type InvoiceData = {
   id: string;
@@ -23,6 +24,7 @@ type InvoiceData = {
   discountType: string;
   discountValue: string;
   paymentTerms: string;
+  salesRepresentativeId: string;
 	lines: { description: string; costCenterId?: string; quantity: string; unitPrice: string; discountType?: string; discountValue?: string; taxRate: string }[];
 };
 
@@ -32,6 +34,7 @@ type Props = {
   customers: CustomerOption[];
   products: ProductOption[];
 	costCenters: CostCenterOption[];
+	salesReps: SalesRepOption[];
   baseCurrencyCode: "IQD" | "USD";
 };
 
@@ -80,6 +83,7 @@ const FormSchema = z.object({
   discountType: OptionalDiscountTypeSchema,
   discountValue: z.string().optional(),
   paymentTerms: OptionalPaymentTermsSchema,
+  salesRepresentativeId: z.string().optional(),
   lines: z.array(LineSchema).min(1),
 });
 
@@ -100,7 +104,7 @@ async function readResponseData(res: Response) {
   }
 }
 
-export function InvoiceEditForm({ invoiceId, initialData, customers: initialCustomers, products, costCenters, baseCurrencyCode }: Props) {
+export function InvoiceEditForm({ invoiceId, initialData, customers: initialCustomers, products, costCenters, salesReps, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [customers, setCustomers] = useState(initialCustomers);
@@ -121,6 +125,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
       discountType: initialData.discountType || "",
       discountValue: initialData.discountValue || "",
       paymentTerms: initialData.paymentTerms || "",
+      salesRepresentativeId: initialData.salesRepresentativeId || "",
       lines: initialData.lines.map((l) => ({ ...l, discountType: l.discountType || "", discountValue: l.discountValue || "" })),
     },
   });
@@ -196,6 +201,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
       discountType: values.discountValue && Number(values.discountValue) > 0 ? (values.discountType || "FIXED") : undefined,
       discountValue: values.discountValue && Number(values.discountValue) > 0 ? values.discountValue : undefined,
       paymentTerms: values.paymentTerms || undefined,
+      salesRepresentativeId: values.salesRepresentativeId || undefined,
     };
 
     const res = await fetch(`/api/invoices/${invoiceId}`, {
@@ -309,6 +315,18 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
             </select>
           </div>
         </div>
+
+        {salesReps.length > 0 && (
+          <div className="max-w-sm">
+            <label className="text-sm font-medium text-zinc-700">Sales Rep / المندوب</label>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("salesRepresentativeId")}>
+              <option value="">— None / بدون —</option>
+              {salesReps.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="rounded-2xl border p-4">
           <div className="flex items-center justify-between gap-4">

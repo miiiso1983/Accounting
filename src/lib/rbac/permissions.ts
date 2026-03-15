@@ -34,6 +34,10 @@ export const PERMISSIONS = {
   // Cost centers
   COST_CENTERS_READ: "cost_centers:read",
   COST_CENTERS_WRITE: "cost_centers:write",
+
+  // Sales representatives
+  SALES_REP_READ: "sales_rep:read",
+  SALES_REP_WRITE: "sales_rep:write",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

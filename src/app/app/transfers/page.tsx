@@ -89,7 +89,7 @@ export default async function TransfersPage() {
                     <td className="py-2 pr-3 font-mono text-zinc-900">
                       {fmt(amount)} {currency}
                     </td>
-                    <td className="py-2 pr-3 text-zinc-600 max-w-[200px] truncate">
+                    <td className="py-2 pr-3 text-zinc-600 max-w-50 truncate">
                       {t.description || "-"}
                     </td>
                     <td className="py-2 pr-3">

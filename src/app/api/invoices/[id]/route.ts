@@ -20,6 +20,7 @@ const UpdateBodySchema = z.object({
   discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
   discountValue: z.string().optional().or(z.literal("")),
   paymentTerms: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
+  salesRepresentativeId: z.string().optional().or(z.literal("")),
   lines: z
     .array(
       z.object({
@@ -48,7 +49,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: user.companyId },
-    include: { customer: true, exchangeRate: true, lineItems: true },
+    include: { customer: true, exchangeRate: true, lineItems: true, salesRepresentative: { select: { id: true, name: true } } },
   });
 
   if (!invoice) return Response.json({ error: "Not found" }, { status: 404 });
@@ -88,6 +89,13 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
     const updated = await prisma.$transaction(async (tx) => {
       const customer = await tx.customer.findFirst({ where: { id: body.customerId, companyId: company.id }, select: { id: true } });
       if (!customer) throw new Error("Customer not found");
+
+      // Validate sales representative
+      const salesRepId = body.salesRepresentativeId?.trim() || null;
+      if (salesRepId) {
+        const rep = await tx.salesRepresentative.findFirst({ where: { id: salesRepId, companyId: company.id, isActive: true }, select: { id: true } });
+        if (!rep) throw new Error("Sales representative not found or inactive");
+      }
 
 			const costCenterIds = Array.from(
 				new Set(body.lines.map((l) => (l.costCenterId ?? "").trim()).filter(Boolean)),
@@ -189,6 +197,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
           currencyCode: invoiceCurrency,
           baseCurrencyCode,
           exchangeRateId,
+          salesRepresentativeId: salesRepId,
           paymentTerms: body.paymentTerms || null,
           subtotal: subtotal.toFixed(6),
           discountType,

@@ -24,6 +24,7 @@ const BodySchema = z.object({
   discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
   discountValue: z.string().optional().or(z.literal("")),
   paymentTerms: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
+  salesRepresentativeId: z.string().optional().or(z.literal("")),
   mode: z.enum(["DRAFT", "SEND"]),
   lines: z
     .array(
@@ -109,6 +110,13 @@ export async function POST(req: Request) {
     const created = await prisma.$transaction(async (tx) => {
       const customer = await tx.customer.findFirst({ where: { id: body.customerId, companyId: company.id }, select: { id: true } });
       if (!customer) throw new Error("Customer not found");
+
+      // Validate sales representative
+      const salesRepId = body.salesRepresentativeId?.trim() || null;
+      if (salesRepId) {
+        const rep = await tx.salesRepresentative.findFirst({ where: { id: salesRepId, companyId: company.id, isActive: true }, select: { id: true } });
+        if (!rep) throw new Error("Sales representative not found or inactive");
+      }
 
 			const costCenterIds = Array.from(
 				new Set(body.lines.map((l) => (l.costCenterId ?? "").trim()).filter(Boolean)),
@@ -221,6 +229,7 @@ export async function POST(req: Request) {
           currencyCode: invoiceCurrency,
           baseCurrencyCode,
           exchangeRateId,
+          salesRepresentativeId: salesRepId,
           paymentTerms: body.paymentTerms || null,
           subtotal: subtotal.toFixed(6),
           discountType,
