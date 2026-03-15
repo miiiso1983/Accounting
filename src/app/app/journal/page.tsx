@@ -30,6 +30,7 @@ export default async function JournalIndexPage({
 	const referenceTypeParam = typeof sp.referenceType === "string" ? sp.referenceType.trim() : "";
 	const from = typeof sp.from === "string" ? sp.from.trim() : "";
 	const to = typeof sp.to === "string" ? sp.to.trim() : "";
+	const accountCode = typeof sp.accountCode === "string" ? sp.accountCode.trim() : "";
 
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
@@ -72,6 +73,17 @@ export default async function JournalIndexPage({
 						},
 					}
 					: {}),
+				...(accountCode
+					? {
+						lines: {
+							some: {
+								account: {
+									code: { contains: accountCode, mode: "insensitive" as const },
+								},
+							},
+						},
+					}
+					: {}),
 			},
 			orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
 			include: {
@@ -96,7 +108,7 @@ export default async function JournalIndexPage({
         </div>
         <div className="flex items-center gap-2">
           <JournalExportButtons
-            excelHref={`/api/journal-entries/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(referenceTypeParam ? { referenceType: referenceTypeParam } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}`}
+            excelHref={`/api/journal-entries/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(referenceTypeParam ? { referenceType: referenceTypeParam } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(accountCode ? { accountCode } : {}) }).toString()}`}
           />
           <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/journal/new">
             New entry
@@ -106,7 +118,7 @@ export default async function JournalIndexPage({
 
 			<div className="mt-4">
 				<JournalListFilters
-					initial={{ q, referenceType: referenceTypeParam, from, to }}
+					initial={{ q, referenceType: referenceTypeParam, from, to, accountCode }}
 					referenceTypeOptions={refTypeOptions}
 				/>
 			</div>

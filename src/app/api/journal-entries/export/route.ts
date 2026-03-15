@@ -30,6 +30,7 @@ export async function GET(req: Request) {
   const to = searchParams.get("to") ?? undefined;
   const q = searchParams.get("q") ?? undefined;
   const referenceType = searchParams.get("referenceType") ?? undefined;
+  const accountCode = searchParams.get("accountCode") ?? undefined;
 
   const entries = await prisma.journalEntry.findMany({
     where: {
@@ -52,6 +53,17 @@ export async function GET(req: Request) {
             entryDate: {
               ...(from ? { gte: new Date(`${from}T00:00:00.000Z`) } : {}),
               ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}),
+            },
+          }
+        : {}),
+      ...(accountCode
+        ? {
+            lines: {
+              some: {
+                account: {
+                  code: { contains: accountCode, mode: "insensitive" as const },
+                },
+              },
             },
           }
         : {}),

@@ -6,6 +6,7 @@ type Props = {
     referenceType: string;
     from: string;
     to: string;
+    accountCode: string;
   };
   referenceTypeOptions: string[];
 };
@@ -13,7 +14,7 @@ type Props = {
 export function JournalListFilters({ initial, referenceTypeOptions }: Props) {
   return (
     <form className="grid gap-3 md:grid-cols-12" method="GET" action="/app/journal">
-      <div className="md:col-span-5">
+      <div className="md:col-span-4">
         <label className="text-xs font-medium text-zinc-600">Search / بحث</label>
         <input
           className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm"
@@ -23,7 +24,17 @@ export function JournalListFilters({ initial, referenceTypeOptions }: Props) {
         />
       </div>
 
-      <div className="md:col-span-3">
+      <div className="md:col-span-2">
+        <label className="text-xs font-medium text-zinc-600">Account code / رمز الحساب</label>
+        <input
+          className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm font-mono"
+          name="accountCode"
+          defaultValue={initial.accountCode}
+          placeholder="e.g. 1001"
+        />
+      </div>
+
+      <div className="md:col-span-2">
         <label className="text-xs font-medium text-zinc-600">Reference type / نوع المرجع</label>
         <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="referenceType" defaultValue={initial.referenceType}>
           <option value="">All / الكل</option>
