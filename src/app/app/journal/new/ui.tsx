@@ -12,11 +12,20 @@ type Props = { accounts: AccountOption[]; costCenters: CostCenterOption[]; baseC
 
 const LineSchema = z.object({
   accountId: z.string().min(1),
-  dc: z.enum(["DEBIT", "CREDIT"]),
   costCenterId: z.string().optional(),
-  amount: z.string().min(1),
+  debitAmount: z.string().optional(),
+  creditAmount: z.string().optional(),
   description: z.string().optional(),
-});
+}).refine(
+  (l) => {
+    const d = l.debitAmount?.trim();
+    const c = l.creditAmount?.trim();
+    const hasDebit = !!d && Number(d) > 0;
+    const hasCredit = !!c && Number(c) > 0;
+    return (hasDebit && !hasCredit) || (!hasDebit && hasCredit);
+  },
+  { message: "Each line must have either a debit or credit amount (not both)" },
+);
 
 const FormSchema = z.object({
   entryDate: z.string().min(1),
@@ -42,8 +51,8 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
       entryDate: today,
       currencyCode: baseCurrencyCode,
       lines: [
-        { dc: "DEBIT", accountId: "", costCenterId: "", amount: "", description: "" },
-        { dc: "CREDIT", accountId: "", costCenterId: "", amount: "", description: "" },
+        { accountId: "", costCenterId: "", debitAmount: "", creditAmount: "", description: "" },
+        { accountId: "", costCenterId: "", debitAmount: "", creditAmount: "", description: "" },
       ],
     },
   });
@@ -60,10 +69,18 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
       description: values.description,
       currencyCode: values.currencyCode,
       exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
-      lines: values.lines.map((l) => ({
-        ...l,
-        costCenterId: l.costCenterId?.trim() ? l.costCenterId.trim() : undefined,
-      })),
+      lines: values.lines.map((l) => {
+        const d = l.debitAmount?.trim();
+        const c = l.creditAmount?.trim();
+        const isDebit = !!d && Number(d) > 0;
+        return {
+          accountId: l.accountId,
+          dc: isDebit ? "DEBIT" : "CREDIT",
+          amount: isDebit ? d! : c!,
+          costCenterId: l.costCenterId?.trim() ? l.costCenterId.trim() : undefined,
+          description: l.description,
+        };
+      }),
     };
 
     const res = await fetch("/api/journal-entries", {
@@ -135,22 +152,26 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
           <button
             type="button"
             className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-            onClick={() => append({ dc: "DEBIT", accountId: "", costCenterId: "", amount: "", description: "" })}
+            onClick={() => append({ accountId: "", costCenterId: "", debitAmount: "", creditAmount: "", description: "" })}
           >
             Add line
           </button>
         </div>
 
-        <div className="mt-3 space-y-2">
+        {/* Column headers */}
+        <div className="mt-3 hidden md:grid md:grid-cols-12 gap-2 px-1 text-xs font-semibold text-zinc-500">
+          <div className="md:col-span-3">Account / الحساب</div>
+          <div className="md:col-span-2">Cost Center / مركز كلفة</div>
+          <div className="md:col-span-2 text-right">Debit / مدين</div>
+          <div className="md:col-span-2 text-right">Credit / دائن</div>
+          <div className="md:col-span-2">Note / ملاحظة</div>
+          <div className="md:col-span-1"></div>
+        </div>
+
+        <div className="mt-2 space-y-2">
           {fields.map((f, idx) => (
-            <div key={f.id} className="grid gap-2 md:grid-cols-12">
-              <div className="md:col-span-2">
-                <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.dc` as const)}>
-                  <option value="DEBIT">DEBIT</option>
-                  <option value="CREDIT">CREDIT</option>
-                </select>
-              </div>
-              <div className="md:col-span-4">
+            <div key={f.id} className="grid gap-2 md:grid-cols-12 items-start">
+              <div className="md:col-span-3">
                 <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.accountId` as const)}>
                   <option value="">Select account…</option>
                   {accounts.map((a) => (
@@ -160,9 +181,9 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
                   ))}
                 </select>
               </div>
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.costCenterId` as const)}>
-                  <option value="">— Cost Center / مركز كلفة —</option>
+                  <option value="">— None —</option>
                   {costCenters.map((cc) => (
                     <option key={cc.id} value={cc.id}>
                       {cc.code} — {cc.name}
@@ -172,10 +193,37 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
               </div>
               <div className="md:col-span-2">
                 <input
-                  className="w-full rounded-xl border px-3 py-2 font-mono"
+                  className="w-full rounded-xl border px-3 py-2 font-mono text-right"
                   inputMode="decimal"
                   placeholder="0"
-                  {...form.register(`lines.${idx}.amount` as const)}
+                  {...form.register(`lines.${idx}.debitAmount` as const)}
+                  onChange={(e) => {
+                    form.register(`lines.${idx}.debitAmount` as const).onChange(e);
+                    if (e.target.value.trim() && Number(e.target.value) > 0) {
+                      form.setValue(`lines.${idx}.creditAmount`, "");
+                    }
+                  }}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <input
+                  className="w-full rounded-xl border px-3 py-2 font-mono text-right"
+                  inputMode="decimal"
+                  placeholder="0"
+                  {...form.register(`lines.${idx}.creditAmount` as const)}
+                  onChange={(e) => {
+                    form.register(`lines.${idx}.creditAmount` as const).onChange(e);
+                    if (e.target.value.trim() && Number(e.target.value) > 0) {
+                      form.setValue(`lines.${idx}.debitAmount`, "");
+                    }
+                  }}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <input
+                  className="w-full rounded-xl border px-3 py-2"
+                  placeholder="Line note"
+                  {...form.register(`lines.${idx}.description` as const)}
                 />
               </div>
               <div className="md:col-span-1">
@@ -189,13 +237,6 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
                   ×
                 </button>
               </div>
-					<div className="md:col-span-12">
-						<input
-							className="w-full rounded-xl border px-3 py-2"
-							placeholder="Line note"
-							{...form.register(`lines.${idx}.description` as const)}
-						/>
-					</div>
             </div>
           ))}
         </div>
