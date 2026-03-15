@@ -25,6 +25,7 @@ export default async function ProfitLossPage({
   const months = Math.min(Math.max(Number(sp.months) || 6, 1), 24);
   const fromParam = typeof sp.from === "string" ? sp.from : undefined;
   const toParam = typeof sp.to === "string" ? sp.to : undefined;
+  const costCenterId = typeof sp.costCenterId === "string" ? sp.costCenterId : undefined;
 
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
@@ -68,6 +69,12 @@ export default async function ProfitLossPage({
     cursor.setUTCMonth(cursor.getUTCMonth() + 1);
   }
 
+  const costCenters = await prisma.costCenter.findMany({
+    where: { companyId, isActive: true },
+    orderBy: [{ code: "asc" }],
+    select: { id: true, code: true, name: true },
+  });
+
   // Fetch INCOME + EXPENSE accounts
   const accounts = await prisma.glAccount.findMany({
     where: { companyId, isPosting: true, type: { in: ["INCOME", "EXPENSE"] } },
@@ -79,6 +86,7 @@ export default async function ProfitLossPage({
   const lines = await prisma.journalLine.findMany({
     where: {
       accountId: { in: accounts.map((a) => a.id) },
+      ...(costCenterId ? { costCenterId } : {}),
       journalEntry: {
         companyId,
         status: "POSTED",
@@ -131,6 +139,7 @@ export default async function ProfitLossPage({
     ...(fromParam ? { from: fromParam } : {}),
     ...(toParam ? { to: toParam } : {}),
     months: String(months),
+    ...(costCenterId ? { costCenterId } : {}),
   }).toString();
 
   return (
@@ -147,7 +156,7 @@ export default async function ProfitLossPage({
       </div>
 
       {/* Filters */}
-      <form className="mt-4 grid gap-3 md:grid-cols-8" method="GET" action="/app/reports/profit-loss">
+      <form className="mt-4 grid gap-3 md:grid-cols-10" method="GET" action="/app/reports/profit-loss">
         <div className="md:col-span-2">
           <label className="text-xs font-medium text-zinc-600">From / من</label>
           <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="from" defaultValue={fromParam ?? ""} />
@@ -160,6 +169,13 @@ export default async function ProfitLossPage({
           <label className="text-xs font-medium text-zinc-600">Months / أشهر</label>
           <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="months" defaultValue={months}>
             {[3, 6, 12].map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="text-xs font-medium text-zinc-600">Cost Center / مركز الكلفة</label>
+          <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="costCenterId" defaultValue={costCenterId ?? ""}>
+            <option value="">All / الكل</option>
+            {costCenters.map((cc) => <option key={cc.id} value={cc.id}>{cc.code} - {cc.name}</option>)}
           </select>
         </div>
         <div className="md:col-span-2 flex items-end">

@@ -29,6 +29,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
+  const costCenterId = searchParams.get("costCenterId") ?? undefined;
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
   if (!user?.companyId) return Response.json({ error: "No company assigned" }, { status: 400 });
@@ -46,12 +47,12 @@ export async function GET(req: Request) {
     }),
     prisma.journalLine.groupBy({
       by: ["accountId"],
-      where: { dc: "DEBIT", journalEntry: { companyId, status: "POSTED", ...(entryDateWhere ? { entryDate: entryDateWhere } : {}) } },
+      where: { dc: "DEBIT", ...(costCenterId ? { costCenterId } : {}), journalEntry: { companyId, status: "POSTED", ...(entryDateWhere ? { entryDate: entryDateWhere } : {}) } },
       _sum: { amountBase: true },
     }),
     prisma.journalLine.groupBy({
       by: ["accountId"],
-      where: { dc: "CREDIT", journalEntry: { companyId, status: "POSTED", ...(entryDateWhere ? { entryDate: entryDateWhere } : {}) } },
+      where: { dc: "CREDIT", ...(costCenterId ? { costCenterId } : {}), journalEntry: { companyId, status: "POSTED", ...(entryDateWhere ? { entryDate: entryDateWhere } : {}) } },
       _sum: { amountBase: true },
     }),
   ]);
@@ -79,7 +80,7 @@ export async function GET(req: Request) {
   XLSX.utils.book_append_sheet(wb, ws, "Trial Balance");
 
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  const filename = `trial-balance${from ? `-${from}` : ""}${to ? `-to-${to}` : ""}.xlsx`;
+  const filename = `trial-balance${from ? `-${from}` : ""}${to ? `-to-${to}` : ""}${costCenterId ? "-cc" : ""}.xlsx`;
 
   return new Response(buf, {
     headers: {

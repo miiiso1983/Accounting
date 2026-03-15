@@ -37,6 +37,7 @@ export default async function TrialBalancePage({
   const sp = (await searchParams) ?? {};
   const from = typeof sp.from === "string" ? sp.from : undefined;
   const to = typeof sp.to === "string" ? sp.to : undefined;
+  const costCenterId = typeof sp.costCenterId === "string" ? sp.costCenterId : undefined;
 
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
@@ -57,6 +58,22 @@ export default async function TrialBalancePage({
   const toDate = parseDateEnd(to);
   const entryDateWhere = fromDate || toDate ? { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } : undefined;
 
+  const costCenters = await prisma.costCenter.findMany({
+    where: { companyId, isActive: true },
+    orderBy: [{ code: "asc" }],
+    select: { id: true, code: true, name: true },
+  });
+
+  const lineWhere = (dc: "DEBIT" | "CREDIT") => ({
+    dc,
+    ...(costCenterId ? { costCenterId } : {}),
+    journalEntry: {
+      companyId,
+      status: "POSTED" as const,
+      ...(entryDateWhere ? { entryDate: entryDateWhere } : {}),
+    },
+  });
+
   const [accounts, debitAgg, creditAgg] = await Promise.all([
     prisma.glAccount.findMany({
       where: { companyId, isPosting: true },
@@ -65,26 +82,12 @@ export default async function TrialBalancePage({
     }),
     prisma.journalLine.groupBy({
       by: ["accountId"],
-      where: {
-        dc: "DEBIT",
-        journalEntry: {
-          companyId,
-          status: "POSTED",
-          ...(entryDateWhere ? { entryDate: entryDateWhere } : {}),
-        },
-      },
+      where: lineWhere("DEBIT"),
       _sum: { amountBase: true },
     }),
     prisma.journalLine.groupBy({
       by: ["accountId"],
-      where: {
-        dc: "CREDIT",
-        journalEntry: {
-          companyId,
-          status: "POSTED",
-          ...(entryDateWhere ? { entryDate: entryDateWhere } : {}),
-        },
-      },
+      where: lineWhere("CREDIT"),
       _sum: { amountBase: true },
     }),
   ]);
@@ -120,12 +123,12 @@ export default async function TrialBalancePage({
           <div className="mt-1 text-base font-medium text-zinc-900">{t("reports.trialBalance.title")}</div>
         </div>
         <ExportButtons
-          excelHref={`/api/reports/trial-balance/export${from || to ? `?${new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}` : ""}`}
+          excelHref={`/api/reports/trial-balance/export${from || to || costCenterId ? `?${new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}), ...(costCenterId ? { costCenterId } : {}) }).toString()}` : ""}`}
           labels={{ excel: t("reports.export.excel"), print: t("reports.export.print") }}
         />
       </div>
 
-      <form className="mt-4 grid gap-3 md:grid-cols-6" method="GET" action="/app/reports/trial-balance">
+      <form className="mt-4 grid gap-3 md:grid-cols-8" method="GET" action="/app/reports/trial-balance">
         <div className="md:col-span-2">
           <label className="text-xs font-medium text-zinc-600">{t("reports.filters.from")}</label>
           <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="from" defaultValue={from ?? ""} />
@@ -133,6 +136,13 @@ export default async function TrialBalancePage({
         <div className="md:col-span-2">
           <label className="text-xs font-medium text-zinc-600">{t("reports.filters.to")}</label>
           <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="to" defaultValue={to ?? ""} />
+        </div>
+        <div className="md:col-span-2">
+          <label className="text-xs font-medium text-zinc-600">Cost Center / مركز الكلفة</label>
+          <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="costCenterId" defaultValue={costCenterId ?? ""}>
+            <option value="">All / الكل</option>
+            {costCenters.map((cc) => <option key={cc.id} value={cc.id}>{cc.code} - {cc.name}</option>)}
+          </select>
         </div>
         <div className="md:col-span-2 flex items-end">
           <button

@@ -21,6 +21,7 @@ export async function GET(req: Request) {
   const months = Math.min(Math.max(Number(searchParams.get("months")) || 6, 1), 24);
   const fromParam = searchParams.get("from") ?? undefined;
   const toParam = searchParams.get("to") ?? undefined;
+  const costCenterId = searchParams.get("costCenterId") ?? undefined;
 
   const now = new Date();
   let endDate = toParam ? new Date(`${toParam}T23:59:59.999Z`) : now;
@@ -47,6 +48,7 @@ export async function GET(req: Request) {
   const lines = await prisma.journalLine.findMany({
     where: {
       accountId: { in: accounts.map((a) => a.id) },
+      ...(costCenterId ? { costCenterId } : {}),
       journalEntry: { companyId, status: "POSTED", entryDate: { gte: startDate, lte: endDate } },
     },
     select: { accountId: true, dc: true, amountBase: true, journalEntry: { select: { entryDate: true } } },

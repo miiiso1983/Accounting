@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import type { JournalEntryStatus } from "@/generated/prisma/client";
 
 function fmt(n: number) {
   if (!Number.isFinite(n)) return "-";
@@ -38,6 +39,7 @@ export default async function BalanceSheetPage({
 }) {
   const sp = (await searchParams) ?? {};
   const asOf = typeof sp.asOf === "string" ? sp.asOf : undefined;
+  const costCenterId = typeof sp.costCenterId === "string" ? sp.costCenterId : undefined;
 
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
@@ -51,6 +53,12 @@ export default async function BalanceSheetPage({
 
   const toDate = parseDateEnd(asOf);
 
+  const costCenters = await prisma.costCenter.findMany({
+    where: { companyId, isActive: true },
+    orderBy: [{ code: "asc" }],
+    select: { id: true, code: true, name: true },
+  });
+
   // Fetch all accounts (not just posting)
   const allAccounts = await prisma.glAccount.findMany({
     where: { companyId, type: { in: ["ASSET", "LIABILITY", "EQUITY"] } },
@@ -59,25 +67,16 @@ export default async function BalanceSheetPage({
   });
 
   // Aggregate posted journal lines
+  const postingIds = allAccounts.filter((a) => a.isPosting).map((a) => a.id);
+  const lineWhere = (dc: "DEBIT" | "CREDIT") => ({
+    dc,
+    ...(costCenterId ? { costCenterId } : {}),
+    journalEntry: { companyId, status: "POSTED" as JournalEntryStatus, ...(toDate ? { entryDate: { lte: toDate } } : {}) },
+    accountId: { in: postingIds },
+  });
   const [debitAgg, creditAgg] = await Promise.all([
-    prisma.journalLine.groupBy({
-      by: ["accountId"],
-      where: {
-        dc: "DEBIT",
-        journalEntry: { companyId, status: "POSTED", ...(toDate ? { entryDate: { lte: toDate } } : {}) },
-        accountId: { in: allAccounts.filter((a) => a.isPosting).map((a) => a.id) },
-      },
-      _sum: { amountBase: true },
-    }),
-    prisma.journalLine.groupBy({
-      by: ["accountId"],
-      where: {
-        dc: "CREDIT",
-        journalEntry: { companyId, status: "POSTED", ...(toDate ? { entryDate: { lte: toDate } } : {}) },
-        accountId: { in: allAccounts.filter((a) => a.isPosting).map((a) => a.id) },
-      },
-      _sum: { amountBase: true },
-    }),
+    prisma.journalLine.groupBy({ by: ["accountId"], where: lineWhere("DEBIT"), _sum: { amountBase: true } }),
+    prisma.journalLine.groupBy({ by: ["accountId"], where: lineWhere("CREDIT"), _sum: { amountBase: true } }),
   ]);
 
   const debitMap = new Map<string, number>();
@@ -125,7 +124,8 @@ export default async function BalanceSheetPage({
   const totalLE = totalLiabilities + totalEquity;
   const balanced = Math.abs(totalAssets - totalLE) < 0.01;
 
-  const qs = asOf ? `?asOf=${asOf}` : "";
+  const qs = new URLSearchParams({ ...(asOf ? { asOf } : {}), ...(costCenterId ? { costCenterId } : {}) }).toString();
+  const qsStr = qs ? `?${qs}` : "";
 
   return (
     <div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
@@ -134,13 +134,20 @@ export default async function BalanceSheetPage({
           <div className="text-sm text-zinc-500">Reports / التقارير</div>
           <div className="mt-1 text-base font-semibold text-zinc-900">Balance Sheet / الميزانية العمومية</div>
         </div>
-        <ExportButtons excelHref={`/api/reports/balance-sheet/export${qs}`} labels={{ excel: "Export Excel", print: "Print / PDF" }} />
+        <ExportButtons excelHref={`/api/reports/balance-sheet/export${qsStr}`} labels={{ excel: "Export Excel", print: "Print / PDF" }} />
       </div>
 
-      <form className="mt-4 grid gap-3 md:grid-cols-6" method="GET" action="/app/reports/balance-sheet">
+      <form className="mt-4 grid gap-3 md:grid-cols-9" method="GET" action="/app/reports/balance-sheet">
         <div className="md:col-span-3">
           <label className="text-xs font-medium text-zinc-600">As of date / بتاريخ</label>
           <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="asOf" defaultValue={asOf ?? ""} />
+        </div>
+        <div className="md:col-span-3">
+          <label className="text-xs font-medium text-zinc-600">Cost Center / مركز الكلفة</label>
+          <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="costCenterId" defaultValue={costCenterId ?? ""}>
+            <option value="">All / الكل</option>
+            {costCenters.map((cc) => <option key={cc.id} value={cc.id}>{cc.code} - {cc.name}</option>)}
+          </select>
         </div>
         <div className="md:col-span-3 flex items-end">
           <button type="submit" className="w-full rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800">Apply / تطبيق</button>

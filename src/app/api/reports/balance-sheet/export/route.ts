@@ -20,6 +20,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const asOf = searchParams.get("asOf") ?? undefined;
+  const costCenterId = searchParams.get("costCenterId") ?? undefined;
   const toDate = asOf ? (() => { const d = new Date(`${asOf}T23:59:59.999Z`); return isNaN(d.getTime()) ? undefined : d; })() : undefined;
 
   const allAccounts = await prisma.glAccount.findMany({
@@ -28,17 +29,16 @@ export async function GET(req: Request) {
     select: { id: true, code: true, name: true, type: true, parentId: true, isPosting: true },
   });
 
+  const postingIds = allAccounts.filter((a) => a.isPosting).map((a) => a.id);
+  const lineWhere = (dc: "DEBIT" | "CREDIT") => ({
+    dc,
+    ...(costCenterId ? { costCenterId } : {}),
+    journalEntry: { companyId, status: "POSTED" as const, ...(toDate ? { entryDate: { lte: toDate } } : {}) },
+    accountId: { in: postingIds },
+  });
   const [debitAgg, creditAgg] = await Promise.all([
-    prisma.journalLine.groupBy({
-      by: ["accountId"],
-      where: { dc: "DEBIT", journalEntry: { companyId, status: "POSTED", ...(toDate ? { entryDate: { lte: toDate } } : {}) }, accountId: { in: allAccounts.filter((a) => a.isPosting).map((a) => a.id) } },
-      _sum: { amountBase: true },
-    }),
-    prisma.journalLine.groupBy({
-      by: ["accountId"],
-      where: { dc: "CREDIT", journalEntry: { companyId, status: "POSTED", ...(toDate ? { entryDate: { lte: toDate } } : {}) }, accountId: { in: allAccounts.filter((a) => a.isPosting).map((a) => a.id) } },
-      _sum: { amountBase: true },
-    }),
+    prisma.journalLine.groupBy({ by: ["accountId"], where: lineWhere("DEBIT"), _sum: { amountBase: true } }),
+    prisma.journalLine.groupBy({ by: ["accountId"], where: lineWhere("CREDIT"), _sum: { amountBase: true } }),
   ]);
 
   const debitMap = new Map<string, number>();
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
   return new Response(buf, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="balance-sheet${asOf ? `-${asOf}` : ""}.xlsx"`,
+      "Content-Disposition": `attachment; filename="balance-sheet${asOf ? `-${asOf}` : ""}${costCenterId ? "-cc" : ""}.xlsx"`,
     },
   });
 }

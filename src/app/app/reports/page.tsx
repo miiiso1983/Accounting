@@ -93,6 +93,14 @@ export default async function ReportsIndexPage() {
         </Link>
 
         <Link
+          href="/app/reports/invoices"
+          className="rounded-2xl border border-sky-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-sky-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">Invoices Report / تقرير الفواتير</div>
+          <div className="mt-1 text-xs text-zinc-500">Totals, paid, remaining by customer & cost center / الإجماليات والمسدد والمتبقي</div>
+        </Link>
+
+        <Link
           href="/app/reports/installment-sales"
           className="rounded-2xl border border-indigo-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-indigo-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
         >

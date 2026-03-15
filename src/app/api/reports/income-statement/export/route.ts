@@ -30,6 +30,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
+  const costCenterId = searchParams.get("costCenterId") ?? undefined;
   const fromDate = parseDateStart(from);
   const toDate = parseDateEnd(to);
   const entryDateWhere = fromDate || toDate ? { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } : undefined;
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
         by: ["accountId", "dc"],
         where: {
           accountId: { in: accounts.map((a) => a.id) },
+          ...(costCenterId ? { costCenterId } : {}),
           journalEntry: { companyId, status: "POSTED", ...(entryDateWhere ? { entryDate: entryDateWhere } : {}) },
         },
         _sum: { amountBase: true },
