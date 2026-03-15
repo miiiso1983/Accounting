@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   NotebookPen,
   Package,
+  ArrowLeftRight,
   ReceiptText,
   Users,
   ShieldCheck,
@@ -56,6 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <NavItem href="/app/products" icon={<Package className="h-4 w-4" aria-hidden />} label={t("nav.products")} />
                 <NavItem href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("nav.invoices")} />
 	                <NavItem href="/app/expenses" icon={<ReceiptText className="h-4 w-4" aria-hidden />} label={t("nav.expenses")} />
+                <NavItem href="/app/transfers" icon={<ArrowLeftRight className="h-4 w-4" aria-hidden />} label={t("nav.transfers")} />
                 <NavItem href="/app/admin/users" icon={<ShieldCheck className="h-4 w-4" aria-hidden />} label={t("nav.users")} />
               </nav>
 
@@ -94,6 +96,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <MobileNavChip href="/app/products" label={t("nav.products")} />
                 <MobileNavChip href="/app/invoices" label={t("nav.invoices")} />
 	                <MobileNavChip href="/app/expenses" label={t("nav.expenses")} />
+                <MobileNavChip href="/app/transfers" label={t("nav.transfers")} />
                 <MobileNavChip href="/app/admin/users" label={t("nav.users")} />
               </nav>
             </header>
