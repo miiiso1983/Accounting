@@ -49,14 +49,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   });
   if (!company) return Response.json({ error: "Company not found" }, { status: 400 });
 
-  // Only DRAFT entries can be edited
+	  // Only DRAFT or POSTED entries can be edited
   const existing = await prisma.journalEntry.findFirst({
     where: { id, companyId: company.id },
     select: { id: true, status: true },
   });
   if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
-  if (existing.status !== "DRAFT") {
-    return Response.json({ error: "Only DRAFT entries can be edited" }, { status: 400 });
+	  if (existing.status !== "DRAFT" && existing.status !== "POSTED") {
+	    return Response.json({ error: "Only DRAFT or POSTED entries can be edited" }, { status: 400 });
   }
 
   const json = await req.json();

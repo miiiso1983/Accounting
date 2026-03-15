@@ -42,8 +42,8 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
   });
 
   if (!entry) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
-  if (entry.status !== "DRAFT") {
-    return <div className="rounded-2xl border bg-white p-5 text-sm">Only DRAFT entries can be edited.</div>;
+	  if (entry.status !== "DRAFT" && entry.status !== "POSTED") {
+	    return <div className="rounded-2xl border bg-white p-5 text-sm">Only DRAFT or POSTED entries can be edited.</div>;
   }
 
   const accounts = await prisma.glAccount.findMany({

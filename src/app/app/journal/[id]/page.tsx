@@ -68,7 +68,7 @@ export default async function JournalEntryDetailsPage({ params }: { params: Prom
         </div>
         <div className="flex items-center gap-2">
           <JournalExportButtons excelHref={`/api/journal-entries/${entry.id}/export`} />
-          {entry.status === "DRAFT" && hasPermission(session, PERMISSIONS.JOURNAL_WRITE) ? (
+	          {(entry.status === "DRAFT" || entry.status === "POSTED") && hasPermission(session, PERMISSIONS.JOURNAL_WRITE) ? (
             <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href={`/app/journal/${entry.id}/edit`}>
               Edit
             </Link>
