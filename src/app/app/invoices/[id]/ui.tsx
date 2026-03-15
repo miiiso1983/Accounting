@@ -395,9 +395,17 @@ export function InvoicePaymentsPanel({
                     {p.amountBase} {p.baseCurrencyCode}
                   </td>
                   <td className="py-2 pr-3 text-zinc-700">{p.method}</td>
-                  <td className="py-2 pr-3">
+                  <td className="py-2 pr-3 flex items-center gap-2">
                     <a className="text-sm underline text-emerald-700" href={p.receiptUrl} target="_blank" rel="noreferrer">
                       Open
+                    </a>
+                    <a
+                      className="text-sm underline text-sky-700"
+                      href={`/app/invoices/${invoiceId}/payments/${p.id}/preview`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      🖨 Print
                     </a>
                   </td>
                   <td className="py-2 pr-3">
