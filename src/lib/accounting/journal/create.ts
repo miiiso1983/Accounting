@@ -25,9 +25,18 @@ export async function createPostedJournalEntryTx(tx: Prisma.TransactionClient, i
     if (!a.isPosting) throw new Error(`Cannot post to non-posting account: ${id}`);
   }
 
+  // Get the next sequential entry number for this company
+  const lastEntry = await tx.journalEntry.findFirst({
+    where: { companyId: input.companyId },
+    orderBy: { entryNumber: "desc" },
+    select: { entryNumber: true },
+  });
+  const nextEntryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+
   return tx.journalEntry.create({
     data: {
       companyId: input.companyId,
+      entryNumber: nextEntryNumber,
       status: "POSTED",
       entryDate: input.entryDate,
       description: input.description,

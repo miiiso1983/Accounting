@@ -276,6 +276,7 @@ model GlAccount {
 model JournalEntry {
   id               String             @id @default(cuid())
   companyId         String
+  entryNumber      Int                @default(0)
   status           JournalEntryStatus @default(DRAFT)
 
   entryDate        DateTime
@@ -306,6 +307,7 @@ model JournalEntry {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
+  @@unique([companyId, entryNumber])
   @@index([companyId, entryDate])
   @@index([companyId, status])
 }

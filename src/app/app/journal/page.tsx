@@ -7,12 +7,17 @@ import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
+import { JournalExportButtons } from "./export-buttons";
 import { JournalListFilters } from "./filters";
 
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
   if (!Number.isFinite(x)) return "-";
   return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtEntryNumber(n: number) {
+  return `JE-${String(n).padStart(3, "0")}`;
 }
 
 export default async function JournalIndexPage({
@@ -89,9 +94,14 @@ export default async function JournalIndexPage({
           <div className="text-sm text-zinc-500">Journal</div>
           <div className="mt-1 text-base font-medium text-zinc-900">Journal Entries</div>
         </div>
-        <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/journal/new">
-          New entry
-        </Link>
+        <div className="flex items-center gap-2">
+          <JournalExportButtons
+            excelHref={`/api/journal-entries/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(referenceTypeParam ? { referenceType: referenceTypeParam } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}`}
+          />
+          <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/journal/new">
+            New entry
+          </Link>
+        </div>
       </div>
 
 			<div className="mt-4">
@@ -105,6 +115,7 @@ export default async function JournalIndexPage({
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-zinc-500">
             <tr className="border-b">
+              <th className="py-2 pr-3">Entry #</th>
               <th className="py-2 pr-3">Date</th>
               <th className="py-2 pr-3">Description</th>
 							<th className="py-2 pr-3">Reference</th>
@@ -135,10 +146,13 @@ export default async function JournalIndexPage({
 
               return (
                 <tr key={e.id} className="border-b last:border-b-0">
-                  <td className="py-2 pr-3 text-zinc-700">
+                  <td className="py-2 pr-3 font-mono text-zinc-700">
                     <Link className="underline" href={`/app/journal/${e.id}`}>
-                      {e.entryDate.toISOString().slice(0, 10)}
+                      {e.entryNumber ? fmtEntryNumber(e.entryNumber) : e.id.slice(0, 8)}
                     </Link>
+                  </td>
+                  <td className="py-2 pr-3 text-zinc-700">
+                    {e.entryDate.toISOString().slice(0, 10)}
                   </td>
                   <td className="py-2 pr-3 text-zinc-900">{e.description ?? "-"}</td>
 										<td className="py-2 pr-3 text-zinc-700">

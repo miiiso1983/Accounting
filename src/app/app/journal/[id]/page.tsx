@@ -7,10 +7,16 @@ import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
+import { JournalExportButtons } from "../export-buttons";
+
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
   if (!Number.isFinite(x)) return "-";
   return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtEntryNumber(n: number) {
+  return `JE-${String(n).padStart(3, "0")}`;
 }
 
 export default async function JournalEntryDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -54,12 +60,23 @@ export default async function JournalEntryDetailsPage({ params }: { params: Prom
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm text-zinc-500">Journal entry</div>
-          <div className="mt-1 text-base font-medium text-zinc-900">{entry.description ?? "(no description)"}</div>
+          <div className="mt-1 text-base font-medium text-zinc-900">
+            {entry.entryNumber ? fmtEntryNumber(entry.entryNumber) : entry.id.slice(0, 8)}
+            {entry.description ? ` — ${entry.description}` : ""}
+          </div>
           <div className="mt-1 text-xs text-zinc-500">ID: {entry.id}</div>
         </div>
-        <Link className="text-sm underline text-zinc-700" href="/app/journal">
-          Back
-        </Link>
+        <div className="flex items-center gap-2">
+          <JournalExportButtons excelHref={`/api/journal-entries/${entry.id}/export`} />
+          {entry.status === "DRAFT" && hasPermission(session, PERMISSIONS.JOURNAL_WRITE) ? (
+            <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href={`/app/journal/${entry.id}/edit`}>
+              Edit
+            </Link>
+          ) : null}
+          <Link className="text-sm underline text-zinc-700" href="/app/journal">
+            Back
+          </Link>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -92,25 +109,27 @@ export default async function JournalEntryDetailsPage({ params }: { params: Prom
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-zinc-500">
             <tr className="border-b">
-              <th className="py-2 pr-3">DC</th>
               <th className="py-2 pr-3">Account</th>
-              <th className="py-2 pr-3">Amount</th>
               <th className="py-2 pr-3">Currency</th>
-              <th className="py-2 pr-3">Amount (base)</th>
+              <th className="py-2 pr-3">Debit</th>
+              <th className="py-2 pr-3">Credit</th>
+              <th className="py-2 pr-3">Debit (base)</th>
+              <th className="py-2 pr-3">Credit (base)</th>
               <th className="py-2 pr-3">Note</th>
             </tr>
           </thead>
           <tbody>
             {entry.lines.map((l) => (
               <tr key={l.id} className="border-b last:border-b-0">
-                <td className="py-2 pr-3 text-zinc-700">{l.dc}</td>
                 <td className="py-2 pr-3 text-zinc-900">
                   <div className="font-mono text-zinc-500">{l.account.code}</div>
                   <div>{l.account.name}</div>
                 </td>
-                <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(l.amount)}</td>
                 <td className="py-2 pr-3 text-zinc-700">{l.currencyCode}</td>
-                <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(l.amountBase)}</td>
+                <td className="py-2 pr-3 font-mono text-zinc-900">{l.dc === "DEBIT" ? fmt(l.amount) : ""}</td>
+                <td className="py-2 pr-3 font-mono text-zinc-900">{l.dc === "CREDIT" ? fmt(l.amount) : ""}</td>
+                <td className="py-2 pr-3 font-mono text-zinc-900">{l.dc === "DEBIT" ? fmt(l.amountBase) : ""}</td>
+                <td className="py-2 pr-3 font-mono text-zinc-900">{l.dc === "CREDIT" ? fmt(l.amountBase) : ""}</td>
                 <td className="py-2 pr-3 text-zinc-700">{l.description ?? "-"}</td>
               </tr>
             ))}
