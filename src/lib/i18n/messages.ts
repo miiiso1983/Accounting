@@ -20,6 +20,10 @@ const en: Messages = {
     expenses: "Expenses",
     transfers: "Transfers",
     salesReps: "Sales Reps",
+    settings: "Settings",
+    costCenters: "Cost Centers",
+    branches: "Branches",
+    printTemplates: "Print Templates",
     users: "Users",
     signOut: "Sign out",
   },
@@ -256,6 +260,17 @@ const en: Messages = {
     switchToArabic: "العربية",
     switchToEnglish: "English",
   },
+  settingsPage: {
+    title: "General Settings",
+    subtitle: "Manage structural accounting setup and print layouts.",
+    costCentersTitle: "Cost Centers",
+    costCentersDesc: "Manage and organize expense and revenue allocation centers.",
+    branchesTitle: "Branches",
+    branchesDesc: "Create and maintain company branches with contact details.",
+    printTemplatesTitle: "Print Templates",
+    printTemplatesDesc: "Design reusable headers and footers for printed documents.",
+    open: "Open",
+  },
 };
 
 const ar: Messages = {
@@ -276,6 +291,10 @@ const ar: Messages = {
     expenses: "المصروفات",
     transfers: "التحويلات",
     salesReps: "المندوبين",
+    settings: "الإعدادات",
+    costCenters: "مراكز التكلفة",
+    branches: "الفروع",
+    printTemplates: "نماذج الطباعة",
     users: "المستخدمون",
     signOut: "تسجيل الخروج",
   },
@@ -511,6 +530,17 @@ const ar: Messages = {
   language: {
     switchToArabic: "العربية",
     switchToEnglish: "English",
+  },
+  settingsPage: {
+    title: "الإعدادات العامة",
+    subtitle: "إدارة الإعدادات البنيوية للنظام وقوالب الطباعة.",
+    costCentersTitle: "مراكز التكلفة",
+    costCentersDesc: "إدارة مراكز توزيع المصروفات والإيرادات.",
+    branchesTitle: "الفروع",
+    branchesDesc: "إنشاء وصيانة فروع الشركة مع بيانات الاتصال.",
+    printTemplatesTitle: "نماذج الطباعة",
+    printTemplatesDesc: "تصميم رؤوس وتذييلات قابلة لإعادة الاستخدام للمستندات المطبوعة.",
+    open: "فتح",
   },
 };
 

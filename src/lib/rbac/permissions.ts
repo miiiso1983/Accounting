@@ -35,6 +35,13 @@ export const PERMISSIONS = {
   COST_CENTERS_READ: "cost_centers:read",
   COST_CENTERS_WRITE: "cost_centers:write",
 
+  // Branches
+  BRANCHES_READ: "branches:read",
+  BRANCHES_WRITE: "branches:write",
+
+  // General settings
+  SETTINGS_WRITE: "settings:write",
+
   // Sales representatives
   SALES_REP_READ: "sales_rep:read",
   SALES_REP_WRITE: "sales_rep:write",

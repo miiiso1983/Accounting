@@ -6,12 +6,14 @@ import { authOptions } from "@/lib/auth/options";
 import {
   BookOpen,
   BarChart3,
+  Building2,
   FileText,
   LayoutDashboard,
   NotebookPen,
   Package,
   ArrowLeftRight,
   ReceiptText,
+  Settings,
   Users,
   UserCheck,
   ShieldCheck,
@@ -22,6 +24,8 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import { getRequestLocale } from "@/lib/i18n/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { createTranslator } from "@/lib/i18n/translate";
+import { hasPermission } from "@/lib/rbac/authorize";
+import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -32,6 +36,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const messages = getMessages(locale);
   const t = createTranslator(messages);
   const email = session.user.email ?? "";
+  const canSeeSettings =
+    hasPermission(session, PERMISSIONS.COST_CENTERS_READ) ||
+    hasPermission(session, PERMISSIONS.BRANCHES_READ) ||
+    hasPermission(session, PERMISSIONS.SETTINGS_WRITE);
 
   return (
     <div className="min-h-dvh bg-linear-to-br from-sky-100 via-white to-emerald-100">
@@ -61,6 +69,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <NavItem href="/app/transfers" icon={<ArrowLeftRight className="h-4 w-4" aria-hidden />} label={t("nav.transfers")} />
                 <NavItem href="/app/sales-reps" icon={<UserCheck className="h-4 w-4" aria-hidden />} label={t("nav.salesReps")} />
                 <NavItem href="/app/admin/users" icon={<ShieldCheck className="h-4 w-4" aria-hidden />} label={t("nav.users")} />
+
+	                {canSeeSettings ? (
+	                  <div className="mt-4 border-t border-sky-200/60 pt-4">
+	                    <NavItem href="/app/settings" icon={<Settings className="h-4 w-4" aria-hidden />} label={t("nav.settings")} />
+	                    <div className="mt-1 space-y-1 pl-12">
+	                      {hasPermission(session, PERMISSIONS.COST_CENTERS_READ) ? (
+	                        <NavSubItem href="/app/settings/cost-centers" label={t("nav.costCenters")} />
+	                      ) : null}
+	                      {hasPermission(session, PERMISSIONS.BRANCHES_READ) ? (
+	                        <NavSubItem href="/app/settings/branches" label={t("nav.branches")} />
+	                      ) : null}
+	                      {hasPermission(session, PERMISSIONS.SETTINGS_WRITE) ? (
+	                        <NavSubItem href="/app/settings/print-templates" label={t("nav.printTemplates")} />
+	                      ) : null}
+	                    </div>
+	                  </div>
+	                ) : null}
               </nav>
 
 	            <div className="mt-4 flex flex-col gap-2 border-t border-sky-200/60 pt-4">
@@ -101,6 +126,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <MobileNavChip href="/app/transfers" label={t("nav.transfers")} />
                 <MobileNavChip href="/app/sales-reps" label={t("nav.salesReps")} />
                 <MobileNavChip href="/app/admin/users" label={t("nav.users")} />
+	                {canSeeSettings ? <MobileNavChip href="/app/settings" label={t("nav.settings")} /> : null}
               </nav>
             </header>
 
@@ -139,6 +165,17 @@ function MobileNavChip({ href, label }: { href: string; label: string }) {
     <Link
       href={href}
 	    className="shrink-0 rounded-2xl bg-white px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-sky-200/70 transition hover:bg-sky-50/80 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+    >
+      {label}
+    </Link>
+  );
+}
+
+function NavSubItem({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="block rounded-xl px-3 py-2 text-sm text-zinc-600 transition hover:bg-sky-50/80 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
     >
       {label}
     </Link>

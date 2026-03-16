@@ -59,6 +59,12 @@ enum AttachmentOwnerType {
   EXPENSE
 }
 
+enum PrintTemplateType {
+  INVOICE
+  RECEIPT
+  JOURNAL_ENTRY
+}
+
 enum InstallmentFrequency {
   MONTHLY
   QUARTERLY
@@ -90,6 +96,8 @@ model Company {
   attachments        Attachment[]
   products           Product[]
   costCenters        CostCenter[]
+  branches           Branch[]
+  printTemplates     PrintTemplate[]
   installmentContracts InstallmentContract[]
   salesRepresentatives SalesRepresentative[]
 }
@@ -357,6 +365,47 @@ model CostCenter {
 
   @@unique([companyId, code])
   @@index([companyId, isActive])
+  @@index([companyId, name])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  companyId String
+
+  code      String
+  name      String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+  @@index([companyId, name])
+}
+
+model PrintTemplate {
+  id         String            @id @default(cuid())
+  companyId   String
+
+  name        String
+  type        PrintTemplateType
+  headerHtml  String           @db.Text
+  footerHtml  String           @db.Text
+  logoUrl     String?
+  isDefault   Boolean          @default(false)
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([companyId, type])
+  @@index([companyId, isDefault])
   @@index([companyId, name])
 }
 
