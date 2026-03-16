@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
@@ -127,6 +128,11 @@ export default async function BalanceSheetPage({
   const qs = new URLSearchParams({ ...(asOf ? { asOf } : {}), ...(costCenterId ? { costCenterId } : {}) }).toString();
   const qsStr = qs ? `?${qs}` : "";
 
+  function glHref(accountId: string) {
+    const p = new URLSearchParams({ accountId, ...(asOf ? { to: asOf } : {}) });
+    return `/app/reports/general-ledger?${p.toString()}`;
+  }
+
   return (
     <div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
       <div className="flex items-start justify-between gap-4">
@@ -156,21 +162,21 @@ export default async function BalanceSheetPage({
       {/* Balance Sheet Sections */}
       <div className="mt-4 space-y-6">
         {/* ASSETS */}
-        <Section title="Assets / الأصول" color="sky" roots={assetRoots} displayBal={displayBal} fmt={fmt} />
+        <Section title="Assets / الأصول" color="sky" roots={assetRoots} displayBal={displayBal} fmt={fmt} glHref={glHref} />
         <div className="rounded-xl bg-sky-50 px-4 py-3 flex justify-between items-center font-bold text-sky-900">
           <span>Total Assets / إجمالي الأصول</span>
           <span className="font-mono">{fmt(totalAssets)}</span>
         </div>
 
         {/* LIABILITIES */}
-        <Section title="Liabilities / الالتزامات" color="rose" roots={liabilityRoots} displayBal={displayBal} fmt={fmt} />
+        <Section title="Liabilities / الالتزامات" color="rose" roots={liabilityRoots} displayBal={displayBal} fmt={fmt} glHref={glHref} />
         <div className="rounded-xl bg-rose-50 px-4 py-3 flex justify-between items-center font-bold text-rose-900">
           <span>Total Liabilities / إجمالي الالتزامات</span>
           <span className="font-mono">{fmt(totalLiabilities)}</span>
         </div>
 
         {/* EQUITY */}
-        <Section title="Equity / حقوق الملكية" color="purple" roots={equityRoots} displayBal={displayBal} fmt={fmt} />
+        <Section title="Equity / حقوق الملكية" color="purple" roots={equityRoots} displayBal={displayBal} fmt={fmt} glHref={glHref} />
         <div className="rounded-xl bg-purple-50 px-4 py-3 flex justify-between items-center font-bold text-purple-900">
           <span>Total Equity / إجمالي حقوق الملكية</span>
           <span className="font-mono">{fmt(totalEquity)}</span>
@@ -191,14 +197,14 @@ export default async function BalanceSheetPage({
   );
 }
 
-function Section({ title, color, roots, displayBal, fmt }: { title: string; color: string; roots: AccountRow[]; displayBal: (n: AccountRow) => number; fmt: (n: number) => string }) {
+function Section({ title, color, roots, displayBal, fmt, glHref }: { title: string; color: string; roots: AccountRow[]; displayBal: (n: AccountRow) => number; fmt: (n: number) => string; glHref: (id: string) => string }) {
   const colorMap: Record<string, string> = { sky: "text-sky-800 bg-sky-50/60", rose: "text-rose-800 bg-rose-50/60", purple: "text-purple-800 bg-purple-50/60" };
   return (
     <div>
       <div className={`rounded-t-xl px-4 py-2 font-semibold text-sm ${colorMap[color] ?? ""}`}>{title}</div>
       <table className="w-full text-sm">
         <tbody>
-          {roots.map((r) => <AccountTree key={r.id} node={r} depth={0} displayBal={displayBal} fmt={fmt} />)}
+          {roots.map((r) => <AccountTree key={r.id} node={r} depth={0} displayBal={displayBal} fmt={fmt} glHref={glHref} />)}
           {roots.length === 0 && <tr><td className="py-2 px-4 text-zinc-400">No accounts</td></tr>}
         </tbody>
       </table>
@@ -206,21 +212,30 @@ function Section({ title, color, roots, displayBal, fmt }: { title: string; colo
   );
 }
 
-function AccountTree({ node, depth, displayBal, fmt }: { node: AccountRow; depth: number; displayBal: (n: AccountRow) => number; fmt: (n: number) => string }) {
+function AccountTree({ node, depth, displayBal, fmt, glHref }: { node: AccountRow; depth: number; displayBal: (n: AccountRow) => number; fmt: (n: number) => string; glHref: (id: string) => string }) {
   const val = displayBal(node);
   const hasChildren = node.children.length > 0;
   return (
     <>
       <tr className={`border-b last:border-0 ${hasChildren ? "font-medium" : ""}`}>
         <td className="py-1.5 px-4" style={{ paddingLeft: `${depth * 20 + 16}px` }}>
-          <span className="font-mono text-xs text-zinc-500 mr-2">{node.code}</span>
-          <span className="text-zinc-800">{node.name}</span>
+          {node.isPosting ? (
+            <Link href={glHref(node.id)} className="hover:underline">
+              <span className="font-mono text-xs text-sky-600 mr-2">{node.code}</span>
+              <span className="text-sky-700 hover:text-sky-900">{node.name}</span>
+            </Link>
+          ) : (
+            <>
+              <span className="font-mono text-xs text-zinc-500 mr-2">{node.code}</span>
+              <span className="text-zinc-800">{node.name}</span>
+            </>
+          )}
         </td>
         <td className={`py-1.5 px-4 text-right font-mono ${val < 0 ? "text-rose-600" : "text-zinc-900"}`}>
           {val !== 0 ? fmt(val) : "-"}
         </td>
       </tr>
-      {node.children.map((c) => <AccountTree key={c.id} node={c} depth={depth + 1} displayBal={displayBal} fmt={fmt} />)}
+      {node.children.map((c) => <AccountTree key={c.id} node={c} depth={depth + 1} displayBal={displayBal} fmt={fmt} glHref={glHref} />)}
     </>
   );
 }

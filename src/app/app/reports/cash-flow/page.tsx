@@ -160,6 +160,11 @@ export default async function CashFlowPage({
 
   const qs = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString();
 
+  function glHref(accountId: string) {
+    const p = new URLSearchParams({ accountId, ...(from ? { from } : {}), ...(to ? { to } : {}) });
+    return `/app/reports/general-ledger?${p.toString()}`;
+  }
+
   return (
     <div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
       <div className="flex items-start justify-between gap-4">
@@ -211,9 +216,9 @@ export default async function CashFlowPage({
               </tr>
             </thead>
             <tbody>
-              <SectionRows title="Operating Activities / الأنشطة التشغيلية" color="emerald" rows={operatingRows} total={totalOperating} />
-              <SectionRows title="Investing Activities / الأنشطة الاستثمارية" color="purple" rows={investingRows} total={totalInvesting} />
-              <SectionRows title="Financing Activities / الأنشطة التمويلية" color="orange" rows={financingRows} total={totalFinancing} />
+              <SectionRows title="Operating Activities / الأنشطة التشغيلية" color="emerald" rows={operatingRows} total={totalOperating} glHref={glHref} />
+              <SectionRows title="Investing Activities / الأنشطة الاستثمارية" color="purple" rows={investingRows} total={totalInvesting} glHref={glHref} />
+              <SectionRows title="Financing Activities / الأنشطة التمويلية" color="orange" rows={financingRows} total={totalFinancing} glHref={glHref} />
 
               <tr className="border-t-4 border-zinc-300 bg-zinc-50 font-bold text-base">
                 <td className="py-3 pr-3">Net Change in Cash / صافي التغير في النقد</td>
@@ -232,11 +237,13 @@ function SectionRows({
   color,
   rows,
   total,
+  glHref,
 }: {
   title: string;
   color: "emerald" | "purple" | "orange";
   rows: { id: string; code: string; name: string; amount: number }[];
   total: number;
+  glHref: (id: string) => string;
 }) {
   const headerClass =
     color === "emerald"
@@ -261,8 +268,10 @@ function SectionRows({
       {rows.map((a) => (
         <tr key={a.id} className="border-b last:border-0">
           <td className="py-1.5 pr-3">
-            <span className="font-mono text-xs text-zinc-500 mr-2">{a.code}</span>
-            <span className="text-zinc-800">{a.name}</span>
+            <Link href={glHref(a.id)} className="hover:underline">
+              <span className="font-mono text-xs text-sky-600 mr-2">{a.code}</span>
+              <span className="text-sky-700 hover:text-sky-900">{a.name}</span>
+            </Link>
           </td>
           <td className={`py-1.5 pr-3 text-right font-mono ${a.amount < 0 ? "text-rose-600" : "text-zinc-900"}`}>{a.amount !== 0 ? fmt(a.amount) : "-"}</td>
         </tr>

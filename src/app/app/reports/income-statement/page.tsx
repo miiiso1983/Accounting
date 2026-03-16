@@ -111,6 +111,13 @@ export default async function IncomeStatementPage({
 
   const qs = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}), ...(costCenterId ? { costCenterId } : {}) }).toString();
 
+  const glLinkParams = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) });
+  function glHref(accountId: string) {
+    const p = new URLSearchParams(glLinkParams);
+    p.set("accountId", accountId);
+    return `/app/reports/general-ledger?${p.toString()}`;
+  }
+
   return (
     <div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
       <div className="flex items-start justify-between gap-4">
@@ -167,8 +174,10 @@ export default async function IncomeStatementPage({
             {incomeRows.map((a) => (
               <tr key={a.id} className="border-b last:border-0">
                 <td className="py-1.5 pr-3">
-                  <span className="font-mono text-xs text-zinc-500 mr-2">{a.code}</span>
-                  <span className="text-zinc-800">{a.name}</span>
+                  <Link href={glHref(a.id)} className="hover:underline">
+                    <span className="font-mono text-xs text-sky-600 mr-2">{a.code}</span>
+                    <span className="text-sky-700 hover:text-sky-900">{a.name}</span>
+                  </Link>
                 </td>
                 <td className={`py-1.5 pr-3 text-right font-mono ${a.amount < 0 ? "text-rose-600" : "text-zinc-900"}`}>{a.amount !== 0 ? fmt(a.amount) : "-"}</td>
               </tr>
@@ -186,8 +195,10 @@ export default async function IncomeStatementPage({
             {expenseRows.map((a) => (
               <tr key={a.id} className="border-b last:border-0">
                 <td className="py-1.5 pr-3">
-                  <span className="font-mono text-xs text-zinc-500 mr-2">{a.code}</span>
-                  <span className="text-zinc-800">{a.name}</span>
+                  <Link href={glHref(a.id)} className="hover:underline">
+                    <span className="font-mono text-xs text-sky-600 mr-2">{a.code}</span>
+                    <span className="text-sky-700 hover:text-sky-900">{a.name}</span>
+                  </Link>
                 </td>
                 <td className={`py-1.5 pr-3 text-right font-mono ${a.amount < 0 ? "text-rose-600" : "text-zinc-900"}`}>{a.amount !== 0 ? fmt(a.amount) : "-"}</td>
               </tr>

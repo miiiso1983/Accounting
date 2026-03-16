@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
@@ -66,7 +67,7 @@ export default async function CollectionsPage({
   });
 
   // Calculate days to collect and group by customer
-  type Row = { invoiceNumber: string; issueDate: string; paidDate: string; amount: number; currency: string; daysToCollect: number };
+  type Row = { id: string; invoiceNumber: string; issueDate: string; paidDate: string; amount: number; currency: string; daysToCollect: number };
   const customerGroups = new Map<string, { name: string; rows: Row[]; totalAmount: number; totalDays: number }>();
 
   for (const inv of invoices) {
@@ -80,6 +81,7 @@ export default async function CollectionsPage({
     }
     const g = customerGroups.get(inv.customer.id)!;
     g.rows.push({
+      id: inv.id,
       invoiceNumber: inv.invoiceNumber,
       issueDate: inv.issueDate.toISOString().slice(0, 10),
       paidDate: inv.updatedAt.toISOString().slice(0, 10),
@@ -157,9 +159,11 @@ export default async function CollectionsPage({
                 </tr>
               </thead>
               <tbody>
-                {g.rows.map((r, i) => (
-                  <tr key={i} className="border-b last:border-0">
-                    <td className="py-1.5 px-3 font-mono text-zinc-800">{r.invoiceNumber}</td>
+                {g.rows.map((r) => (
+                  <tr key={r.id} className="border-b last:border-0">
+                    <td className="py-1.5 px-3 font-mono">
+                      <Link href={`/app/invoices/${r.id}`} className="text-sky-700 hover:text-sky-900 hover:underline">{r.invoiceNumber}</Link>
+                    </td>
                     <td className="py-1.5 px-3 text-zinc-700">{r.issueDate}</td>
                     <td className="py-1.5 px-3 text-zinc-700">{r.paidDate}</td>
                     <td className="py-1.5 px-3 text-right font-mono text-zinc-900">{fmt(r.amount)}</td>

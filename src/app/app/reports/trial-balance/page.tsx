@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
@@ -115,6 +116,14 @@ export default async function TrialBalancePage({
     { debit: 0, credit: 0 },
   );
 
+  const glLinkParams = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) });
+
+  function glHref(accountId: string) {
+    const p = new URLSearchParams(glLinkParams);
+    p.set("accountId", accountId);
+    return `/app/reports/general-ledger?${p.toString()}`;
+  }
+
   return (
     <div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
       <div className="flex items-start justify-between gap-4">
@@ -167,9 +176,13 @@ export default async function TrialBalancePage({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b last:border-b-0">
-                <td className="py-2 pr-3 font-mono text-zinc-700">{r.code}</td>
+                <td className="py-2 pr-3 font-mono text-zinc-700">
+                  <Link href={glHref(r.id)} className="text-sky-700 hover:text-sky-900 hover:underline">{r.code}</Link>
+                </td>
                 <td className="py-2 pr-3 text-zinc-900">
-                  <div className="font-medium">{r.name}</div>
+                  <div className="font-medium">
+                    <Link href={glHref(r.id)} className="text-sky-700 hover:text-sky-900 hover:underline">{r.name}</Link>
+                  </div>
                   <div className="text-xs text-zinc-500">{r.type}</div>
                 </td>
                 <td className="py-2 pr-3 font-mono text-zinc-900">{r.balanceDebit ? fmt(r.balanceDebit) : "-"}</td>

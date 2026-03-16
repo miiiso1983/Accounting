@@ -33,6 +33,8 @@ export async function GET(req: Request) {
   const status = searchParams.get("status") ?? undefined;
   const customerId = searchParams.get("customerId") ?? undefined;
   const costCenterId = searchParams.get("costCenterId") ?? undefined;
+  const columnsParam = searchParams.get("columns") ?? undefined;
+  const visibleColumns = columnsParam ? columnsParam.split(",") : undefined;
 
   const fromDate = parseDateStart(from);
   const toDate = parseDateEnd(to);
@@ -53,11 +55,31 @@ export async function GET(req: Request) {
       issueDate: true,
       dueDate: true,
       totalBase: true,
+      currencyCode: true,
       customer: { select: { name: true } },
       lineItems: { select: { costCenter: { select: { name: true } } } },
       payments: { select: { amountBase: true } },
     },
   });
+
+  // Column key → header label mapping
+  const columnMap: Record<string, string> = {
+    invoiceNumber: "Invoice # / رقم الفاتورة",
+    customer: "Customer / الزبون",
+    status: "Status / الحالة",
+    issueDate: "Issue Date / تاريخ الإصدار",
+    dueDate: "Due Date / تاريخ الاستحقاق",
+    currencyCode: "Currency / العملة",
+    total: "Total / الإجمالي",
+    paid: "Paid / المسدد",
+    remaining: "Remaining / المتبقي",
+    costCenter: "Cost Center / مركز الكلفة",
+  };
+
+  // Determine which columns to include
+  const allKeys = Object.keys(columnMap);
+  const activeKeys = visibleColumns ? allKeys.filter((k) => visibleColumns.includes(k)) : allKeys;
+  const activeHeaders = activeKeys.map((k) => columnMap[k]);
 
   type RowType = Record<string, string | number>;
   const rows: RowType[] = invoices.map((inv) => {
@@ -65,34 +87,46 @@ export async function GET(req: Request) {
     const paid = inv.payments.reduce((s, p) => s + Number(p.amountBase), 0);
     const remaining = total - paid;
     const ccNames = [...new Set(inv.lineItems.map((li) => li.costCenter?.name).filter(Boolean))].join(", ");
-    return {
-      "Invoice # / رقم الفاتورة": inv.invoiceNumber,
-      "Customer / الزبون": inv.customer.name,
-      "Status / الحالة": inv.status,
-      "Issue Date / تاريخ الإصدار": inv.issueDate.toISOString().slice(0, 10),
-      "Due Date / تاريخ الاستحقاق": inv.dueDate ? inv.dueDate.toISOString().slice(0, 10) : "",
-      "Total / الإجمالي": total,
-      "Paid / المسدد": paid,
-      "Remaining / المتبقي": remaining,
-      "Cost Center / مركز الكلفة": ccNames || "",
+    const fullRow: Record<string, string | number> = {
+      [columnMap.invoiceNumber]: inv.invoiceNumber,
+      [columnMap.customer]: inv.customer.name,
+      [columnMap.status]: inv.status,
+      [columnMap.issueDate]: inv.issueDate.toISOString().slice(0, 10),
+      [columnMap.dueDate]: inv.dueDate ? inv.dueDate.toISOString().slice(0, 10) : "",
+      [columnMap.currencyCode]: inv.currencyCode,
+      [columnMap.total]: total,
+      [columnMap.paid]: paid,
+      [columnMap.remaining]: remaining,
+      [columnMap.costCenter]: ccNames || "",
     };
+    // Filter to active columns only
+    const filteredRow: RowType = {};
+    for (const h of activeHeaders) filteredRow[h] = fullRow[h] ?? "";
+    return filteredRow;
   });
 
   // Summary row
-  const grandTotal = rows.reduce((s, r) => s + (r["Total / الإجمالي"] as number), 0);
-  const grandPaid = rows.reduce((s, r) => s + (r["Paid / المسدد"] as number), 0);
-  const grandRemaining = rows.reduce((s, r) => s + (r["Remaining / المتبقي"] as number), 0);
-  rows.push({
-    "Invoice # / رقم الفاتورة": "",
-    "Customer / الزبون": "",
-    "Status / الحالة": "",
-    "Issue Date / تاريخ الإصدار": "",
-    "Due Date / تاريخ الاستحقاق": "Total / المجموع",
-    "Total / الإجمالي": grandTotal,
-    "Paid / المسدد": grandPaid,
-    "Remaining / المتبقي": grandRemaining,
-    "Cost Center / مركز الكلفة": "",
-  });
+  const grandTotal = invoices.reduce((_, inv) => _ + Number(inv.totalBase), 0);
+  const grandPaid = invoices.reduce((s, inv) => s + inv.payments.reduce((ps, p) => ps + Number(p.amountBase), 0), 0);
+  const grandRemaining = grandTotal - grandPaid;
+  const summaryRow: RowType = {};
+  for (const h of activeHeaders) {
+    if (h === columnMap.total) summaryRow[h] = grandTotal;
+    else if (h === columnMap.paid) summaryRow[h] = grandPaid;
+    else if (h === columnMap.remaining) summaryRow[h] = grandRemaining;
+    else if (h === activeHeaders[activeHeaders.length - 1] && !activeKeys.includes("total")) summaryRow[h] = "Total / المجموع";
+    else summaryRow[h] = "";
+  }
+  // Mark last non-numeric column as "Total" label
+  if (activeKeys.includes("total") || activeKeys.includes("paid") || activeKeys.includes("remaining")) {
+    const lastLabelKey = activeHeaders.find((h) => h !== columnMap.total && h !== columnMap.paid && h !== columnMap.remaining && h !== columnMap.currencyCode);
+    if (lastLabelKey && !summaryRow[lastLabelKey]) {
+      // Find the last text-type header before numeric columns
+      const textHeaders = activeHeaders.filter((h) => h !== columnMap.total && h !== columnMap.paid && h !== columnMap.remaining);
+      if (textHeaders.length > 0) summaryRow[textHeaders[textHeaders.length - 1]] = "Total / المجموع";
+    }
+  }
+  rows.push(summaryRow);
 
   const ws = XLSX.utils.json_to_sheet(rows.length > 1 ? rows : [{ Message: "(no data)" }]);
   const wb = XLSX.utils.book_new();

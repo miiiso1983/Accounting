@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCachedCustomers, getCachedCostCenters } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
-import { ExportButtons } from "@/components/reports/ExportButtons";
+import { InvoicesReportTable } from "./InvoicesReportTable";
 
 function fmt(n: number) {
   if (!Number.isFinite(n)) return "-";
@@ -24,14 +24,6 @@ function parseDateEnd(ymd: string | undefined) {
   const d = new Date(`${ymd}T23:59:59.999Z`);
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-700",
-  SENT: "bg-sky-100 text-sky-700",
-  PAID: "bg-emerald-100 text-emerald-700",
-  OVERDUE: "bg-rose-100 text-rose-700",
-  CANCELLED: "bg-orange-100 text-orange-700",
-};
 
 export default async function InvoicesReportPage({
   searchParams,
@@ -77,6 +69,7 @@ export default async function InvoicesReportPage({
         issueDate: true,
         dueDate: true,
         totalBase: true,
+        currencyCode: true,
         customer: { select: { id: true, name: true } },
         lineItems: { select: { costCenter: { select: { id: true, name: true } } } },
         payments: { select: { amountBase: true } },
@@ -91,7 +84,19 @@ export default async function InvoicesReportPage({
     const paid = inv.payments.reduce((s, p) => s + Number(p.amountBase), 0);
     const remaining = total - paid;
     const ccNames = [...new Set(inv.lineItems.map((li) => li.costCenter?.name).filter(Boolean))];
-    return { ...inv, total, paid, remaining, costCenterNames: ccNames.join(", ") };
+    return {
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      customerName: inv.customer.name,
+      status: inv.status,
+      issueDate: inv.issueDate.toISOString().slice(0, 10),
+      dueDate: inv.dueDate ? inv.dueDate.toISOString().slice(0, 10) : null,
+      currencyCode: inv.currencyCode,
+      total,
+      paid,
+      remaining,
+      costCenterNames: ccNames.join(", "),
+    };
   });
 
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
@@ -113,7 +118,6 @@ export default async function InvoicesReportPage({
           <div className="text-sm text-zinc-500">Reports / التقارير</div>
           <div className="mt-1 text-base font-semibold text-zinc-900">Invoices Report / تقرير الفواتير</div>
         </div>
-        <ExportButtons excelHref={`/api/reports/invoices/export${qs ? `?${qs}` : ""}`} labels={{ excel: "Export Excel", print: "Print / PDF" }} />
       </div>
 
       {/* Filters */}
@@ -176,57 +180,14 @@ export default async function InvoicesReportPage({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="text-xs text-zinc-500">
-            <tr className="border-b">
-              <th className="py-2 pr-3">Invoice # / رقم الفاتورة</th>
-              <th className="py-2 pr-3">Customer / الزبون</th>
-              <th className="py-2 pr-3">Status / الحالة</th>
-              <th className="py-2 pr-3">Issue Date / تاريخ الإصدار</th>
-              <th className="py-2 pr-3">Due Date / تاريخ الاستحقاق</th>
-              <th className="py-2 pr-3 text-right">Total / الإجمالي</th>
-              <th className="py-2 pr-3 text-right">Paid / المسدد</th>
-              <th className="py-2 pr-3 text-right">Remaining / المتبقي</th>
-              <th className="py-2 pr-3">Cost Center / مركز الكلفة</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-b last:border-b-0">
-                <td className="py-2 pr-3 font-mono text-zinc-700">{r.invoiceNumber}</td>
-                <td className="py-2 pr-3 text-zinc-900">{r.customer.name}</td>
-                <td className="py-2 pr-3">
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[r.status] ?? "bg-zinc-100 text-zinc-700"}`}>
-                    {r.status}
-                  </span>
-                </td>
-                <td className="py-2 pr-3 text-zinc-700">{r.issueDate.toISOString().slice(0, 10)}</td>
-                <td className="py-2 pr-3 text-zinc-700">{r.dueDate ? r.dueDate.toISOString().slice(0, 10) : "-"}</td>
-                <td className="py-2 pr-3 text-right font-mono text-zinc-900">{fmt(r.total)}</td>
-                <td className="py-2 pr-3 text-right font-mono text-emerald-700">{fmt(r.paid)}</td>
-                <td className={`py-2 pr-3 text-right font-mono ${r.remaining > 0 ? "text-rose-600" : "text-zinc-500"}`}>{fmt(r.remaining)}</td>
-                <td className="py-2 pr-3 text-xs text-zinc-500">{r.costCenterNames || "-"}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={9} className="py-6 text-center text-zinc-400">No invoices found / لا توجد فواتير</td></tr>
-            )}
-          </tbody>
-          {rows.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 font-bold">
-                <td colSpan={5} className="py-2 pr-3 text-zinc-700">Total / المجموع</td>
-                <td className="py-2 pr-3 text-right font-mono text-zinc-900">{fmt(grandTotal)}</td>
-                <td className="py-2 pr-3 text-right font-mono text-emerald-700">{fmt(grandPaid)}</td>
-                <td className="py-2 pr-3 text-right font-mono text-rose-600">{fmt(grandRemaining)}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
+      {/* Table with column selector and drill-down links */}
+      <InvoicesReportTable
+        rows={rows}
+        grandTotal={grandTotal}
+        grandPaid={grandPaid}
+        grandRemaining={grandRemaining}
+        excelBaseHref={`/api/reports/invoices/export${qs ? `?${qs}` : ""}`}
+      />
     </div>
   );
 }

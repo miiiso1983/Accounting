@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
@@ -142,6 +143,13 @@ export default async function ProfitLossPage({
     ...(costCenterId ? { costCenterId } : {}),
   }).toString();
 
+  const glLinkParams = new URLSearchParams({ ...(fromParam ? { from: fromParam } : {}), ...(toParam ? { to: toParam } : {}) });
+  function glHref(accountId: string) {
+    const p = new URLSearchParams(glLinkParams);
+    p.set("accountId", accountId);
+    return `/app/reports/general-ledger?${p.toString()}`;
+  }
+
   return (
     <div className="rounded-3xl border border-sky-200/60 bg-white/80 p-5 shadow-xl shadow-emerald-200/25 backdrop-blur ring-1 ring-sky-200/40">
       <div className="flex items-start justify-between gap-4">
@@ -198,8 +206,10 @@ export default async function ProfitLossPage({
             {incomeAccounts.map((a) => (
               <tr key={a.id} className="border-b last:border-0">
                 <td className="py-1.5 pr-3 sticky left-0 bg-white/90">
-                  <span className="font-mono text-xs text-zinc-500 mr-2">{a.code}</span>
-                  <span className="text-zinc-800">{a.name}</span>
+                  <Link href={glHref(a.id)} className="hover:underline">
+                    <span className="font-mono text-xs text-sky-600 mr-2">{a.code}</span>
+                    <span className="text-sky-700 hover:text-sky-900">{a.name}</span>
+                  </Link>
                 </td>
                 {monthCols.map((mc) => {
                   const v = displayIncome(a.id, mc.key);
@@ -219,8 +229,10 @@ export default async function ProfitLossPage({
             {expenseAccounts.map((a) => (
               <tr key={a.id} className="border-b last:border-0">
                 <td className="py-1.5 pr-3 sticky left-0 bg-white/90">
-                  <span className="font-mono text-xs text-zinc-500 mr-2">{a.code}</span>
-                  <span className="text-zinc-800">{a.name}</span>
+                  <Link href={glHref(a.id)} className="hover:underline">
+                    <span className="font-mono text-xs text-sky-600 mr-2">{a.code}</span>
+                    <span className="text-sky-700 hover:text-sky-900">{a.name}</span>
+                  </Link>
                 </td>
                 {monthCols.map((mc) => {
                   const v = getBalance(a.id, mc.key);
