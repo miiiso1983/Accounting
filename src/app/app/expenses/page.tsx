@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
+import { ExportButtons } from "@/components/reports/ExportButtons";
 
 function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
@@ -36,24 +37,27 @@ export default async function ExpensesIndexPage() {
     <div className="rounded-2xl border bg-white p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-sm text-zinc-500">Purchases</div>
-          <div className="mt-1 text-base font-medium text-zinc-900">Expenses</div>
+          <div className="text-sm text-zinc-500">Purchases / المشتريات</div>
+          <div className="mt-1 text-base font-medium text-zinc-900">Expenses / المصاريف</div>
         </div>
-        <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/expenses/new">
-          New expense
-        </Link>
+        <div className="flex items-center gap-2">
+          <ExportButtons excelHref="/api/reports/expenses/export" labels={{ excel: "Export Excel", print: "Print / طباعة" }} />
+          <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/expenses/new">
+            + New expense / مصروف جديد
+          </Link>
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-zinc-500">
             <tr className="border-b">
-              <th className="py-2 pr-3">Date</th>
-              <th className="py-2 pr-3">Expense #</th>
-              <th className="py-2 pr-3">Vendor</th>
-              <th className="py-2 pr-3">Category</th>
-              <th className="py-2 pr-3">Status</th>
-              <th className="py-2 pr-3">Total (base)</th>
+              <th className="py-2 pr-3">Date / التاريخ</th>
+              <th className="py-2 pr-3">Expense # / رقم المصروف</th>
+              <th className="py-2 pr-3">Vendor / المورد</th>
+              <th className="py-2 pr-3">Category / التصنيف</th>
+              <th className="py-2 pr-3">Status / الحالة</th>
+              <th className="py-2 pr-3 text-right">Total (base) / المجموع</th>
             </tr>
           </thead>
           <tbody>

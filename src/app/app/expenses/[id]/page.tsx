@@ -38,8 +38,14 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
     include: {
       exchangeRate: true,
       expenseAccount: { select: { code: true, name: true } },
-	      costCenter: { select: { code: true, name: true } },
+      costCenter: { select: { code: true, name: true } },
       journalEntry: { select: { id: true } },
+      lineItems: {
+        include: {
+          account: { select: { code: true, name: true } },
+          costCenter: { select: { code: true, name: true } },
+        },
+      },
       attachments: {
         select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
         orderBy: { createdAt: "desc" },
@@ -102,8 +108,41 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
 
       {expense.description ? (
         <div className="mt-3 rounded-xl border p-3 text-sm">
-          <div className="text-xs text-zinc-500">Description</div>
+          <div className="text-xs text-zinc-500">Description / الوصف</div>
           <div className="mt-1 text-zinc-900">{expense.description}</div>
+        </div>
+      ) : null}
+
+      {/* ── LINE ITEMS TABLE ── */}
+      {expense.lineItems.length > 0 ? (
+        <div className="mt-3 rounded-xl border p-3 text-sm">
+          <div className="text-xs text-zinc-500 mb-2">Line Items / البنود</div>
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-zinc-500 border-b">
+              <tr>
+                <th className="py-1.5 pr-3">Account / الحساب</th>
+                <th className="py-1.5 pr-3">Cost Center / مركز كلفة</th>
+                <th className="py-1.5 pr-3">Description / ملاحظة</th>
+                <th className="py-1.5 pr-3 text-right">Amount / المبلغ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expense.lineItems.map((li) => (
+                <tr key={li.id} className="border-b last:border-0">
+                  <td className="py-1.5 pr-3 text-zinc-800">{li.account.code} · {li.account.name}</td>
+                  <td className="py-1.5 pr-3 text-zinc-700">{li.costCenter ? `${li.costCenter.code} · ${li.costCenter.name}` : "-"}</td>
+                  <td className="py-1.5 pr-3 text-zinc-700">{li.description || "-"}</td>
+                  <td className="py-1.5 pr-3 text-right font-mono text-zinc-900">{fmt(li.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t font-semibold">
+                <td colSpan={3} className="py-1.5 pr-3 text-zinc-800">Total / المجموع</td>
+                <td className="py-1.5 pr-3 text-right font-mono text-zinc-900">{fmt(expense.total)} {expense.currencyCode}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       ) : null}
 

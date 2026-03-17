@@ -12,22 +12,27 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 
 export const runtime = "nodejs";
 
+const LineItemSchema = z.object({
+  accountId: z.string().min(1),
+  costCenterId: z.string().optional().or(z.literal("")),
+  description: z.string().optional().or(z.literal("")),
+  amount: z.string().min(1),
+});
+
 const BodySchema = z.object({
-  expenseNumber: z.string().optional().or(z.literal("")),
   expenseDate: z.string().min(1),
   vendorName: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
   productId: z.string().optional().or(z.literal("")),
-	  costCenterId: z.string().optional().or(z.literal("")),
+  costCenterId: z.string().optional().or(z.literal("")),
   currencyCode: z.enum(["IQD", "USD"]),
   exchangeRate: z
     .object({
       rate: z.string().min(1),
     })
     .optional(),
-  total: z.string().min(1),
-  expenseAccountId: z.string().min(1),
   creditAccountId: z.string().min(1),
+  lineItems: z.array(LineItemSchema).min(1),
 });
 
 type ExpenseBody = z.infer<typeof BodySchema>;
@@ -57,18 +62,20 @@ async function parseRequest(req: Request): Promise<{ body: ExpenseBody; attachme
     }
 
     const exchangeRate = getFormString(formData, "exchangeRate");
+    const lineItemsJson = getFormString(formData, "lineItems");
+    let lineItems: unknown[] = [];
+    try { lineItems = JSON.parse(lineItemsJson || "[]"); } catch { /* ignore */ }
+
     const parsed = BodySchema.safeParse({
-      expenseNumber: getFormString(formData, "expenseNumber"),
       expenseDate: getFormString(formData, "expenseDate"),
       vendorName: getFormString(formData, "vendorName"),
       description: getFormString(formData, "description"),
       productId: getFormString(formData, "productId"),
-	      costCenterId: getFormString(formData, "costCenterId"),
+      costCenterId: getFormString(formData, "costCenterId"),
       currencyCode: getFormString(formData, "currencyCode"),
       exchangeRate: exchangeRate ? { rate: exchangeRate } : undefined,
-      total: getFormString(formData, "total"),
-      expenseAccountId: getFormString(formData, "expenseAccountId"),
       creditAccountId: getFormString(formData, "creditAccountId"),
+      lineItems,
     });
     if (!parsed.success) throw new Error(errorMessage(parsed.error));
 
@@ -122,22 +129,45 @@ export async function POST(req: Request) {
 
   try {
     const created = await prisma.$transaction(async (tx) => {
-      const total = new Prisma.Decimal(body.total);
-      if (total.lte(0)) throw new Error("Expense total must be > 0");
-
-      const expenseAccount = await tx.glAccount.findFirst({
-        where: { id: body.expenseAccountId, companyId: company.id },
-        select: { id: true, isPosting: true },
+      // --- Auto-generate expense number ---
+      const lastExpense = await tx.expense.findFirst({
+        where: { companyId: company.id, expenseNumber: { not: null } },
+        orderBy: { createdAt: "desc" },
+        select: { expenseNumber: true },
       });
-      if (!expenseAccount) throw new Error("Expense account not found");
-      if (!expenseAccount.isPosting) throw new Error("Expense account must be a posting account");
+      let nextNum = 1;
+      if (lastExpense?.expenseNumber) {
+        const match = lastExpense.expenseNumber.match(/EXP-(\d+)/);
+        if (match) nextNum = parseInt(match[1], 10) + 1;
+      }
+      const expenseNumber = `EXP-${String(nextNum).padStart(4, "0")}`;
 
+      // --- Validate line items ---
+      const parsedLines = body.lineItems.map((li) => {
+        const amount = new Prisma.Decimal(li.amount);
+        if (amount.lte(0)) throw new Error("Line item amount must be > 0");
+        return { ...li, amountDecimal: amount };
+      });
+      const total = parsedLines.reduce((s, l) => s.plus(l.amountDecimal), new Prisma.Decimal(0));
+
+      // --- Validate credit account ---
       const creditAccount = await tx.glAccount.findFirst({
         where: { id: body.creditAccountId, companyId: company.id },
         select: { id: true, isPosting: true, code: true },
       });
       if (!creditAccount) throw new Error("Credit account not found");
       if (!creditAccount.isPosting) throw new Error("Credit account must be a posting account");
+
+      // --- Validate all expense accounts ---
+      const accountIds = [...new Set(parsedLines.map((l) => l.accountId))];
+      const accounts = await tx.glAccount.findMany({
+        where: { id: { in: accountIds }, companyId: company.id, isPosting: true },
+        select: { id: true },
+      });
+      const accountSet = new Set(accounts.map((a) => a.id));
+      for (const id of accountIds) {
+        if (!accountSet.has(id)) throw new Error(`Expense account not found or not a posting account: ${id}`);
+      }
 
       let productId: string | null = null;
       const requestedProductId = body.productId?.trim();
@@ -150,16 +180,16 @@ export async function POST(req: Request) {
         productId = product.id;
       }
 
-	    let costCenterId: string | null = null;
-	    const requestedCostCenterId = body.costCenterId?.trim();
-	    if (requestedCostCenterId) {
-	      const cc = await tx.costCenter.findFirst({
-	        where: { id: requestedCostCenterId, companyId: company.id, isActive: true },
-	        select: { id: true },
-	      });
-	      if (!cc) throw new Error("Cost center not found");
-	      costCenterId = cc.id;
-	    }
+      let costCenterId: string | null = null;
+      const requestedCostCenterId = body.costCenterId?.trim();
+      if (requestedCostCenterId) {
+        const cc = await tx.costCenter.findFirst({
+          where: { id: requestedCostCenterId, companyId: company.id, isActive: true },
+          select: { id: true },
+        });
+        if (!cc) throw new Error("Cost center not found");
+        costCenterId = cc.id;
+      }
 
       let exchangeRateId: string | null = null;
       let rateDecimal: Prisma.Decimal | null = null;
@@ -185,30 +215,50 @@ export async function POST(req: Request) {
 
       const totalBase = expenseCurrency === baseCurrencyCode ? total : total.mul(rateDecimal!).toDecimalPlaces(6);
 
+      // Use first line's account as the primary expenseAccountId
+      const primaryAccountId = parsedLines[0].accountId;
+
       const expense = await tx.expense.create({
         data: {
           companyId: company.id,
-          expenseNumber: body.expenseNumber || null,
+          expenseNumber,
           status: "DRAFT",
           expenseDate,
           vendorName: body.vendorName || null,
           description: body.description || null,
           productId,
-	        costCenterId,
+          costCenterId,
           currencyCode: expenseCurrency,
           baseCurrencyCode,
           exchangeRateId,
           total: total.toDecimalPlaces(6).toFixed(6),
           totalBase: totalBase.toFixed(6),
-          expenseAccountId: expenseAccount.id,
+          expenseAccountId: primaryAccountId,
+          lineItems: {
+            create: parsedLines.map((li) => ({
+              accountId: li.accountId,
+              costCenterId: li.costCenterId?.trim() || null,
+              description: li.description?.trim() || null,
+              amount: li.amountDecimal.toDecimalPlaces(6).toFixed(6),
+            })),
+          },
         },
         select: { id: true, expenseNumber: true, exchangeRateId: true },
       });
 
+      // --- Create journal entry with debit lines per line item + one credit ---
+      const debitLines = parsedLines.map((li) => ({
+        accountId: li.accountId,
+        costCenterId: li.costCenterId?.trim() || undefined,
+        dc: "DEBIT" as const,
+        amount: li.amountDecimal.toFixed(6),
+        currencyCode: expenseCurrency,
+      }));
+
       const entry = await createPostedJournalEntryTx(tx, {
         companyId: company.id,
         entryDate: expenseDate,
-        description: `Expense ${expense.expenseNumber ?? expense.id.slice(0, 8)}`,
+        description: `Expense ${expense.expenseNumber}`,
         baseCurrencyCode,
         currencyCode: expenseCurrency,
         exchangeRateId: expense.exchangeRateId ?? undefined,
@@ -216,14 +266,8 @@ export async function POST(req: Request) {
         referenceId: expense.id,
         createdById: session.user.id,
         lines: [
-	        {
-	          accountId: expenseAccount.id,
-	          costCenterId: costCenterId ?? undefined,
-	          dc: "DEBIT",
-	          amount: total.toFixed(6),
-	          currencyCode: expenseCurrency,
-	        },
-          { accountId: creditAccount.id, dc: "CREDIT", amount: total.toFixed(6), currencyCode: expenseCurrency },
+          ...debitLines,
+          { accountId: creditAccount.id, dc: "CREDIT" as const, amount: total.toFixed(6), currencyCode: expenseCurrency },
         ],
       });
 

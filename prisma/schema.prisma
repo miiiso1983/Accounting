@@ -270,6 +270,9 @@ model GlAccount {
   // Inverse relation for Expense.expenseAccount
   expenses      Expense[]
 
+  // Inverse relation for ExpenseLineItem.account
+  expenseLineItems  ExpenseLineItem[]
+
   // Inverse relation for Product.revenueAccount
   revenueProducts Product[]
 
@@ -358,6 +361,7 @@ model CostCenter {
   journalLines      JournalLine[]
   products          Product[]
   expenses          Expense[]
+  expenseLineItems  ExpenseLineItem[]
   invoiceLineItems  InvoiceLineItem[]
 
   createdAt DateTime @default(now())
@@ -656,14 +660,34 @@ model Expense {
 
   company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   attachments       Attachment[]
+  lineItems         ExpenseLineItem[]
 
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
+  @@unique([companyId, expenseNumber])
   @@index([companyId, expenseDate])
   @@index([companyId, status])
   @@index([companyId, productId])
   @@index([companyId, costCenterId])
+}
+
+model ExpenseLineItem {
+  id              String      @id @default(cuid())
+  expenseId       String
+
+  accountId       String
+  account         GlAccount   @relation(fields: [accountId], references: [id])
+
+  costCenterId    String?
+  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+
+  description     String?
+  amount          Decimal     @db.Decimal(20, 6)
+
+  expense         Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
 }
 
 // --- Attachments (invoices + expenses) ---
