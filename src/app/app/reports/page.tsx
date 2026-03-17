@@ -115,6 +115,14 @@ export default async function ReportsIndexPage() {
           <div className="font-medium text-zinc-900">Sales by Rep / المبيعات حسب المندوب</div>
           <div className="mt-1 text-xs text-zinc-500">Invoice totals grouped by sales representative / إجماليات الفواتير حسب المندوب</div>
         </Link>
+
+        <Link
+          href="/app/reports/all-transactions"
+          className="rounded-2xl border border-amber-200/60 bg-white px-4 py-4 text-sm shadow-sm transition hover:bg-amber-50/70 focus:outline-none focus:ring-4 focus:ring-emerald-200/70"
+        >
+          <div className="font-medium text-zinc-900">All Transactions / جميع الحركات المالية</div>
+          <div className="mt-1 text-xs text-zinc-500">All journal entries, invoices, expenses, payments & transfers / جميع القيود والفواتير والمصاريف والمدفوعات والتحويلات</div>
+        </Link>
       </div>
     </div>
   );
