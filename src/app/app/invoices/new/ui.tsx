@@ -99,6 +99,8 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustName, setNewCustName] = useState("");
   const [newCustPhone, setNewCustPhone] = useState("");
+  const [newCustEmail, setNewCustEmail] = useState("");
+  const [newCustCompanyName, setNewCustCompanyName] = useState("");
   const [newCustSaving, setNewCustSaving] = useState(false);
 
   const initialCustomerId = useMemo(() => {
@@ -179,16 +181,23 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
       const res = await fetch("/api/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: newCustName.trim(), phone: newCustPhone.trim() || undefined }),
+        body: JSON.stringify({
+          name: newCustName.trim(),
+          phone: newCustPhone.trim() || undefined,
+          email: newCustEmail.trim() || undefined,
+          companyName: newCustCompanyName.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (res.ok && data.id) {
-        const newCust: CustomerOption = { id: data.id, name: newCustName.trim(), companyName: null };
+        const newCust: CustomerOption = { id: data.id, name: newCustName.trim(), companyName: newCustCompanyName.trim() || null };
         setCustomers((prev) => [...prev, newCust].sort((a, b) => a.name.localeCompare(b.name)));
         form.setValue("customerId", data.id, { shouldDirty: true, shouldValidate: true });
         setShowNewCustomer(false);
         setNewCustName("");
         setNewCustPhone("");
+        setNewCustEmail("");
+        setNewCustCompanyName("");
       } else {
         setServerError(data.error || "Failed to create customer");
       }
@@ -197,7 +206,7 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
     } finally {
       setNewCustSaving(false);
     }
-  }, [newCustName, newCustPhone, form]);
+  }, [newCustName, newCustPhone, newCustEmail, newCustCompanyName, form]);
 
   async function submit(values: SubmitValues, mode: "DRAFT" | "SEND") {
     setServerError(null);
@@ -501,6 +510,14 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
               <div>
                 <label className="text-sm font-medium text-zinc-700">Name / الاسم *</label>
                 <input className="mt-1 w-full rounded-xl border px-3 py-2" value={newCustName} onChange={(e) => setNewCustName(e.target.value)} placeholder="Customer name" autoFocus />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-700">Company Name / اسم الشركة</label>
+                <input className="mt-1 w-full rounded-xl border px-3 py-2" value={newCustCompanyName} onChange={(e) => setNewCustCompanyName(e.target.value)} placeholder="Company name" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-700">Email / الإيميل</label>
+                <input className="mt-1 w-full rounded-xl border px-3 py-2" type="email" value={newCustEmail} onChange={(e) => setNewCustEmail(e.target.value)} placeholder="email@example.com" />
               </div>
               <div>
                 <label className="text-sm font-medium text-zinc-700">Phone / الهاتف</label>
