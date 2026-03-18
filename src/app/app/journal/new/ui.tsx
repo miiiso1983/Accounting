@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
+import { AccountAutocompleteField } from "@/components/fields/AccountAutocompleteField";
+
 type AccountOption = { id: string; code: string; name: string };
 type CostCenterOption = { id: string; code: string; name: string };
 type Props = { accounts: AccountOption[]; costCenters: CostCenterOption[]; baseCurrencyCode: "IQD" | "USD" };
@@ -172,14 +174,17 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
           {fields.map((f, idx) => (
             <div key={f.id} className="grid gap-2 md:grid-cols-12 items-start">
               <div className="md:col-span-3">
-                <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.accountId` as const)}>
-                  <option value="">Select account…</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.code} — {a.name}
-                    </option>
-                  ))}
-                </select>
+	                <input type="hidden" {...form.register(`lines.${idx}.accountId` as const)} />
+	                <AccountAutocompleteField
+	                  accounts={accounts}
+	                  defaultAccountId={f.accountId}
+	                  placeholder="Search account / ابحث عن حساب"
+	                  noResultsLabel="No accounts found / لا توجد حسابات"
+	                  clearLabel="Clear account"
+	                  onSelectedIdChange={(id) => {
+	                    form.setValue(`lines.${idx}.accountId`, id, { shouldDirty: true, shouldValidate: true });
+	                  }}
+	                />
               </div>
               <div className="md:col-span-2">
                 <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.costCenterId` as const)}>
