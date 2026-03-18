@@ -110,7 +110,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
     const data: unknown = await res.json();
     if (!res.ok) {
       const parsedErr = ApiErrSchema.safeParse(data);
-      setServerError(parsedErr.success ? parsedErr.data.error : "Failed to update entry");
+	      setServerError(parsedErr.success ? parsedErr.data.error : "Failed to update manual entry");
       return;
     }
 
@@ -247,9 +247,9 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
 
       <div className="flex items-center gap-3">
         <button className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800" type="submit">
-          Save changes
+	          Save manual entry
         </button>
-        <div className="text-xs text-zinc-500">Entry must be balanced (debit = credit).</div>
+	        <div className="text-xs text-zinc-500">Manual entry must be balanced (debit = credit).</div>
       </div>
     </form>
   );

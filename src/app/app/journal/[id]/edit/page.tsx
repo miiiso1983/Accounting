@@ -42,6 +42,9 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
   });
 
   if (!entry) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
+	  if (entry.type !== "MANUAL") {
+	    return <div className="rounded-2xl border bg-white p-5 text-sm">System journal entries can only be edited from the source document.</div>;
+	  }
 	  if (entry.status !== "DRAFT" && entry.status !== "POSTED") {
 	    return <div className="rounded-2xl border bg-white p-5 text-sm">Only DRAFT or POSTED entries can be edited.</div>;
   }
@@ -77,7 +80,7 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm text-zinc-500">Journal</div>
-          <div className="mt-1 text-base font-medium text-zinc-900">Edit journal entry</div>
+	          <div className="mt-1 text-base font-medium text-zinc-900">Edit manual journal entry</div>
         </div>
         <Link className="text-sm underline text-zinc-700" href={`/app/journal/${id}`}>
           Back to entry

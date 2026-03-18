@@ -1,42 +1,24 @@
-import { Prisma, type CurrencyCode, type Dc, type PrismaClient } from "../../../generated/prisma/client";
+import { Prisma, type CurrencyCode, type Dc, type JournalEntryType, type PrismaClient } from "../../../generated/prisma/client";
 import type { CreateJournalEntryInput, JournalLineInput } from "./types";
+import { deriveJournalEntryType } from "./utils";
 
 export async function createPostedJournalEntryTx(tx: Prisma.TransactionClient, input: CreateJournalEntryInput) {
   if (input.lines.length < 2) throw new Error("Journal entry must have at least 2 lines");
 
-  const needsExchangeRate = input.lines.some((line) => !line.amountBase && line.currencyCode !== input.baseCurrencyCode);
-  const exchangeRate = input.exchangeRateId && needsExchangeRate
-    ? await tx.exchangeRate.findUnique({ where: { id: input.exchangeRateId } })
-    : null;
-
-  const normalizedLines = input.lines.map((l) => normalizeLine(l, input.baseCurrencyCode, exchangeRate));
-  assertBalanced(normalizedLines);
-
-  // Validate accounts exist and are posting accounts
-  const accountIds = [...new Set(normalizedLines.map((l) => l.accountId))];
-  const accounts = await tx.glAccount.findMany({
-    where: { id: { in: accountIds }, companyId: input.companyId },
-    select: { id: true, isPosting: true },
+  const type = input.type ?? deriveJournalEntryType(input.referenceType);
+  const normalizedLines = await normalizeJournalEntryLinesTx(tx, {
+    companyId: input.companyId,
+    baseCurrencyCode: input.baseCurrencyCode,
+    exchangeRateId: input.exchangeRateId,
+    lines: input.lines,
   });
-  const map = new Map(accounts.map((a) => [a.id, a] as const));
-  for (const id of accountIds) {
-    const a = map.get(id);
-    if (!a) throw new Error(`GL account not found for company: ${id}`);
-    if (!a.isPosting) throw new Error(`Cannot post to non-posting account: ${id}`);
-  }
-
-  // Get the next sequential entry number for this company
-  const lastEntry = await tx.journalEntry.findFirst({
-    where: { companyId: input.companyId },
-    orderBy: { entryNumber: "desc" },
-    select: { entryNumber: true },
-  });
-  const nextEntryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+  const nextEntryNumber = await getNextJournalEntryNumberTx(tx, { companyId: input.companyId, type });
 
   return tx.journalEntry.create({
     data: {
       companyId: input.companyId,
       entryNumber: nextEntryNumber,
+      type,
       status: "POSTED",
       entryDate: input.entryDate,
       description: input.description,
@@ -64,6 +46,45 @@ export async function createPostedJournalEntryTx(tx: Prisma.TransactionClient, i
 
 export async function createPostedJournalEntry(prisma: PrismaClient, input: CreateJournalEntryInput) {
   return prisma.$transaction(async (tx) => createPostedJournalEntryTx(tx, input));
+}
+
+export async function normalizeJournalEntryLinesTx(
+  tx: Prisma.TransactionClient,
+  input: Pick<CreateJournalEntryInput, "companyId" | "baseCurrencyCode" | "exchangeRateId" | "lines">,
+) {
+  const needsExchangeRate = input.lines.some((line) => !line.amountBase && line.currencyCode !== input.baseCurrencyCode);
+  const exchangeRate = input.exchangeRateId && needsExchangeRate
+    ? await tx.exchangeRate.findUnique({ where: { id: input.exchangeRateId } })
+    : null;
+
+  const normalizedLines = input.lines.map((l) => normalizeLine(l, input.baseCurrencyCode, exchangeRate));
+  assertBalanced(normalizedLines);
+
+  const accountIds = [...new Set(normalizedLines.map((l) => l.accountId))];
+  const accounts = await tx.glAccount.findMany({
+    where: { id: { in: accountIds }, companyId: input.companyId },
+    select: { id: true, isPosting: true },
+  });
+  const map = new Map(accounts.map((a) => [a.id, a] as const));
+  for (const id of accountIds) {
+    const a = map.get(id);
+    if (!a) throw new Error(`GL account not found for company: ${id}`);
+    if (!a.isPosting) throw new Error(`Cannot post to non-posting account: ${id}`);
+  }
+
+  return normalizedLines;
+}
+
+async function getNextJournalEntryNumberTx(
+  tx: Prisma.TransactionClient,
+  args: { companyId: string; type: JournalEntryType },
+) {
+  const lastEntry = await tx.journalEntry.findFirst({
+    where: { companyId: args.companyId, type: args.type },
+    orderBy: { entryNumber: "desc" },
+    select: { entryNumber: true },
+  });
+  return (lastEntry?.entryNumber ?? 0) + 1;
 }
 
 function normalizeLine(

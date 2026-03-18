@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import * as XLSX from "xlsx";
 
+import { formatJournalEntryNumber, getJournalEntryTypeLabel, getJournalSourceLabel } from "@/lib/accounting/journal/utils";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -9,10 +10,6 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 function toNum(d: unknown) {
   const n = Number(String(d));
   return Number.isFinite(n) ? n : 0;
-}
-
-function fmtEntryNumber(n: number) {
-  return `JE-${String(n).padStart(3, "0")}`;
 }
 
 export async function GET(req: Request) {
@@ -44,8 +41,8 @@ export async function GET(req: Request) {
           }
         : {}),
       ...(referenceType
-        ? referenceType === "MANUAL"
-          ? { referenceType: null }
+	        ? referenceType === "MANUAL"
+	          ? { type: "MANUAL" as const }
           : { referenceType }
         : {}),
       ...((from || to)
@@ -69,7 +66,15 @@ export async function GET(req: Request) {
         : {}),
     },
     orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
-    include: {
+    select: {
+      id: true,
+      entryNumber: true,
+      type: true,
+      entryDate: true,
+      description: true,
+      status: true,
+      referenceType: true,
+      referenceId: true,
       lines: {
         include: { account: { select: { code: true, name: true } } },
       },
@@ -82,11 +87,13 @@ export async function GET(req: Request) {
   for (const e of entries) {
     for (const l of e.lines) {
       rows.push({
-        "Entry #": e.entryNumber ? fmtEntryNumber(e.entryNumber) : e.id.slice(0, 8),
+	        "Entry #": formatJournalEntryNumber(e.entryNumber, e.type, e.id),
+	        "Entry Type": getJournalEntryTypeLabel(e.type),
         Date: e.entryDate.toISOString().slice(0, 10),
         Description: e.description ?? "",
         Status: e.status,
-        Reference: e.referenceType ?? "MANUAL",
+	        Source: getJournalSourceLabel(e.referenceType),
+	        "Source Reference": e.referenceId ?? "",
         "Account Code": l.account.code,
         "Account Name": l.account.name,
         Debit: l.dc === "DEBIT" ? toNum(l.amount) : "",

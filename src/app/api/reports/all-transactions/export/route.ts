@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import * as XLSX from "xlsx";
 
+import { formatJournalEntryNumber, isPaymentReferenceType } from "@/lib/accounting/journal/utils";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -19,7 +20,8 @@ function parseDateEnd(ymd: string | undefined) {
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
-  JOURNAL: "سند قيد / Journal Entry",
+	JOURNAL: "قيد يدوي / Manual Journal Entry",
+	SYSTEM: "قيد نظامي / System Journal Entry",
   INVOICE: "مبيعات / Sales Invoice",
   EXPENSE: "مشتريات / Expense",
   PAYMENT: "سند قبض / Payment",
@@ -50,11 +52,11 @@ export async function GET(req: Request) {
   const jeWhere: Record<string, unknown> = { companyId };
   if (entryDateWhere) jeWhere.entryDate = entryDateWhere;
   if (status && ["DRAFT", "POSTED", "VOID"].includes(status)) jeWhere.status = status;
-  if (docType === "JOURNAL") jeWhere.referenceType = null;
+	if (docType === "JOURNAL") jeWhere.type = "MANUAL";
   else if (docType === "FUND_TRANSFER") jeWhere.referenceType = "FUND_TRANSFER";
   else if (docType === "INVOICE") jeWhere.referenceType = "INVOICE";
   else if (docType === "EXPENSE") jeWhere.referenceType = "EXPENSE";
-  else if (docType === "PAYMENT") jeWhere.referenceType = "PAYMENT";
+	else if (docType === "PAYMENT") jeWhere.referenceType = { in: ["PAYMENT", "INVOICE_PAYMENT"] };
 
   const journalEntries = await prisma.journalEntry.findMany({
     where: jeWhere,
@@ -63,6 +65,7 @@ export async function GET(req: Request) {
     select: {
       id: true,
       entryNumber: true,
+      type: true,
       entryDate: true,
       description: true,
       status: true,
@@ -83,8 +86,8 @@ export async function GET(req: Request) {
     grandDebit += totalDebit;
     grandCredit += totalCredit;
 
-    let docTypeKey = "JOURNAL";
-    let reference = `JE-${je.entryNumber || je.id.slice(-6)}`;
+	    let docTypeKey = je.type === "MANUAL" ? "JOURNAL" : "SYSTEM";
+	    let reference = formatJournalEntryNumber(je.entryNumber, je.type, je.id);
     let displayStatus: string = je.status;
 
     if (je.referenceType === "FUND_TRANSFER") {
@@ -98,7 +101,7 @@ export async function GET(req: Request) {
       docTypeKey = "EXPENSE";
       reference = je.expenses[0].expenseNumber || `EXP-${je.id.slice(-6)}`;
       displayStatus = je.expenses[0].status;
-    } else if (je.referenceType === "PAYMENT") {
+	    } else if (isPaymentReferenceType(je.referenceType)) {
       docTypeKey = "PAYMENT";
       reference = `PMT-${je.entryNumber || je.id.slice(-6)}`;
     }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatJournalEntryNumber, getJournalEntryTypeLabel, getJournalSourceLabel } from "@/lib/accounting/journal/utils";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -14,10 +15,6 @@ function fmt(n: unknown) {
   const x = typeof n === "string" ? Number(n) : typeof n === "number" ? n : Number(String(n));
   if (!Number.isFinite(x)) return "-";
   return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function fmtEntryNumber(n: number) {
-  return `JE-${String(n).padStart(3, "0")}`;
 }
 
 export default async function JournalIndexPage({
@@ -111,7 +108,7 @@ export default async function JournalIndexPage({
             excelHref={`/api/journal-entries/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(referenceTypeParam ? { referenceType: referenceTypeParam } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(accountCode ? { accountCode } : {}) }).toString()}`}
           />
           <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/journal/new">
-            New entry
+	            New manual entry
           </Link>
         </div>
       </div>
@@ -129,8 +126,9 @@ export default async function JournalIndexPage({
             <tr className="border-b">
               <th className="py-2 pr-3">Entry #</th>
               <th className="py-2 pr-3">Date</th>
+              <th className="py-2 pr-3">Type</th>
               <th className="py-2 pr-3">Description</th>
-							<th className="py-2 pr-3">Reference</th>
+						<th className="py-2 pr-3">Source</th>
 							<th className="py-2 pr-3">Cost Center</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3">Debit (base)</th>
@@ -139,7 +137,8 @@ export default async function JournalIndexPage({
           </thead>
           <tbody>
             {entries.map((e) => {
-							const refLabel = e.referenceType ? e.referenceType : "MANUAL";
+							const entryLabel = formatJournalEntryNumber(e.entryNumber, e.type, e.id);
+							const refLabel = getJournalSourceLabel(e.referenceType);
 							const refId = e.referenceId ?? "";
 
 							const costCenterCodes = Array.from(
@@ -160,12 +159,17 @@ export default async function JournalIndexPage({
                 <tr key={e.id} className="border-b last:border-b-0">
                   <td className="py-2 pr-3 font-mono text-zinc-700">
                     <Link className="underline" href={`/app/journal/${e.id}`}>
-                      {e.entryNumber ? fmtEntryNumber(e.entryNumber) : e.id.slice(0, 8)}
+	                      {entryLabel}
                     </Link>
                   </td>
                   <td className="py-2 pr-3 text-zinc-700">
                     {e.entryDate.toISOString().slice(0, 10)}
                   </td>
+	                  <td className="py-2 pr-3 text-zinc-700">
+	                    <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
+	                      {getJournalEntryTypeLabel(e.type)}
+	                    </span>
+	                  </td>
                   <td className="py-2 pr-3 text-zinc-900">{e.description ?? "-"}</td>
 										<td className="py-2 pr-3 text-zinc-700">
 											<div className="text-xs font-medium text-zinc-900">{refLabel}</div>

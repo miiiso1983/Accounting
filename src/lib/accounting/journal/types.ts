@@ -1,4 +1,4 @@
-import type { CurrencyCode, Dc } from "../../../generated/prisma/client";
+import type { CurrencyCode, Dc, JournalEntryType } from "../../../generated/prisma/client";
 
 export type JournalLineInput = {
   accountId: string;
@@ -17,6 +17,7 @@ export type CreateJournalEntryInput = {
   companyId: string;
   entryDate: Date;
   description?: string;
+  type?: JournalEntryType;
   /** reporting/base currency (typically Company.baseCurrencyCode) */
   baseCurrencyCode: CurrencyCode;
 

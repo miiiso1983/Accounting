@@ -92,7 +92,7 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
     const data: unknown = await res.json();
     if (!res.ok) {
       const parsedErr = ApiErrSchema.safeParse(data);
-      setServerError(parsedErr.success ? parsedErr.data.error : "Failed to create entry");
+	      setServerError(parsedErr.success ? parsedErr.data.error : "Failed to create manual entry");
       return;
     }
 
@@ -246,9 +246,9 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
 
       <div className="flex items-center gap-3">
         <button className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800" type="submit">
-          Post entry
+	          Post manual entry
         </button>
-        <div className="text-xs text-zinc-500">Server will reject if not balanced (base currency).</div>
+	        <div className="text-xs text-zinc-500">Manual entry must balance in base currency.</div>
       </div>
     </form>
   );

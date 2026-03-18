@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import * as XLSX from "xlsx";
 
+import { formatJournalEntryNumber, getJournalEntryTypeLabel, getJournalSourceLabel } from "@/lib/accounting/journal/utils";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -9,10 +10,6 @@ import { PERMISSIONS } from "@/lib/rbac/permissions";
 function toNum(d: unknown) {
   const n = Number(String(d));
   return Number.isFinite(n) ? n : 0;
-}
-
-function fmtEntryNumber(n: number) {
-  return `JE-${String(n).padStart(3, "0")}`;
 }
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -28,7 +25,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const entry = await prisma.journalEntry.findFirst({
     where: { id, companyId: user.companyId },
-    include: {
+    select: {
+      id: true,
+      entryNumber: true,
+      type: true,
+      entryDate: true,
+      description: true,
+      status: true,
+      referenceType: true,
+      referenceId: true,
       lines: {
         orderBy: [{ dc: "asc" }],
         include: { account: { select: { code: true, name: true } } },
@@ -38,13 +43,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   if (!entry) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const entryLabel = entry.entryNumber ? fmtEntryNumber(entry.entryNumber) : entry.id.slice(0, 8);
+	const entryLabel = formatJournalEntryNumber(entry.entryNumber, entry.type, entry.id);
 
   const rows = entry.lines.map((l) => ({
     "Entry #": entryLabel,
+    "Entry Type": getJournalEntryTypeLabel(entry.type),
     Date: entry.entryDate.toISOString().slice(0, 10),
     Description: entry.description ?? "",
     Status: entry.status,
+    Source: getJournalSourceLabel(entry.referenceType),
+    "Source Reference": entry.referenceId ?? "",
     "Account Code": l.account.code,
     "Account Name": l.account.name,
     Debit: l.dc === "DEBIT" ? toNum(l.amount) : "",

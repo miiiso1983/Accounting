@@ -1,8 +1,8 @@
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 
-import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
+import { normalizeJournalEntryLinesTx } from "@/lib/accounting/journal/create";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -52,9 +52,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 	  // Only DRAFT or POSTED entries can be edited
   const existing = await prisma.journalEntry.findFirst({
     where: { id, companyId: company.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, type: true },
   });
   if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+	  if (existing.type === "SYSTEM") {
+	    return Response.json({ error: "System journal entries can only be changed from the source document" }, { status: 400 });
+	  }
 	  if (existing.status !== "DRAFT" && existing.status !== "POSTED") {
 	    return Response.json({ error: "Only DRAFT or POSTED entries can be edited" }, { status: 400 });
   }
@@ -105,21 +108,41 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   try {
-    // Validate balance
-    const lines = body.lines.map((l) => {
-      const amount = new Prisma.Decimal(l.amount);
-      if (amount.lte(0)) throw new Error("Line amount must be > 0");
-      return { ...l, amount, amountBase: amount };
-    });
-
-    const debitTotal = lines.filter((l) => l.dc === "DEBIT").reduce((s, l) => s.plus(l.amount), new Prisma.Decimal(0));
-    const creditTotal = lines.filter((l) => l.dc === "CREDIT").reduce((s, l) => s.plus(l.amount), new Prisma.Decimal(0));
-    if (!debitTotal.eq(creditTotal)) {
-      return Response.json({ error: `Unbalanced: debit=${debitTotal.toFixed()} credit=${creditTotal.toFixed()}` }, { status: 400 });
-    }
-
-    // Delete existing lines and update entry within a transaction
     const updated = await prisma.$transaction(async (tx) => {
+	      let nextExchangeRateId: string | undefined;
+	      if (entryCurrency && entryCurrency !== baseCurrencyCode) {
+	        const rateStr = body.exchangeRate?.rate;
+	        if (!rateStr) {
+	          throw new Error("Exchange rate is required when entry currency != base currency");
+	        }
+	        const fx = await tx.exchangeRate.create({
+	          data: {
+	            companyId: company.id,
+	            baseCurrencyCode: entryCurrency,
+	            quoteCurrencyCode: baseCurrencyCode,
+	            rate: rateStr,
+	            effectiveAt: entryDate,
+	            source: "manual",
+	          },
+	          select: { id: true },
+	        });
+	        nextExchangeRateId = fx.id;
+	      }
+
+	      const normalizedLines = await normalizeJournalEntryLinesTx(tx, {
+	        companyId: company.id,
+	        baseCurrencyCode,
+	        exchangeRateId: nextExchangeRateId,
+	        lines: body.lines.map((l) => ({
+	          accountId: l.accountId,
+	          costCenterId: l.costCenterId?.trim() ? l.costCenterId.trim() : undefined,
+	          dc: l.dc,
+	          amount: l.amount,
+	          currencyCode: entryCurrency ?? baseCurrencyCode,
+	          description: l.description,
+	        })),
+	      });
+
       await tx.journalLine.deleteMany({ where: { journalEntryId: id } });
 
       return tx.journalEntry.update({
@@ -128,15 +151,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           entryDate,
           description: body.description ?? null,
           currencyCode: entryCurrency ?? null,
-          exchangeRateId: exchangeRateId ?? null,
+	          exchangeRateId: nextExchangeRateId ?? null,
           lines: {
-            create: lines.map((l) => ({
+	            create: normalizedLines.map((l) => ({
               accountId: l.accountId,
-              costCenterId: l.costCenterId?.trim() ? l.costCenterId.trim() : null,
+	              costCenterId: l.costCenterId ?? null,
               dc: l.dc,
-              amount: l.amount.toDecimalPlaces(6),
+	              amount: l.amount,
               currencyCode: entryCurrency ?? baseCurrencyCode,
-              amountBase: l.amountBase.toDecimalPlaces(6),
+	              amountBase: l.amountBase,
               description: l.description ?? null,
             })),
           },
@@ -150,4 +173,35 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const message = e instanceof Error ? e.message : "Unknown error";
     return Response.json({ error: message }, { status: 400 });
   }
+}
+
+export async function DELETE(_: Request, ctx: { params: Promise<{ id: string }> }) {
+	const { id } = await ctx.params;
+	const session = await getServerSession(authOptions);
+	if (!session) return Response.json({ error: "Unauthenticated" }, { status: 401 });
+	if (!hasPermission(session, PERMISSIONS.JOURNAL_WRITE)) {
+	  return Response.json({ error: "Not authorized" }, { status: 403 });
+	}
+
+	const user = await prisma.user.findUnique({
+	  where: { id: session.user.id },
+	  select: { companyId: true },
+	});
+	if (!user?.companyId) return Response.json({ error: "No company assigned" }, { status: 400 });
+
+	const existing = await prisma.journalEntry.findFirst({
+	  where: { id, companyId: user.companyId },
+	  select: { id: true, type: true },
+	});
+	if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+	if (existing.type === "SYSTEM") {
+	  return Response.json({ error: "System journal entries can only be deleted from the source document" }, { status: 400 });
+	}
+
+	await prisma.$transaction(async (tx) => {
+	  await tx.journalLine.deleteMany({ where: { journalEntryId: id } });
+	  await tx.journalEntry.delete({ where: { id } });
+	});
+
+	return Response.json({ id }, { status: 200 });
 }

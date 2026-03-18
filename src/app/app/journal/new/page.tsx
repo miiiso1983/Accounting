@@ -47,7 +47,7 @@ export default async function NewJournalEntryPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm text-zinc-500">Journal</div>
-          <div className="mt-1 text-base font-medium text-zinc-900">New journal entry</div>
+	          <div className="mt-1 text-base font-medium text-zinc-900">New manual journal entry</div>
         </div>
         <Link className="text-sm underline text-zinc-700" href="/app/journal">
           Back to journal

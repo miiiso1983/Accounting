@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { formatJournalEntryNumber, isPaymentReferenceType } from "@/lib/accounting/journal/utils";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -26,7 +27,8 @@ function fmt(n: number) {
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
-  JOURNAL: "سند قيد / Journal Entry",
+	JOURNAL: "قيد يدوي / Manual Journal Entry",
+	SYSTEM: "قيد نظامي / System Journal Entry",
   INVOICE: "مبيعات / Sales Invoice",
   EXPENSE: "مشتريات / Expense",
   PAYMENT: "سند قبض / Payment",
@@ -88,11 +90,11 @@ export default async function AllTransactionsPage({
   const jeWhere: Record<string, unknown> = { companyId };
   if (entryDateWhere) jeWhere.entryDate = entryDateWhere;
   if (status && ["DRAFT", "POSTED", "VOID"].includes(status)) jeWhere.status = status;
-  if (docType === "JOURNAL") jeWhere.referenceType = null;
+	if (docType === "JOURNAL") jeWhere.type = "MANUAL";
   else if (docType === "FUND_TRANSFER") jeWhere.referenceType = "FUND_TRANSFER";
   else if (docType === "INVOICE") jeWhere.referenceType = "INVOICE";
   else if (docType === "EXPENSE") jeWhere.referenceType = "EXPENSE";
-  else if (docType === "PAYMENT") jeWhere.referenceType = "PAYMENT";
+	else if (docType === "PAYMENT") jeWhere.referenceType = { in: ["PAYMENT", "INVOICE_PAYMENT"] };
 
   const journalEntries = await prisma.journalEntry.findMany({
     where: jeWhere,
@@ -101,6 +103,7 @@ export default async function AllTransactionsPage({
     select: {
       id: true,
       entryNumber: true,
+      type: true,
       entryDate: true,
       description: true,
       status: true,
@@ -120,8 +123,8 @@ export default async function AllTransactionsPage({
     const totalDebit = je.lines.filter((l) => l.dc === "DEBIT").reduce((s, l) => s + Number(l.amountBase), 0);
     const totalCredit = je.lines.filter((l) => l.dc === "CREDIT").reduce((s, l) => s + Number(l.amountBase), 0);
 
-    let docTypeKey = "JOURNAL";
-    let reference = `JE-${je.entryNumber || je.id.slice(-6)}`;
+	    let docTypeKey = je.type === "MANUAL" ? "JOURNAL" : "SYSTEM";
+	    let reference = formatJournalEntryNumber(je.entryNumber, je.type, je.id);
     let displayStatus: string = je.status;
     let link = `/app/journal/${je.id}`;
 
@@ -140,7 +143,7 @@ export default async function AllTransactionsPage({
       reference = exp.expenseNumber || `EXP-${je.id.slice(-6)}`;
       displayStatus = exp.status;
       link = `/app/expenses/${exp.id}`;
-    } else if (je.referenceType === "PAYMENT" && je.invoicePayments.length > 0) {
+	    } else if (isPaymentReferenceType(je.referenceType) && je.invoicePayments.length > 0) {
       docTypeKey = "PAYMENT";
       const pmt = je.invoicePayments[0];
       reference = `PMT-${je.entryNumber || je.id.slice(-6)}`;
@@ -199,7 +202,7 @@ export default async function AllTransactionsPage({
           <label className="text-xs font-medium text-zinc-600">Document Type / نوع الوثيقة</label>
           <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="docType" defaultValue={docType ?? ""}>
             <option value="">All / الكل</option>
-            <option value="JOURNAL">سند قيد / Journal Entry</option>
+	            <option value="JOURNAL">قيد يدوي / Manual Journal Entry</option>
             <option value="INVOICE">مبيعات / Sales Invoice</option>
             <option value="EXPENSE">مشتريات / Expense</option>
             <option value="PAYMENT">سند قبض / Payment</option>

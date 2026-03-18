@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { getJournalSourceLabel } from "@/lib/accounting/journal/utils";
+
 type Props = {
   initial: {
     q: string;
@@ -40,7 +42,7 @@ export function JournalListFilters({ initial, referenceTypeOptions }: Props) {
           <option value="">All / الكل</option>
           {referenceTypeOptions.map((t) => (
             <option key={t} value={t}>
-              {t}
+	              {t === "MANUAL" ? "قيد يدوي / Manual Journal Entry" : getJournalSourceLabel(t)}
             </option>
           ))}
         </select>

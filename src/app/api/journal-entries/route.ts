@@ -111,6 +111,7 @@ export async function POST(req: Request) {
       companyId: company.id,
       entryDate,
       description: body.description,
+      type: "MANUAL",
       baseCurrencyCode,
       currencyCode: entryCurrency,
       exchangeRateId,
