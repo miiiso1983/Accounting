@@ -47,56 +47,73 @@ export default async function CollectionsPage({
   const fromDate = parseDateStart(from);
   const toDate = parseDateEnd(to);
 
-  // Fetch PAID invoices (use updatedAt as payment date proxy)
+  // Build payment date filter
+  const paymentDateWhere = fromDate || toDate
+    ? { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) }
+    : undefined;
+
+  // Fetch invoices that have at least one payment (not just status=PAID)
   const invoices = await prisma.invoice.findMany({
     where: {
       companyId,
-      status: "PAID",
-      ...(fromDate || toDate ? { updatedAt: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } } : {}),
+      payments: { some: paymentDateWhere ? { paymentDate: paymentDateWhere } : {} },
     },
     select: {
       id: true,
       invoiceNumber: true,
       issueDate: true,
-      updatedAt: true,
       totalBase: true,
       currencyCode: true,
+      status: true,
       customer: { select: { id: true, name: true } },
+      payments: {
+        select: { paymentDate: true, amountBase: true },
+        orderBy: { paymentDate: "desc" },
+      },
     },
-    orderBy: [{ customer: { name: "asc" } }, { updatedAt: "desc" }],
+    orderBy: [{ customer: { name: "asc" } }, { issueDate: "desc" }],
   });
 
   // Calculate days to collect and group by customer
-  type Row = { id: string; invoiceNumber: string; issueDate: string; paidDate: string; amount: number; currency: string; daysToCollect: number };
-  const customerGroups = new Map<string, { name: string; rows: Row[]; totalAmount: number; totalDays: number }>();
+  type Row = { id: string; invoiceNumber: string; issueDate: string; paidDate: string; totalAmount: number; collectedAmount: number; currency: string; daysToCollect: number; status: string };
+  const customerGroups = new Map<string, { name: string; rows: Row[]; totalAmount: number; collectedAmount: number; totalDays: number }>();
 
   for (const inv of invoices) {
+    const collectedAmount = inv.payments.reduce((s, p) => s + Number(p.amountBase), 0);
+    if (collectedAmount <= 0) continue; // skip if no actual collected amount
+
+    // Use the latest payment date for collection date
+    const latestPayment = inv.payments[0];
     const issueMs = inv.issueDate.getTime();
-    const paidMs = inv.updatedAt.getTime();
+    const paidMs = latestPayment.paymentDate.getTime();
     const daysToCollect = Math.max(0, Math.floor((paidMs - issueMs) / 86400000));
-    const amount = Number(inv.totalBase);
+    const totalAmount = Number(inv.totalBase);
 
     if (!customerGroups.has(inv.customer.id)) {
-      customerGroups.set(inv.customer.id, { name: inv.customer.name, rows: [], totalAmount: 0, totalDays: 0 });
+      customerGroups.set(inv.customer.id, { name: inv.customer.name, rows: [], totalAmount: 0, collectedAmount: 0, totalDays: 0 });
     }
     const g = customerGroups.get(inv.customer.id)!;
     g.rows.push({
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
       issueDate: inv.issueDate.toISOString().slice(0, 10),
-      paidDate: inv.updatedAt.toISOString().slice(0, 10),
-      amount,
+      paidDate: latestPayment.paymentDate.toISOString().slice(0, 10),
+      totalAmount,
+      collectedAmount,
       currency: inv.currencyCode,
       daysToCollect,
+      status: inv.status,
     });
-    g.totalAmount += amount;
+    g.totalAmount += totalAmount;
+    g.collectedAmount += collectedAmount;
     g.totalDays += daysToCollect;
   }
 
-  const groups = [...customerGroups.entries()].sort((a, b) => b[1].totalAmount - a[1].totalAmount);
-  const grandTotal = invoices.reduce((s, inv) => s + Number(inv.totalBase), 0);
-  const avgDays = invoices.length > 0
-    ? Math.round(groups.reduce((s, [, g]) => s + g.totalDays, 0) / invoices.length)
+  const groups = [...customerGroups.entries()].sort((a, b) => b[1].collectedAmount - a[1].collectedAmount);
+  const totalRows = groups.reduce((s, [, g]) => s + g.rows.length, 0);
+  const grandCollected = groups.reduce((s, [, g]) => s + g.collectedAmount, 0);
+  const avgDays = totalRows > 0
+    ? Math.round(groups.reduce((s, [, g]) => s + g.totalDays, 0) / totalRows)
     : 0;
 
   const qs = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString();
@@ -129,11 +146,11 @@ export default async function CollectionsPage({
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border bg-emerald-50/60 px-4 py-3">
           <div className="text-xs text-zinc-500">Total Collected / إجمالي التحصيل</div>
-          <div className="mt-1 font-mono text-lg font-bold text-emerald-800">{fmt(grandTotal)}</div>
+          <div className="mt-1 font-mono text-lg font-bold text-emerald-800">{fmt(grandCollected)}</div>
         </div>
         <div className="rounded-xl border bg-sky-50/60 px-4 py-3">
-          <div className="text-xs text-zinc-500">Invoices Paid / فواتير محصّلة</div>
-          <div className="mt-1 text-lg font-bold text-sky-800">{invoices.length}</div>
+          <div className="text-xs text-zinc-500">Invoices with Payments / فواتير بها تحصيل</div>
+          <div className="mt-1 text-lg font-bold text-sky-800">{totalRows}</div>
         </div>
         <div className="rounded-xl border bg-orange-50/60 px-4 py-3">
           <div className="text-xs text-zinc-500">Avg Collection Period / متوسط التحصيل</div>
@@ -146,7 +163,7 @@ export default async function CollectionsPage({
           <div key={custId} className="mb-4">
             <div className="rounded-t-xl bg-zinc-50 px-4 py-2 font-semibold text-sm text-zinc-800 flex justify-between">
               <span>{g.name}</span>
-              <span className="font-mono">{fmt(g.totalAmount)} <span className="text-xs text-zinc-400">({g.rows.length} inv, avg {g.rows.length > 0 ? Math.round(g.totalDays / g.rows.length) : 0}d)</span></span>
+              <span className="font-mono">{fmt(g.collectedAmount)} <span className="text-xs text-zinc-400">({g.rows.length} inv, avg {g.rows.length > 0 ? Math.round(g.totalDays / g.rows.length) : 0}d)</span></span>
             </div>
             <table className="w-full text-sm border-b">
               <thead className="text-xs text-zinc-500">
@@ -154,7 +171,8 @@ export default async function CollectionsPage({
                   <th className="py-1.5 px-3 text-left">Invoice # / رقم الفاتورة</th>
                   <th className="py-1.5 px-3 text-left">Issue Date / تاريخ الإصدار</th>
                   <th className="py-1.5 px-3 text-left">Paid Date / تاريخ الدفع</th>
-                  <th className="py-1.5 px-3 text-right">Amount / المبلغ</th>
+                  <th className="py-1.5 px-3 text-right">Total / الإجمالي</th>
+                  <th className="py-1.5 px-3 text-right">Collected / المحصّل</th>
                   <th className="py-1.5 px-3 text-right">Days / أيام</th>
                 </tr>
               </thead>
@@ -166,7 +184,8 @@ export default async function CollectionsPage({
                     </td>
                     <td className="py-1.5 px-3 text-zinc-700">{r.issueDate}</td>
                     <td className="py-1.5 px-3 text-zinc-700">{r.paidDate}</td>
-                    <td className="py-1.5 px-3 text-right font-mono text-zinc-900">{fmt(r.amount)}</td>
+                    <td className="py-1.5 px-3 text-right font-mono text-zinc-900">{fmt(r.totalAmount)}</td>
+                    <td className="py-1.5 px-3 text-right font-mono text-emerald-700">{fmt(r.collectedAmount)}</td>
                     <td className={`py-1.5 px-3 text-right font-mono ${r.daysToCollect > 60 ? "text-rose-600 font-medium" : r.daysToCollect > 30 ? "text-orange-600" : "text-zinc-700"}`}>{r.daysToCollect}</td>
                   </tr>
                 ))}
@@ -174,7 +193,7 @@ export default async function CollectionsPage({
             </table>
           </div>
         ))}
-        {groups.length === 0 && <div className="py-4 text-center text-zinc-400 text-sm">No paid invoices found / لا توجد فواتير محصّلة</div>}
+        {groups.length === 0 && <div className="py-4 text-center text-zinc-400 text-sm">No collections found / لا توجد تحصيلات</div>}
       </div>
     </div>
   );
