@@ -23,6 +23,10 @@ export function isPaymentReferenceType(referenceType?: string | null) {
 export function getJournalSourceLabel(referenceType?: string | null) {
   if (!referenceType) return "يدوي / Manual";
   if (referenceType === "INVOICE") return "فاتورة مبيعات / Sales Invoice";
+  if (referenceType === "INVOICE_REVERSAL") return "عكس فاتورة / Invoice Reversal";
+  if (referenceType === "INVOICE_CLOSURE") return "إقفال فاتورة / Invoice Closure";
+  if (referenceType === "SALES_RETURN") return "مرتجع مبيعات / Sales Return";
+  if (referenceType === "INVOICE_WRITEOFF") return "شطب فاتورة / Invoice Write-off";
   if (referenceType === "EXPENSE") return "مصروف / Expense";
   if (referenceType === "FUND_TRANSFER") return "تحويل / Fund Transfer";
   if (isPaymentReferenceType(referenceType)) return "سند قبض / Payment";
@@ -36,6 +40,9 @@ export function getJournalSourceHref(args: {
   paymentInvoiceId?: string | null;
 }) {
   if (args.referenceType === "INVOICE" && args.invoiceId) return `/app/invoices/${args.invoiceId}`;
+  if (["INVOICE_REVERSAL", "INVOICE_CLOSURE", "SALES_RETURN", "INVOICE_WRITEOFF"].includes(args.referenceType ?? "") && args.invoiceId) {
+    return `/app/invoices/${args.invoiceId}`;
+  }
   if (args.referenceType === "EXPENSE" && args.expenseId) return `/app/expenses/${args.expenseId}`;
   if (args.referenceType === "FUND_TRANSFER") return "/app/transfers";
   if (isPaymentReferenceType(args.referenceType) && args.paymentInvoiceId) return `/app/invoices/${args.paymentInvoiceId}`;

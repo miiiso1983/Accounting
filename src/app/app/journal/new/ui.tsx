@@ -2,11 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { AccountAutocompleteField } from "@/components/fields/AccountAutocompleteField";
+import { QuickAccountModal, type QuickAccountResult } from "@/components/accounting/QuickAccountModal";
 
 type AccountOption = { id: string; code: string; name: string };
 type CostCenterOption = { id: string; code: string; name: string };
@@ -42,9 +43,12 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Props) {
+export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [accountList, setAccountList] = useState<AccountOption[]>(initialAccounts);
+  const [quickAccountLineIdx, setQuickAccountLineIdx] = useState<number | null>(null);
+
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const form = useForm<FormValues>({
@@ -58,6 +62,15 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
       ],
     },
   });
+
+  const handleAccountCreated = useCallback((account: QuickAccountResult) => {
+    setAccountList((prev) => [...prev, account].sort((a, b) => a.code.localeCompare(b.code)));
+    if (quickAccountLineIdx !== null) {
+      form.setValue(`lines.${quickAccountLineIdx}.accountId`, account.id, { shouldDirty: true, shouldValidate: true });
+    }
+    setQuickAccountLineIdx(null);
+  }, [quickAccountLineIdx, form]);
+
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
 
@@ -174,17 +187,29 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
           {fields.map((f, idx) => (
             <div key={f.id} className="grid gap-2 md:grid-cols-12 items-start">
               <div className="md:col-span-3">
-	                <input type="hidden" {...form.register(`lines.${idx}.accountId` as const)} />
-	                <AccountAutocompleteField
-	                  accounts={accounts}
-	                  defaultAccountId={f.accountId}
-	                  placeholder="Search account / ابحث عن حساب"
-	                  noResultsLabel="No accounts found / لا توجد حسابات"
-	                  clearLabel="Clear account"
-	                  onSelectedIdChange={(id) => {
-	                    form.setValue(`lines.${idx}.accountId`, id, { shouldDirty: true, shouldValidate: true });
-	                  }}
-	                />
+                <input type="hidden" {...form.register(`lines.${idx}.accountId` as const)} />
+                <div className="flex gap-1">
+                  <div className="flex-1">
+                    <AccountAutocompleteField
+                      accounts={accountList}
+                      defaultAccountId={f.accountId}
+                      placeholder="Search account / ابحث عن حساب"
+                      noResultsLabel="No accounts found / لا توجد حسابات"
+                      clearLabel="Clear account"
+                      onSelectedIdChange={(id) => {
+                        form.setValue(`lines.${idx}.accountId`, id, { shouldDirty: true, shouldValidate: true });
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    title="New account / حساب جديد"
+                    className="shrink-0 rounded-xl border px-2 py-2 text-sm font-bold text-sky-600 hover:bg-sky-50"
+                    onClick={() => setQuickAccountLineIdx(idx)}
+                  >
+                    +
+                  </button>
+                </div>
               </div>
               <div className="md:col-span-2">
                 <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.costCenterId` as const)}>
@@ -255,6 +280,12 @@ export function JournalEntryForm({ accounts, costCenters, baseCurrencyCode }: Pr
         </button>
 	        <div className="text-xs text-zinc-500">Manual entry must balance in base currency.</div>
       </div>
+      {quickAccountLineIdx !== null && (
+        <QuickAccountModal
+          onClose={() => setQuickAccountLineIdx(null)}
+          onCreated={handleAccountCreated}
+        />
+      )}
     </form>
   );
 }

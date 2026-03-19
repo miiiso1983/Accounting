@@ -35,12 +35,19 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [notifyLoading, setNotifyLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [returnAmount, setReturnAmount] = useState("");
+  const [returnReason, setReturnReason] = useState("");
+  const [showReturnForm, setShowReturnForm] = useState(false);
 
   const canSend = canSendPermission && status === "DRAFT" && !hasJournalEntry;
   const canDelete = canDeletePermission && status === "DRAFT";
+  const canClose = status === "SENT" || status === "OVERDUE";
+  const canReturn = status === "SENT" || status === "PAID" || status === "OVERDUE";
+  const canWriteOff = status === "SENT" || status === "OVERDUE";
 
   async function onSend() {
     setError(null);
@@ -105,6 +112,73 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
     }
   }
 
+  async function onClose() {
+    if (!confirm("هل أنت متأكد من إقفال هذه الفاتورة؟ سيتم شطب الرصيد المتبقي.\n\nAre you sure you want to close this invoice? The remaining balance will be written down.")) return;
+    setError(null);
+    setSuccess(null);
+    setActionLoading("close");
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/close`, { method: "POST" });
+      const data = await readResponseData(res);
+      if (!res.ok) {
+        setError(readErrorMessage(data) ?? `Failed to close invoice (HTTP ${res.status})`);
+        return;
+      }
+      setSuccess("✅ Invoice closed successfully / تم إقفال الفاتورة");
+      router.refresh();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function onReturn() {
+    if (!returnAmount.trim()) {
+      setError("Please enter a return amount / أدخل مبلغ المرتجع");
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    setActionLoading("return");
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/return`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ amount: returnAmount.trim(), reason: returnReason.trim() || undefined }),
+      });
+      const data = await readResponseData(res);
+      if (!res.ok) {
+        setError(readErrorMessage(data) ?? `Failed to process return (HTTP ${res.status})`);
+        return;
+      }
+      setSuccess("✅ Sales return recorded / تم تسجيل المرتجع");
+      setReturnAmount("");
+      setReturnReason("");
+      setShowReturnForm(false);
+      router.refresh();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function onWriteOff() {
+    if (!confirm("هل أنت متأكد من شطب هذه الفاتورة كديون معدومة؟\n\nAre you sure you want to write off this invoice as bad debt?")) return;
+    setError(null);
+    setSuccess(null);
+    setActionLoading("writeoff");
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/writeoff`, { method: "POST" });
+      const data = await readResponseData(res);
+      if (!res.ok) {
+        setError(readErrorMessage(data) ?? `Failed to write off invoice (HTTP ${res.status})`);
+        return;
+      }
+      setSuccess("✅ Invoice written off / تم شطب الفاتورة");
+      router.refresh();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   return (
     <div className="grid gap-3">
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div> : null}
@@ -143,6 +217,39 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
           </button>
         )}
 
+        {canClose && (
+          <button
+            type="button"
+            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+            onClick={onClose}
+            disabled={actionLoading !== null}
+          >
+            {actionLoading === "close" ? "Closing..." : "🔒 Close / إقفال"}
+          </button>
+        )}
+
+        {canReturn && (
+          <button
+            type="button"
+            className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+            onClick={() => setShowReturnForm(!showReturnForm)}
+            disabled={actionLoading !== null}
+          >
+            ↩ Return / مرتجع
+          </button>
+        )}
+
+        {canWriteOff && (
+          <button
+            type="button"
+            className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+            onClick={onWriteOff}
+            disabled={actionLoading !== null}
+          >
+            {actionLoading === "writeoff" ? "Writing off..." : "💀 Write-off / شطب"}
+          </button>
+        )}
+
         {canDelete && (
           <button
             type="button"
@@ -154,6 +261,50 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
           </button>
         )}
       </div>
+
+      {showReturnForm && canReturn && (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 grid gap-3">
+          <div className="text-sm font-medium text-violet-800">Sales Return / مرتجع مبيعات</div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="grid gap-1">
+              <span className="text-xs text-violet-600">Return Amount / مبلغ المرتجع</span>
+              <input
+                className="rounded-lg border bg-white px-3 py-2 text-sm"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={returnAmount}
+                onChange={(e) => setReturnAmount(e.target.value)}
+              />
+            </label>
+            <label className="grid gap-1 md:col-span-2">
+              <span className="text-xs text-violet-600">Reason (optional) / السبب</span>
+              <input
+                className="rounded-lg border bg-white px-3 py-2 text-sm"
+                placeholder="e.g. Damaged goods"
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="rounded-lg border px-3 py-1.5 text-sm text-zinc-600 hover:bg-white"
+              onClick={() => { setShowReturnForm(false); setReturnAmount(""); setReturnReason(""); }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-violet-700 px-4 py-1.5 text-sm text-white hover:bg-violet-600 disabled:opacity-50"
+              onClick={onReturn}
+              disabled={actionLoading !== null}
+            >
+              {actionLoading === "return" ? "Processing..." : "Confirm Return"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
+import { ensureInvoicePostingAccounts, getInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
+import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
 import { authOptions } from "@/lib/auth/options";
 import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { prisma } from "@/lib/db/prisma";
@@ -70,9 +72,15 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   const company = await prisma.company.findUnique({ where: { id: user.companyId }, select: { id: true, baseCurrencyCode: true } });
   if (!company) return Response.json({ error: "Company not found" }, { status: 400 });
 
-  const existing = await prisma.invoice.findFirst({ where: { id, companyId: company.id }, select: { id: true, status: true } });
+  const existing = await prisma.invoice.findFirst({
+    where: { id, companyId: company.id },
+    select: { id: true, status: true, journalEntryId: true, invoiceNumber: true },
+  });
   if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
-  if (existing.status !== "DRAFT") return Response.json({ error: "Only DRAFT invoices can be edited" }, { status: 400 });
+  if (existing.status !== "DRAFT" && existing.status !== "SENT") {
+    return Response.json({ error: "Only DRAFT or SENT invoices can be edited" }, { status: 400 });
+  }
+  const isPosted = existing.status === "SENT" && !!existing.journalEntryId;
 
   const json = await req.json();
   const parsed = UpdateBodySchema.safeParse(json);
@@ -224,6 +232,80 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
         },
         select: { id: true },
       });
+
+      // If the invoice was already posted (SENT), reverse old journal entry and create new one
+      if (isPosted && existing.journalEntryId) {
+        // Void the old journal entry
+        const oldEntry = await tx.journalEntry.findUnique({
+          where: { id: existing.journalEntryId },
+          include: { lines: true },
+        });
+
+        if (oldEntry) {
+          // Create reversal entry
+          await createPostedJournalEntryTx(tx, {
+            companyId: company.id,
+            entryDate: issueDate,
+            description: `Reversal: Invoice ${existing.invoiceNumber} (edit)`,
+            baseCurrencyCode,
+            currencyCode: invoiceCurrency,
+            exchangeRateId: exchangeRateId ?? undefined,
+            referenceType: "INVOICE_REVERSAL",
+            referenceId: inv.id,
+            createdById: session.user.id,
+            lines: oldEntry.lines.map((l) => ({
+              accountId: l.accountId,
+              dc: l.dc === "DEBIT" ? ("CREDIT" as const) : ("DEBIT" as const),
+              amount: l.amount.toFixed(6),
+              amountBase: l.amountBase.toFixed(6),
+              currencyCode: l.currencyCode,
+            })),
+          });
+        }
+
+        // Create new posting entry
+        await ensureInvoicePostingAccounts(tx, company.id);
+        const accountsByCode = await getInvoicePostingAccountsTx(tx, company.id);
+        const mustGet = (code: string) => {
+          const a = accountsByCode.get(code);
+          if (!a) throw new Error(`Missing GL account code ${code}`);
+          return a.id;
+        };
+        const arId = mustGet("1200");
+        const salesId = mustGet("4100");
+        const vatId = mustGet("2250");
+
+        const netSales = subtotal.minus(discountAmount);
+        const netSalesBase = subtotalBase.minus(discountAmountBase).toDecimalPlaces(6);
+        const postingLines = [
+          { accountId: arId, dc: "DEBIT" as const, amount: total.toFixed(6), amountBase: totalBase.toFixed(6) },
+          { accountId: salesId, dc: "CREDIT" as const, amount: netSales.toFixed(6), amountBase: netSalesBase.toFixed(6) },
+          ...(taxTotal.gt(0)
+            ? [{ accountId: vatId, dc: "CREDIT" as const, amount: taxTotal.toFixed(6), amountBase: taxTotalBase.toFixed(6) }]
+            : []),
+        ];
+
+        const newEntry = await createPostedJournalEntryTx(tx, {
+          companyId: company.id,
+          entryDate: issueDate,
+          description: `Invoice ${body.invoiceNumber}`,
+          baseCurrencyCode,
+          currencyCode: invoiceCurrency,
+          exchangeRateId: exchangeRateId ?? undefined,
+          referenceType: "INVOICE",
+          referenceId: inv.id,
+          createdById: session.user.id,
+          lines: postingLines.map((l) => ({
+            accountId: l.accountId,
+            dc: l.dc,
+            amount: l.amount,
+            amountBase: l.amountBase,
+            currencyCode: invoiceCurrency,
+          })),
+        });
+
+        await tx.invoice.update({ where: { id: inv.id }, data: { journalEntryId: newEntry.id } });
+      }
 
       return inv;
     }, INTERACTIVE_TRANSACTION_OPTIONS);

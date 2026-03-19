@@ -38,10 +38,10 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   });
 
   if (!invoice) return <div className="rounded-2xl border bg-white p-5 text-sm">Invoice not found.</div>;
-  if (invoice.status !== "DRAFT") {
+  if (invoice.status !== "DRAFT" && invoice.status !== "SENT") {
     return (
       <div className="rounded-2xl border bg-white p-5 text-sm">
-        Only DRAFT invoices can be edited.{" "}
+        Only DRAFT or SENT invoices can be edited. PAID/CANCELLED invoices require other actions.{" "}
         <Link className="underline text-zinc-700" href={`/app/invoices/${id}`}>Back to invoice</Link>
       </div>
     );

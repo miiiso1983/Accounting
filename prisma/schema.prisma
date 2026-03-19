@@ -49,6 +49,8 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   CANCELLED
+  CLOSED
+  WRITTEN_OFF
 }
 
 enum ExpenseStatus {
