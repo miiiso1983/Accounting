@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 @theme inline {
@@ -10,12 +10,51 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* ── Vibrant Sky (richer, deeper blue) ── */
+  --color-sky-50: #e8f4fd;
+  --color-sky-100: #d0e8fb;
+  --color-sky-200: #a3d4f7;
+  --color-sky-300: #5db8f0;
+  --color-sky-400: #2196e8;
+  --color-sky-500: #0b7fd4;
+  --color-sky-600: #0968b3;
+  --color-sky-700: #0c5591;
+  --color-sky-800: #104776;
+  --color-sky-900: #133b62;
+  --color-sky-950: #0b2440;
+
+  /* ── Vibrant Emerald (richer, more vivid green) ── */
+  --color-emerald-50: #e6faf2;
+  --color-emerald-100: #c0f2de;
+  --color-emerald-200: #84e4bf;
+  --color-emerald-300: #3dd49c;
+  --color-emerald-400: #12b87a;
+  --color-emerald-500: #059c63;
+  --color-emerald-600: #047d50;
+  --color-emerald-700: #066342;
+  --color-emerald-800: #084f36;
+  --color-emerald-900: #07412e;
+  --color-emerald-950: #032619;
+
+  /* ── Warmer Zinc (slightly warmer neutrals for better readability) ── */
+  --color-zinc-50: #f7f8fa;
+  --color-zinc-100: #f0f1f5;
+  --color-zinc-200: #e2e4ea;
+  --color-zinc-300: #cdd0d9;
+  --color-zinc-400: #9ca1b0;
+  --color-zinc-500: #6b7185;
+  --color-zinc-600: #4e5468;
+  --color-zinc-700: #3a3f52;
+  --color-zinc-800: #272b3a;
+  --color-zinc-900: #181b27;
+  --color-zinc-950: #0d0f17;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0c1021;
+    --foreground: #e8ecf4;
   }
 }
 
