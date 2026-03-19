@@ -7,6 +7,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { CustomerAutocompleteField } from "@/components/fields/CustomerAutocompleteField";
+import { InvoiceLineItemsGrid } from "@/components/invoice/InvoiceLineItemsGrid";
 
 type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
@@ -358,101 +359,19 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
           </div>
         )}
 
-        <div className="rounded-2xl border p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-sm font-medium text-zinc-900">Line items / بنود الفاتورة</div>
-            <button
-              type="button"
-              className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-				onClick={() => append({ description: "", costCenterId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" })}
-            >
-              Add line / إضافة بند
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {fields.map((f, idx) => (
-              <div key={f.id} className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-3 grid gap-3">
-                {/* Product selector */}
-                {products.length > 0 && (
-                  <div>
-                    <select
-                      className="w-full rounded-xl border px-3 py-2 text-sm text-zinc-600"
-                      defaultValue=""
-                      onChange={(e) => {
-                        const prod = products.find((p) => p.id === e.target.value);
-                        if (prod) {
-                          form.setValue(`lines.${idx}.description`, prod.description || prod.name);
-                          form.setValue(`lines.${idx}.unitPrice`, prod.unitPrice);
-								const ccId = prod.costCenterId && costCenters.some((cc) => cc.id === prod.costCenterId) ? prod.costCenterId : "";
-								form.setValue(`lines.${idx}.costCenterId`, ccId);
-                        }
-                      }}
-                    >
-                      <option value="">— Select product / اختر منتج —</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.unitPrice} {p.currencyCode})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-					<div className="grid gap-2 md:grid-cols-12">
-						<div className="md:col-span-3">
-                    <input className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Description / الوصف" {...form.register(`lines.${idx}.description` as const)} />
-                    {errors.lines?.[idx]?.description ? <div className="mt-1 text-xs text-red-600">Description is required.</div> : null}
-                  </div>
-						<div className="md:col-span-2">
-							<select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
-								<option value="">— مركز كلفة —</option>
-								{costCenters.map((cc) => (
-									<option key={cc.id} value={cc.id}>
-										{cc.code} — {cc.name}
-									</option>
-								))}
-							</select>
-						</div>
-						<div className="md:col-span-1">
-                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Qty" {...form.register(`lines.${idx}.quantity` as const)} />
-                  </div>
-						<div className="md:col-span-1">
-                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Price" {...form.register(`lines.${idx}.unitPrice` as const)} />
-                  </div>
-                  <div className="md:col-span-1">
-                    <select className="w-full rounded-xl border px-3 py-2 text-xs" {...form.register(`lines.${idx}.discountType` as const)}>
-                      <option value="">خصم—</option>
-                      <option value="PERCENTAGE">%</option>
-                      <option value="FIXED">ثابت</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-1">
-                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Disc" {...form.register(`lines.${idx}.discountValue` as const)} />
-                  </div>
-                  <div className="md:col-span-1">
-                    <input className="w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="Tax" {...form.register(`lines.${idx}.taxRate` as const)} />
-                  </div>
-                  <div className="md:col-span-1 flex items-center">
-                    <span className="font-mono text-sm font-medium text-zinc-900 w-full text-right">{fmtNum(totals.lineTotals[idx] ?? 0)}</span>
-                  </div>
-                  <div className="md:col-span-1">
-                    <button
-                      type="button"
-                      className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-                      onClick={() => remove(idx)}
-                      disabled={fields.length <= 1}
-                      title={fields.length <= 1 ? "At least 1 line required" : "Remove"}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-2 text-xs text-zinc-500">Tax rate example: 0.15 (15%). Leave blank for 0. / مثال ضريبة: 0.15 (15%)</div>
-        </div>
+        <InvoiceLineItemsGrid
+          fields={fields}
+          register={form.register as unknown as (name: string) => Record<string, unknown>}
+          setValue={(name, value) => form.setValue(name as never, value as never)}
+          products={products}
+          costCenters={costCenters}
+          errors={errors as Record<string, unknown> | undefined}
+          lineTotals={totals.lineTotals}
+          fmtNum={fmtNum}
+          onAppend={() => append({ description: "", costCenterId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" })}
+          onRemove={remove}
+          canRemove={fields.length > 1}
+        />
 
         {/* Real-time totals summary */}
         <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
