@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ── Enable class-based dark mode for Tailwind v4 ── */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -51,11 +54,98 @@
   --color-zinc-950: #0d0f17;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c1021;
-    --foreground: #e8ecf4;
-  }
+/* ── Dark mode: invert scales so existing classes adapt automatically ── */
+.dark {
+  --background: #0c1021;
+  --foreground: #e8ecf4;
+
+  /* White surfaces → dark surface */
+  --color-white: #141825;
+
+  /* Zinc inverted */
+  --color-zinc-50: #0d0f17;
+  --color-zinc-100: #181b27;
+  --color-zinc-200: #272b3a;
+  --color-zinc-300: #3a3f52;
+  --color-zinc-400: #6b7185;
+  --color-zinc-500: #9ca1b0;
+  --color-zinc-600: #cdd0d9;
+  --color-zinc-700: #e2e4ea;
+  --color-zinc-800: #f0f1f5;
+  --color-zinc-900: #f7f8fa;
+  --color-zinc-950: #ffffff;
+
+  /* Sky: light tones → dark tones, accent tones stay vivid */
+  --color-sky-50: #0b2440;
+  --color-sky-100: #133b62;
+  --color-sky-200: #104776;
+  --color-sky-300: #0c5591;
+  --color-sky-400: #2196e8;
+  --color-sky-500: #0b7fd4;
+  --color-sky-600: #0968b3;
+  --color-sky-700: #5db8f0;
+  --color-sky-800: #a3d4f7;
+  --color-sky-900: #d0e8fb;
+  --color-sky-950: #e8f4fd;
+
+  /* Emerald: light tones → dark tones, accent tones stay vivid */
+  --color-emerald-50: #032619;
+  --color-emerald-100: #07412e;
+  --color-emerald-200: #084f36;
+  --color-emerald-300: #066342;
+  --color-emerald-400: #12b87a;
+  --color-emerald-500: #059c63;
+  --color-emerald-600: #047d50;
+  --color-emerald-700: #3dd49c;
+  --color-emerald-800: #84e4bf;
+  --color-emerald-900: #c0f2de;
+  --color-emerald-950: #e6faf2;
+
+  /* Red inverted for status badges */
+  --color-red-50: #300a0a;
+  --color-red-100: #4a1010;
+  --color-red-600: #fca5a5;
+  --color-red-700: #fecaca;
+  --color-red-800: #fee2e2;
+
+  /* Amber inverted for status badges */
+  --color-amber-50: #2a1d00;
+  --color-amber-100: #3d2b00;
+  --color-amber-600: #fcd34d;
+  --color-amber-700: #fde68a;
+  --color-amber-800: #fef3c7;
+
+  /* Violet inverted */
+  --color-violet-50: #1e0a3e;
+  --color-violet-100: #2e1065;
+  --color-violet-600: #c4b5fd;
+  --color-violet-700: #ddd6fe;
+
+  /* Rose inverted */
+  --color-rose-50: #300a14;
+  --color-rose-100: #4c0519;
+  --color-rose-600: #fda4af;
+  --color-rose-700: #fecdd3;
+
+  /* Orange inverted */
+  --color-orange-50: #2a1200;
+  --color-orange-100: #431407;
+  --color-orange-600: #fdba74;
+  --color-orange-700: #fed7aa;
+
+  /* Blue inverted */
+  --color-blue-50: #0c1a3d;
+  --color-blue-100: #172554;
+  --color-blue-600: #93c5fd;
+  --color-blue-700: #bfdbfe;
+}
+
+/* ── Fix text-white to always be white (not affected by --color-white override) ── */
+.dark .text-white {
+  color: #ffffff !important;
+}
+.dark .placeholder-white::placeholder {
+  color: #ffffff !important;
 }
 
 body {

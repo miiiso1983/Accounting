@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { I18nProvider } from "@/components/i18n/I18nProvider";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { localeDir } from "@/lib/i18n";
 import { getMessages } from "@/lib/i18n/messages";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -33,12 +34,21 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark")}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <I18nProvider locale={locale} messages={messages}>
-          {children}
-        </I18nProvider>
+        <ThemeProvider>
+          <I18nProvider locale={locale} messages={messages}>
+            {children}
+          </I18nProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

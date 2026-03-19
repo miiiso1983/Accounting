@@ -21,6 +21,7 @@ import {
 
 import { LocaleToggle } from "@/components/i18n/LocaleToggle";
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { getRequestLocale } from "@/lib/i18n/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { createTranslator } from "@/lib/i18n/translate";
@@ -94,6 +95,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="flex items-center justify-between gap-2 px-2">
                   <LocaleToggle locale={locale} />
+                  <ThemeToggle />
                   <SignOutButton />
                 </div>
               </div>
@@ -110,6 +112,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
                 <div className="flex items-center gap-2">
                   <LocaleToggle locale={locale} />
+                  <ThemeToggle />
 	              <SignOutButton className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-sky-200/70 shadow-sm transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-200/70" />
                 </div>
               </div>
