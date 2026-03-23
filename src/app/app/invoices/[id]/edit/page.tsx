@@ -86,7 +86,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   };
 
   return (
-    <div className="rounded-2xl border bg-white p-5">
+    <div className="rounded-2xl border bg-white p-5 overflow-hidden">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm text-zinc-500">Invoices</div>

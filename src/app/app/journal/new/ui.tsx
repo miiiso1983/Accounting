@@ -124,15 +124,15 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseC
   }
 
   return (
-    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-      <div className="grid gap-3 md:grid-cols-2">
+    <form className="grid gap-5 max-w-full box-border" onSubmit={form.handleSubmit(onSubmit)}>
+      <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-sm font-medium text-zinc-700">Entry date</label>
-          <input className="mt-1 w-full rounded-xl border px-3 py-2" type="date" {...form.register("entryDate")} />
+          <label className="text-sm font-medium text-zinc-700">Entry date / تاريخ القيد</label>
+          <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" type="date" {...form.register("entryDate")} />
         </div>
         <div>
-          <label className="text-sm font-medium text-zinc-700">Currency</label>
-          <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("currencyCode")}>
+          <label className="text-sm font-medium text-zinc-700">Currency / العملة</label>
+          <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("currencyCode")}>
             <option value={baseCurrencyCode}>{baseCurrencyCode}</option>
             {baseCurrencyCode === "IQD" ? <option value="USD">USD</option> : <option value="IQD">IQD</option>}
           </select>
@@ -142,11 +142,11 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseC
 
       {showFx ? (
         <div>
-          <label className="text-sm font-medium text-zinc-700">Exchange rate</label>
+          <label className="text-sm font-medium text-zinc-700">Exchange rate / سعر الصرف</label>
           <div className="mt-1 flex items-center gap-2">
             <div className="text-sm text-zinc-600">1 {currencyCode} =</div>
             <input
-              className="w-40 rounded-xl border px-3 py-2"
+              className="w-40 rounded-xl border px-3 py-2 text-sm"
               placeholder="e.g. 1300"
               {...form.register("exchangeRate")}
             />
@@ -157,8 +157,8 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseC
       ) : null}
 
       <div>
-        <label className="text-sm font-medium text-zinc-700">Description</label>
-        <input className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Memo" {...form.register("description")} />
+        <label className="text-sm font-medium text-zinc-700">Description / الوصف</label>
+        <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="Memo / ملاحظة" {...form.register("description")} />
       </div>
 
       <div className="rounded-2xl border p-4 md:p-5">

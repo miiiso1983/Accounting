@@ -53,7 +53,7 @@ export default async function NewInvoicePage({
   const salesRepOptions: SalesRepOption[] = salesReps;
 
   return (
-    <div className="rounded-2xl border bg-white p-5">
+    <div className="rounded-2xl border bg-white p-5 overflow-hidden">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm text-zinc-500">Invoices</div>
