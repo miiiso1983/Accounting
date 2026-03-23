@@ -173,7 +173,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseC
           </button>
         </div>
 
-        <div className="-mx-4 md:-mx-5 overflow-x-auto px-4 md:px-5">
+        <div className="overflow-x-auto">
           <div style={{ minWidth: 740 }}>
             {/* Column headers */}
             <div className="grid grid-cols-12 gap-2 px-1 pb-2 border-b border-zinc-200 text-xs font-semibold text-zinc-500">

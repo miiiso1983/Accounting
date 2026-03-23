@@ -83,7 +83,7 @@ export function InvoiceLineItemsGrid({ fields, register, setValue, products, cos
         <div className="text-sm font-medium text-zinc-900">Line items / بنود الفاتورة</div>
         <button type="button" className="shrink-0 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" onClick={onAppend}>Add line / إضافة بند</button>
       </div>
-      <div className="-mx-4 md:-mx-5 overflow-x-auto px-4 md:px-5">
+      <div className="overflow-x-auto">
         <table ref={tableRef} className="border-collapse" style={{ tableLayout: "fixed", minWidth: hasProducts ? 960 : 820 }}>
           <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead>
