@@ -229,20 +229,20 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 max-w-full box-border">
       {serverError ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{serverError}</div> : null}
 
-      <form className="grid gap-4">
-        <div className="grid gap-3 md:grid-cols-2">
+      <form className="grid gap-5">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-sm font-medium text-zinc-700">Invoice #</label>
-            <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono" {...form.register("invoiceNumber")} />
+            <label className="text-sm font-medium text-zinc-700">Invoice # / رقم الفاتورة</label>
+            <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono text-sm" {...form.register("invoiceNumber")} />
             {errors.invoiceNumber ? <div className="mt-1 text-xs text-red-600">Invoice number is required.</div> : null}
           </div>
           <div>
-            <label className="text-sm font-medium text-zinc-700">Customer</label>
+            <label className="text-sm font-medium text-zinc-700">Customer / الزبون</label>
             <div className="flex items-start gap-2">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
 	            <input type="hidden" {...form.register("customerId")} />
 	            <CustomerAutocompleteField
 	              customers={customers}
@@ -254,49 +254,49 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
 	              onSelectedIdChange={(id) => form.setValue("customerId", id, { shouldDirty: true, shouldValidate: true })}
 	            />
               </div>
-              <button type="button" className="mt-1 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" title="Add new customer" onClick={() => setShowNewCustomer(true)}>+</button>
+              <button type="button" className="mt-1 shrink-0 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" title="Add new customer / إضافة زبون جديد" onClick={() => setShowNewCustomer(true)}>+</button>
             </div>
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700">Company name / اسم الشركة</label>
             <input
-              className="mt-1 w-full rounded-xl border bg-zinc-50 px-3 py-2 text-zinc-700"
+              className="mt-1 w-full rounded-xl border bg-zinc-50 px-3 py-2 text-sm text-zinc-700"
               value={selectedCustomer?.companyName ?? ""}
               placeholder="Will appear automatically / يظهر تلقائيًا"
               readOnly
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-zinc-700">Issue date</label>
-            <input className="mt-1 w-full rounded-xl border px-3 py-2" type="date" {...form.register("issueDate")} />
+            <label className="text-sm font-medium text-zinc-700">Issue date / تاريخ الإصدار</label>
+            <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" type="date" {...form.register("issueDate")} />
           </div>
           <div>
-            <label className="text-sm font-medium text-zinc-700">Due date</label>
-            <input className="mt-1 w-full rounded-xl border px-3 py-2" type="date" {...form.register("dueDate")} />
+            <label className="text-sm font-medium text-zinc-700">Due date / تاريخ الاستحقاق</label>
+            <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" type="date" {...form.register("dueDate")} />
           </div>
           <div>
-            <label className="text-sm font-medium text-zinc-700">Currency</label>
-            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("currencyCode")}>
+            <label className="text-sm font-medium text-zinc-700">Currency / العملة</label>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("currencyCode")}>
               <option value="IQD">IQD</option>
               <option value="USD">USD</option>
             </select>
           </div>
           {showFx ? (
-            <div>
-              <label className="text-sm font-medium text-zinc-700">Exchange rate</label>
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium text-zinc-700">Exchange rate / سعر الصرف</label>
               <div className="mt-1 flex items-center gap-2">
                 <div className="text-sm text-zinc-600">1 {currencyCode} =</div>
-                <input className="w-40 rounded-xl border px-3 py-2" placeholder="e.g. 1300" {...form.register("exchangeRate")} />
+                <input className="w-40 rounded-xl border px-3 py-2 text-sm" placeholder="e.g. 1300" {...form.register("exchangeRate")} />
                 <div className="text-sm text-zinc-600">{baseCurrencyCode}</div>
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3">
           <div>
             <label className="text-sm font-medium text-zinc-700">Discount type / نوع الخصم</label>
-            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("discountType")}>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("discountType")}>
               <option value="">No discount / بدون خصم</option>
               <option value="PERCENTAGE">Percentage / نسبة مئوية (%)</option>
               <option value="FIXED">Fixed amount / مبلغ ثابت</option>
@@ -304,11 +304,11 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700">Discount value / قيمة الخصم</label>
-            <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono" inputMode="decimal" placeholder="0" {...form.register("discountValue")} />
+            <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono text-sm" inputMode="decimal" placeholder="0" {...form.register("discountValue")} />
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700">Payment terms / شروط الدفع</label>
-            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("paymentTerms")}>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("paymentTerms")}>
               <option value="">— Select / اختر —</option>
               <option value="MONTHLY">Monthly / شهري</option>
               <option value="QUARTERLY">Quarterly / ربع سنوي</option>
@@ -320,7 +320,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
         {salesReps.length > 0 && (
           <div className="max-w-sm">
             <label className="text-sm font-medium text-zinc-700">Sales Rep / المندوب</label>
-            <select className="mt-1 w-full rounded-xl border px-3 py-2" {...form.register("salesRepresentativeId")}>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("salesRepresentativeId")}>
               <option value="">— None / بدون —</option>
               {salesReps.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>

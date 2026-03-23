@@ -156,90 +156,95 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
         <input className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Memo" {...form.register("description")} />
       </div>
 
-      <div className="rounded-2xl border p-3">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-zinc-900">Lines</div>
+      <div className="rounded-2xl border p-4 md:p-5">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <div className="text-sm font-medium text-zinc-900">Lines / البنود</div>
           <button
             type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
+            className="shrink-0 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
             onClick={() => append({ accountId: "", costCenterId: "", debitAmount: "", creditAmount: "", description: "" })}
           >
-            Add line
+            Add line / إضافة بند
           </button>
         </div>
 
-        <div className="mt-3 hidden md:grid md:grid-cols-12 gap-2 px-1 text-xs font-semibold text-zinc-500">
-          <div className="md:col-span-3">Account</div>
-          <div className="md:col-span-2">Cost Center</div>
-          <div className="md:col-span-2 text-right">Debit</div>
-          <div className="md:col-span-2 text-right">Credit</div>
-          <div className="md:col-span-2">Note</div>
-          <div className="md:col-span-1"></div>
-        </div>
-
-        <div className="mt-2 space-y-2">
-          {fields.map((f, idx) => (
-            <div key={f.id} className="grid gap-2 md:grid-cols-12 items-start">
-              <div className="md:col-span-3">
-                <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.accountId` as const)}>
-                  <option value="">Select account…</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <select className="w-full rounded-xl border px-3 py-2" {...form.register(`lines.${idx}.costCenterId` as const)}>
-                  <option value="">— None —</option>
-                  {costCenters.map((cc) => (
-                    <option key={cc.id} value={cc.id}>{cc.code} — {cc.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <input
-                  className="w-full rounded-xl border px-3 py-2 font-mono text-right"
-                  inputMode="decimal"
-                  placeholder="0"
-                  {...form.register(`lines.${idx}.debitAmount` as const)}
-                  onChange={(e) => {
-                    form.register(`lines.${idx}.debitAmount` as const).onChange(e);
-                    if (e.target.value.trim() && Number(e.target.value) > 0) {
-                      form.setValue(`lines.${idx}.creditAmount`, "");
-                    }
-                  }}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <input
-                  className="w-full rounded-xl border px-3 py-2 font-mono text-right"
-                  inputMode="decimal"
-                  placeholder="0"
-                  {...form.register(`lines.${idx}.creditAmount` as const)}
-                  onChange={(e) => {
-                    form.register(`lines.${idx}.creditAmount` as const).onChange(e);
-                    if (e.target.value.trim() && Number(e.target.value) > 0) {
-                      form.setValue(`lines.${idx}.debitAmount`, "");
-                    }
-                  }}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <input className="w-full rounded-xl border px-3 py-2" placeholder="Line note" {...form.register(`lines.${idx}.description` as const)} />
-              </div>
-              <div className="md:col-span-1">
-                <button
-                  type="button"
-                  className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
-                  onClick={() => remove(idx)}
-                  disabled={fields.length <= 2}
-                  title={fields.length <= 2 ? "At least 2 lines required" : "Remove"}
-                >
-                  ×
-                </button>
-              </div>
+        <div className="-mx-4 md:-mx-5 overflow-x-auto px-4 md:px-5">
+          <div style={{ minWidth: 740 }}>
+            {/* Column headers */}
+            <div className="grid grid-cols-12 gap-2 px-1 pb-2 border-b border-zinc-200 text-xs font-semibold text-zinc-500">
+              <div className="col-span-3">Account / الحساب</div>
+              <div className="col-span-2">Cost Center / مركز كلفة</div>
+              <div className="col-span-2 text-end">Debit / مدين</div>
+              <div className="col-span-2 text-end">Credit / دائن</div>
+              <div className="col-span-2">Note / ملاحظة</div>
+              <div className="col-span-1"></div>
             </div>
-          ))}
+
+            <div className="mt-2 space-y-2">
+              {fields.map((f, idx) => (
+                <div key={f.id} className="grid grid-cols-12 gap-2 items-start">
+                  <div className="col-span-3">
+                    <select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.accountId` as const)}>
+                      <option value="">Select account…</option>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
+                      <option value="">— None —</option>
+                      {costCenters.map((cc) => (
+                        <option key={cc.id} value={cc.id}>{cc.code} — {cc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
+                      inputMode="decimal"
+                      placeholder="0"
+                      {...form.register(`lines.${idx}.debitAmount` as const)}
+                      onChange={(e) => {
+                        form.register(`lines.${idx}.debitAmount` as const).onChange(e);
+                        if (e.target.value.trim() && Number(e.target.value) > 0) {
+                          form.setValue(`lines.${idx}.creditAmount`, "");
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
+                      inputMode="decimal"
+                      placeholder="0"
+                      {...form.register(`lines.${idx}.creditAmount` as const)}
+                      onChange={(e) => {
+                        form.register(`lines.${idx}.creditAmount` as const).onChange(e);
+                        if (e.target.value.trim() && Number(e.target.value) > 0) {
+                          form.setValue(`lines.${idx}.debitAmount`, "");
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Line note" {...form.register(`lines.${idx}.description` as const)} />
+                  </div>
+                  <div className="col-span-1">
+                    <button
+                      type="button"
+                      className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
+                      onClick={() => remove(idx)}
+                      disabled={fields.length <= 2}
+                      title={fields.length <= 2 ? "At least 2 lines required" : "Remove"}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
