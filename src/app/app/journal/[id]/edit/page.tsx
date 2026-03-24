@@ -75,8 +75,8 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
     })),
   };
 
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 md:p-6 shadow-sm overflow-hidden">
+	  return (
+	    <div className="rounded-2xl border border-zinc-200 bg-white p-5 md:p-6 shadow-sm">
       <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-4">
         <div>
           <div className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Journal / القيود</div>

@@ -102,7 +102,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
           </aside>
 
-          <div className="min-w-0 overflow-hidden">
+	          <div className="min-w-0">
 	        <header className="sticky top-0 z-10 rounded-3xl border border-sky-200/60 bg-white/70 px-4 py-4 backdrop-blur ring-1 ring-sky-200/40 md:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">

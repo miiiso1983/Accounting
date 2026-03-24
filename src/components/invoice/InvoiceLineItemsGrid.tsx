@@ -77,13 +77,13 @@ export function InvoiceLineItemsGrid({ fields, register, setValue, products, cos
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const errs = errors as any;
 
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/30 p-4 md:p-5">
+	  return (
+	    <div className="min-w-0 rounded-2xl border border-zinc-200 bg-zinc-50/30 p-4 md:p-5">
       <div className="flex items-center justify-between gap-4 mb-3">
         <div className="text-sm font-medium text-zinc-900">Line items / بنود الفاتورة</div>
         <button type="button" className="shrink-0 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" onClick={onAppend}>Add line / إضافة بند</button>
       </div>
-      <div className="overflow-x-auto">
+	      <div className="w-full min-w-0 max-w-full overflow-x-auto">
         <table ref={tableRef} className="border-collapse" style={{ tableLayout: "fixed", minWidth: hasProducts ? 960 : 820 }}>
           <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead>
