@@ -92,7 +92,7 @@ export function InvoiceLineItemsGrid({ fields, register, setValue, products, cos
                 <th key={i} className="relative px-2 py-2 text-xs font-medium text-zinc-500 text-start select-none whitespace-nowrap">
                   {l}
                   {i < labels.length - 1 && (
-                    <div className="absolute top-0 end-0 h-full w-1.5 cursor-col-resize hover:bg-sky-300 active:bg-sky-400 z-10"
+                    <div className="absolute top-0 inset-e-0 h-full w-1.5 cursor-col-resize hover:bg-sky-300 active:bg-sky-400 z-10"
                       onMouseDown={e => onResizeStart(i, e)} onDoubleClick={() => onAutoFit(i)} />
                   )}
                 </th>
