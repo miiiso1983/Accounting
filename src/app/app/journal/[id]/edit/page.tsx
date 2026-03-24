@@ -76,18 +76,18 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
   };
 
   return (
-    <div className="rounded-3xl border border-zinc-200/80 bg-white p-6 md:p-8 shadow-lg shadow-zinc-200/50 ring-1 ring-zinc-100 overflow-hidden">
-      <div className="flex items-start justify-between gap-4">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 md:p-6 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-4">
         <div>
-          <div className="text-sm text-zinc-500">Journal</div>
-	          <div className="mt-1 text-base font-medium text-zinc-900">Edit manual journal entry</div>
+          <div className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Journal / القيود</div>
+          <div className="mt-1 text-lg font-semibold text-zinc-900">Edit journal entry / تعديل القيد</div>
         </div>
-        <Link className="text-sm underline text-zinc-700" href={`/app/journal/${id}`}>
-          Back to entry
+        <Link className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 transition hover:bg-zinc-50" href={`/app/journal/${id}`}>
+          ← Back
         </Link>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-5">
         <JournalEntryEditForm
           entryId={id}
           initialData={entryData}

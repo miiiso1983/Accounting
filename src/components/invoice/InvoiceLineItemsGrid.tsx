@@ -78,7 +78,7 @@ export function InvoiceLineItemsGrid({ fields, register, setValue, products, cos
   const errs = errors as any;
 
   return (
-    <div className="rounded-2xl border p-4 md:p-5">
+    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/30 p-4 md:p-5">
       <div className="flex items-center justify-between gap-4 mb-3">
         <div className="text-sm font-medium text-zinc-900">Line items / بنود الفاتورة</div>
         <button type="button" className="shrink-0 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" onClick={onAppend}>Add line / إضافة بند</button>
