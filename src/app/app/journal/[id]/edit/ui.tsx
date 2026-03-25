@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -61,6 +61,24 @@ const ApiErrSchema = z.object({ error: z.string().min(1) });
 
 type FormValues = z.infer<typeof FormSchema>;
 
+function autoResizeTextarea(el: HTMLTextAreaElement, maxRows: number) {
+  // Reset first so shrink works
+  el.style.height = "auto";
+
+  const cs = window.getComputedStyle(el);
+  const lhRaw = Number.parseFloat(cs.lineHeight);
+  const lineHeight = Number.isFinite(lhRaw) ? lhRaw : 20;
+  const padTop = Number.parseFloat(cs.paddingTop) || 0;
+  const padBot = Number.parseFloat(cs.paddingBottom) || 0;
+  const borderTop = Number.parseFloat(cs.borderTopWidth) || 0;
+  const borderBot = Number.parseFloat(cs.borderBottomWidth) || 0;
+  const maxHeight = lineHeight * maxRows + padTop + padBot + borderTop + borderBot;
+
+  const next = Math.min(el.scrollHeight, maxHeight);
+  el.style.height = `${next}px`;
+  el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
 export function JournalEntryEditForm({ entryId, initialData, accounts, costCenters, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -79,6 +97,12 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
 
   const currencyCode = useWatch({ control: form.control, name: "currencyCode" });
   const showFx = currencyCode && currencyCode !== baseCurrencyCode;
+
+	  const descriptionReg = form.register("description");
+	  const descriptionElRef = useRef<HTMLTextAreaElement | null>(null);
+	  useEffect(() => {
+	    if (descriptionElRef.current) autoResizeTextarea(descriptionElRef.current, 5);
+	  }, []);
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
@@ -153,7 +177,17 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
 
       <div>
         <label className="text-sm font-medium text-zinc-700">Description / الوصف</label>
-        <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="Memo / ملاحظة" {...form.register("description")} />
+	        <textarea
+	          rows={1}
+	          className="mt-1 w-full rounded-xl border px-3 py-2 text-sm resize-none"
+	          placeholder="Memo / ملاحظة"
+	          {...descriptionReg}
+	          ref={(el) => {
+	            descriptionReg.ref(el);
+	            descriptionElRef.current = el;
+	          }}
+	          onInput={(e) => autoResizeTextarea(e.currentTarget, 5)}
+	        />
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50/30 p-4 md:p-5">
@@ -227,9 +261,24 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
                       }}
                     />
                   </div>
-                  <div className="col-span-2">
-                    <input className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Line note" {...form.register(`lines.${idx}.description` as const)} />
-                  </div>
+	              	  <div className="col-span-2">
+	              	    {(() => {
+	              	      const reg = form.register(`lines.${idx}.description` as const);
+	              	      return (
+	              	        <textarea
+	              	          rows={1}
+	              	          className="w-full rounded-xl border px-3 py-2 text-sm resize-none"
+	              	          placeholder="Line note"
+	              	          {...reg}
+	              	          ref={(el) => {
+	              	            reg.ref(el);
+	              	            if (el) autoResizeTextarea(el, 3);
+	              	          }}
+	              	          onInput={(e) => autoResizeTextarea(e.currentTarget, 3)}
+	              	        />
+	              	      );
+	              	    })()}
+	              	  </div>
                   <div className="col-span-1">
                     <button
                       type="button"
