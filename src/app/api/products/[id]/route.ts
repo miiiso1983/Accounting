@@ -78,10 +78,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       data.revenueAccountId = null;
     } else {
       const acc = await prisma.glAccount.findFirst({
-        where: { id: requestedRevenueAccountId, companyId, type: "INCOME", isPosting: true },
+				where: { id: requestedRevenueAccountId, companyId, isPosting: true },
         select: { id: true },
       });
-      if (!acc) return Response.json({ error: "Revenue account not found or not an INCOME account" }, { status: 400 });
+			if (!acc) return Response.json({ error: "Linked account not found or not a posting account" }, { status: 400 });
       data.revenueAccountId = acc.id;
     }
   }

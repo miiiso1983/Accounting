@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
-import { getCachedCostCenters, getCachedGlAccounts } from "@/lib/db/cached-queries";
+import { getCachedCostCenters, getCachedPostingGlAccounts } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -30,7 +30,7 @@ export default async function NewProductPage() {
 
   const [costCenters, revenueAccounts] = await Promise.all([
     getCachedCostCenters(companyId),
-    getCachedGlAccounts(companyId, "INCOME"),
+		getCachedPostingGlAccounts(companyId),
   ]);
 
   return (

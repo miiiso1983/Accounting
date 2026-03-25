@@ -80,6 +80,22 @@ export function getCachedGlAccounts(companyId: string, type: "INCOME" | "EXPENSE
   )();
 }
 
+// ── GL Accounts (all types, posting only) ──────────────────────────
+// Used by features (e.g. Products linked account) that must allow any account type.
+export function getCachedPostingGlAccounts(companyId: string) {
+  return unstable_cache(
+    () =>
+      prisma.glAccount.findMany({
+        where: { companyId, isPosting: true },
+        orderBy: [{ code: "asc" }],
+        select: { id: true, code: true, name: true },
+        take: 2000,
+      }),
+    [`gl-posting-accounts-${companyId}`],
+    { revalidate: MEDIUM, tags: [`gl-accounts-${companyId}`] },
+  )();
+}
+
 // ── Payment accounts (cash/bank/AP codes) ─────────────────────────
 export function getCachedPaymentAccounts(companyId: string) {
   return unstable_cache(

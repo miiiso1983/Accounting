@@ -67,10 +67,10 @@ export async function POST(req: Request) {
   const requestedRevenueAccountId = body.data.revenueAccountId?.trim();
   if (requestedRevenueAccountId) {
     const acc = await prisma.glAccount.findFirst({
-      where: { id: requestedRevenueAccountId, companyId: user.companyId, type: "INCOME", isPosting: true },
+			where: { id: requestedRevenueAccountId, companyId: user.companyId, isPosting: true },
       select: { id: true },
     });
-    if (!acc) return Response.json({ error: "Revenue account not found or not an INCOME account" }, { status: 400 });
+		if (!acc) return Response.json({ error: "Linked account not found or not a posting account" }, { status: 400 });
     revenueAccountId = acc.id;
   }
 
