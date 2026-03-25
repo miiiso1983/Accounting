@@ -67,6 +67,7 @@ export default async function CollectionsPage({
       status: true,
       customer: { select: { id: true, name: true } },
       payments: {
+        where: paymentDateWhere ? { paymentDate: paymentDateWhere } : undefined,
         select: { paymentDate: true, amountBase: true },
         orderBy: { paymentDate: "desc" },
       },
@@ -130,11 +131,11 @@ export default async function CollectionsPage({
 
       <form className="mt-4 grid gap-3 md:grid-cols-6" method="GET" action="/app/reports/collections">
         <div className="md:col-span-2">
-          <label className="text-xs font-medium text-zinc-600">From / من</label>
+          <label className="text-xs font-medium text-zinc-600">Paid From / من (تاريخ الدفع)</label>
           <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="from" defaultValue={from ?? ""} />
         </div>
         <div className="md:col-span-2">
-          <label className="text-xs font-medium text-zinc-600">To / إلى</label>
+          <label className="text-xs font-medium text-zinc-600">Paid To / إلى (تاريخ الدفع)</label>
           <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="to" defaultValue={to ?? ""} />
         </div>
         <div className="md:col-span-2 flex items-end">

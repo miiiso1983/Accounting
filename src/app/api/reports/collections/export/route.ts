@@ -33,35 +33,83 @@ export async function GET(req: Request) {
   const fromDate = parseDateStart(from);
   const toDate = parseDateEnd(to);
 
-  const invoices = await prisma.invoice.findMany({
+  const paymentDateWhere = fromDate || toDate
+    ? { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) }
+    : undefined;
+
+  // Export is aligned with the UI: filter by InvoicePayment.paymentDate and aggregate per invoice.
+  const payments = await prisma.invoicePayment.findMany({
     where: {
       companyId,
-      status: "PAID",
-      ...(fromDate || toDate ? { updatedAt: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } } : {}),
+      ...(paymentDateWhere ? { paymentDate: paymentDateWhere } : {}),
     },
     select: {
-      invoiceNumber: true,
-      issueDate: true,
-      updatedAt: true,
-      totalBase: true,
-      currencyCode: true,
-      customer: { select: { name: true } },
+      invoiceId: true,
+      paymentDate: true,
+      amountBase: true,
+      invoice: {
+        select: {
+          invoiceNumber: true,
+          issueDate: true,
+          totalBase: true,
+          currencyCode: true,
+          customer: { select: { name: true } },
+        },
+      },
     },
-    orderBy: [{ customer: { name: "asc" } }, { updatedAt: "desc" }],
+    orderBy: { paymentDate: "desc" },
+    take: 100000,
   });
 
-  const rows = invoices.map((inv) => {
-    const daysToCollect = Math.max(0, Math.floor((inv.updatedAt.getTime() - inv.issueDate.getTime()) / 86400000));
-    return {
-      Customer: inv.customer.name,
-      "Invoice #": inv.invoiceNumber,
-      "Issue Date": inv.issueDate.toISOString().slice(0, 10),
-      "Paid Date": inv.updatedAt.toISOString().slice(0, 10),
-      Amount: Number(inv.totalBase),
-      Currency: inv.currencyCode,
-      "Days to Collect": daysToCollect,
-    };
-  });
+  type Agg = {
+    customer: string;
+    invoiceNumber: string;
+    issueDate: Date;
+    paidDate: Date;
+    totalAmount: number;
+    collectedAmount: number;
+    currency: string;
+  };
+
+  const byInvoiceId = new Map<string, Agg>();
+  for (const p of payments) {
+    const existing = byInvoiceId.get(p.invoiceId);
+    if (!existing) {
+      byInvoiceId.set(p.invoiceId, {
+        customer: p.invoice.customer.name,
+        invoiceNumber: p.invoice.invoiceNumber,
+        issueDate: p.invoice.issueDate,
+        paidDate: p.paymentDate,
+        totalAmount: Number(p.invoice.totalBase),
+        collectedAmount: Number(p.amountBase),
+        currency: p.invoice.currencyCode,
+      });
+      continue;
+    }
+
+    existing.collectedAmount += Number(p.amountBase);
+    if (p.paymentDate.getTime() > existing.paidDate.getTime()) existing.paidDate = p.paymentDate;
+  }
+
+  const rows = [...byInvoiceId.values()]
+    .sort((a, b) => {
+      const c = a.customer.localeCompare(b.customer);
+      if (c !== 0) return c;
+      return b.paidDate.getTime() - a.paidDate.getTime();
+    })
+    .map((r) => {
+      const daysToCollect = Math.max(0, Math.floor((r.paidDate.getTime() - r.issueDate.getTime()) / 86400000));
+      return {
+        Customer: r.customer,
+        "Invoice #": r.invoiceNumber,
+        "Issue Date": r.issueDate.toISOString().slice(0, 10),
+        "Paid Date": r.paidDate.toISOString().slice(0, 10),
+        Total: r.totalAmount,
+        Collected: r.collectedAmount,
+        Currency: r.currency,
+        "Days to Collect": daysToCollect,
+      };
+    });
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
