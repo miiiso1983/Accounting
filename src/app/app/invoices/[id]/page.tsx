@@ -38,6 +38,7 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
       payments: { orderBy: { paymentDate: "desc" } },
       journalEntry: { select: { id: true } },
       salesRepresentative: { select: { id: true, name: true } },
+      branch: { select: { id: true, code: true, name: true } },
     },
   });
 
@@ -68,6 +69,9 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
           <div className="mt-1 text-xs text-zinc-500">Customer: {invoice.customer.name}</div>
           {invoice.salesRepresentative ? (
             <div className="mt-0.5 text-xs text-zinc-500">Sales Rep / المندوب: {invoice.salesRepresentative.name}</div>
+          ) : null}
+          {invoice.branch ? (
+            <div className="mt-0.5 text-xs text-zinc-500">Branch / الفرع: {invoice.branch.code} — {invoice.branch.name}</div>
           ) : null}
         </div>
         <div className="flex items-center gap-3">

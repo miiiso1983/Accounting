@@ -104,7 +104,7 @@ export default async function InvoicesIndexPage({
           : {}),
       },
       orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
-      include: { customer: { select: { id: true, name: true } } },
+      include: { customer: { select: { id: true, name: true } }, branch: { select: { code: true, name: true } } },
       take,
     }),
   ]);
@@ -245,6 +245,7 @@ export default async function InvoicesIndexPage({
               <th className="py-2 pr-3">Date</th>
               <th className="py-2 pr-3">Invoice #</th>
               <th className="py-2 pr-3">Customer</th>
+              <th className="py-2 pr-3">Branch / الفرع</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3">Total (base)</th>
               <th className="py-2 pr-3">Received (base) / المستلم</th>
@@ -260,6 +261,7 @@ export default async function InvoicesIndexPage({
                   <Link className="underline text-zinc-700" href={`/app/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
                 </td>
                 <td className="py-2 pr-3 text-zinc-900">{inv.customer.name}</td>
+                <td className="py-2 pr-3 text-zinc-700">{inv.branch ? `${inv.branch.code}` : "-"}</td>
                 <td className="py-2 pr-3 text-zinc-700">{inv.status}</td>
                 <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(inv.totalBase)}</td>
                 <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(receivedBase)}</td>

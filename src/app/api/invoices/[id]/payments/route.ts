@@ -90,6 +90,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     select: {
       id: true,
       companyId: true,
+			branchId: true,
       invoiceNumber: true,
       status: true,
       currencyCode: true,
@@ -179,6 +180,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       const entry = await createPostedJournalEntryTx(tx, {
         companyId: invoice.companyId,
+				branchId: invoice.branchId ?? undefined,
         entryDate: paymentDate,
         description: `Payment for Invoice ${invoice.invoiceNumber}`,
         baseCurrencyCode: invoice.baseCurrencyCode,

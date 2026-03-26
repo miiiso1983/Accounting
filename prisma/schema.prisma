@@ -85,26 +85,26 @@ enum InstallmentContractStatus {
 }
 
 model Company {
-  id                 String       @id @default(cuid())
-  name               String
-  baseCurrencyCode   CurrencyCode @default(IQD)
-  secondaryCurrency  CurrencyCode? @default(USD)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id                String        @id @default(cuid())
+  name              String
+  baseCurrencyCode  CurrencyCode  @default(IQD)
+  secondaryCurrency CurrencyCode? @default(USD)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
-  users              User[]
-  glAccounts         GlAccount[]
-  exchangeRates      ExchangeRate[]
-  customers          Customer[]
-  invoices           Invoice[]
-  invoicePayments    InvoicePayment[]
-  expenses           Expense[]
-  journalEntries     JournalEntry[]
-  attachments        Attachment[]
-  products           Product[]
-  costCenters        CostCenter[]
-  branches           Branch[]
-  printTemplates     PrintTemplate[]
+  users                User[]
+  glAccounts           GlAccount[]
+  exchangeRates        ExchangeRate[]
+  customers            Customer[]
+  invoices             Invoice[]
+  invoicePayments      InvoicePayment[]
+  expenses             Expense[]
+  journalEntries       JournalEntry[]
+  attachments          Attachment[]
+  products             Product[]
+  costCenters          CostCenter[]
+  branches             Branch[]
+  printTemplates       PrintTemplate[]
   installmentContracts InstallmentContract[]
   salesRepresentatives SalesRepresentative[]
 }
@@ -112,49 +112,56 @@ model Company {
 // --- Auth.js / NextAuth v4 models (Prisma Adapter) ---
 
 model User {
-  id            String     @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?    @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
-  isActive      Boolean    @default(true)
+  isActive      Boolean   @default(true)
 
   // Credentials auth support
-  passwordHash  String?
+  passwordHash String?
 
-  companyId     String?
-  company       Company?   @relation(fields: [companyId], references: [id])
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
 
-  accounts      Account[]
-  sessions      Session[]
-  roles         UserRole[]
-  permissions   UserPermission[]
+  // Default branch preference (optional for backward compatibility)
+  defaultBranchId String?
+  defaultBranch   Branch? @relation("UserDefaultBranch", fields: [defaultBranchId], references: [id], onDelete: SetNull)
+
+  accounts    Account[]
+  sessions    Session[]
+  roles       UserRole[]
+  permissions UserPermission[]
 
   // Operational links
-  createdJournalEntries JournalEntry[]
+  createdJournalEntries  JournalEntry[]
   createdInvoicePayments InvoicePayment[]
-  uploadedAttachments   Attachment[]
+  uploadedAttachments    Attachment[]
 
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([defaultBranchId])
 }
 
 // NOTE: NextAuth Prisma Adapter expects this model to be named `Account`.
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
 
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -165,7 +172,7 @@ model Session {
   userId       String
   expires      DateTime
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -179,8 +186,8 @@ model VerificationToken {
 // --- RBAC ---
 
 model Role {
-  id          String          @id @default(cuid())
-  key         String          @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   name        String
   description String?
 
@@ -189,20 +196,20 @@ model Role {
 }
 
 model Permission {
-  id          String           @id @default(cuid())
-  key         String           @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   description String?
 
-  roles       RolePermission[]
-  users       UserPermission[]
+  roles RolePermission[]
+  users UserPermission[]
 }
 
 model UserRole {
   userId String
   roleId String
 
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
 }
@@ -211,8 +218,8 @@ model UserPermission {
   userId       String
   permissionId String
 
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([userId, permissionId])
 }
@@ -221,8 +228,8 @@ model RolePermission {
   roleId       String
   permissionId String
 
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
 }
@@ -231,30 +238,30 @@ model RolePermission {
 
 model ExchangeRate {
   id                String       @id @default(cuid())
-  companyId          String
-  baseCurrencyCode   CurrencyCode
-  quoteCurrencyCode  CurrencyCode
+  companyId         String
+  baseCurrencyCode  CurrencyCode
+  quoteCurrencyCode CurrencyCode
 
   // 1 baseCurrencyCode = rate quoteCurrencyCode
-  rate              Decimal      @db.Decimal(20, 8)
-  effectiveAt       DateTime
-  source            String?
+  rate        Decimal  @db.Decimal(20, 8)
+  effectiveAt DateTime
+  source      String?
 
-  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Inverse relations
-  journalEntries    JournalEntry[]
-  invoices          Invoice[]
-  expenses          Expense[]
-  invoicePayments   InvoicePayment[]
+  journalEntries  JournalEntry[]
+  invoices        Invoice[]
+  expenses        Expense[]
+  invoicePayments InvoicePayment[]
 
   @@index([companyId, baseCurrencyCode, quoteCurrencyCode, effectiveAt])
 }
 
 // General Ledger (Chart of Accounts)
 model GlAccount {
-  id            String      @id @default(cuid())
-  companyId      String
+  id        String @id @default(cuid())
+  companyId String
 
   code          String
   name          String
@@ -262,29 +269,29 @@ model GlAccount {
   subType       String?
   normalBalance Dc
 
-  parentId      String?
-  parent        GlAccount?    @relation("AccountTree", fields: [parentId], references: [id])
-  children      GlAccount[]   @relation("AccountTree")
+  parentId String?
+  parent   GlAccount?  @relation("AccountTree", fields: [parentId], references: [id])
+  children GlAccount[] @relation("AccountTree")
 
-  isPosting     Boolean     @default(true)
+  isPosting Boolean @default(true)
 
   // Optional: currency-denominated account (e.g., USD bank account)
-  currencyCode  CurrencyCode?
+  currencyCode CurrencyCode?
 
-  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  journalLines  JournalLine[]
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalLines JournalLine[]
 
   // Inverse relation for Expense.expenseAccount
-  expenses      Expense[]
+  expenses Expense[]
 
   // Inverse relation for ExpenseLineItem.account
-  expenseLineItems  ExpenseLineItem[]
+  expenseLineItems ExpenseLineItem[]
 
   // Inverse relation for Product.revenueAccount
   revenueProducts Product[]
 
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([companyId, code])
   @@index([companyId, type])
@@ -292,65 +299,70 @@ model GlAccount {
 }
 
 model JournalEntry {
-  id               String             @id @default(cuid())
-  companyId         String
-  entryNumber      Int                @default(0)
-  type             JournalEntryType   @default(MANUAL)
-  status           JournalEntryStatus @default(DRAFT)
+  id          String             @id @default(cuid())
+  companyId   String
+  entryNumber Int                @default(0)
+  type        JournalEntryType   @default(MANUAL)
+  status      JournalEntryStatus @default(DRAFT)
 
-  entryDate        DateTime
-  description      String?
+  // Optional branch (nullable to support existing data)
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  entryDate   DateTime
+  description String?
 
   // Snapshot of reporting/base currency used for conversion
   baseCurrencyCode CurrencyCode
 
   // Optional: transaction currency for the entry
-  currencyCode     CurrencyCode?
-  exchangeRateId   String?
-  exchangeRate     ExchangeRate?      @relation(fields: [exchangeRateId], references: [id])
+  currencyCode   CurrencyCode?
+  exchangeRateId String?
+  exchangeRate   ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
 
-  referenceType    String?
-  referenceId      String?
+  referenceType String?
+  referenceId   String?
 
-  createdById      String?
-  createdBy        User?              @relation(fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id])
 
-  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lines            JournalLine[]
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   JournalLine[]
 
   // Optional links from documents
-  invoices         Invoice[]
-  expenses         Expense[]
-  invoicePayments  InvoicePayment[]
+  invoices        Invoice[]
+  expenses        Expense[]
+  invoicePayments InvoicePayment[]
 
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([companyId, type, entryNumber])
   @@index([companyId, entryDate])
+  @@index([companyId, branchId])
   @@index([companyId, type])
   @@index([companyId, status])
 }
 
 model JournalLine {
-  id               String       @id @default(cuid())
-  journalEntryId   String
-  accountId        String
+  id             String @id @default(cuid())
+  journalEntryId String
+  accountId      String
 
-  costCenterId     String?
+  costCenterId String?
 
-  dc               Dc
+  dc           Dc
   // amount in the line currency
-  amount           Decimal      @db.Decimal(20, 6)
-  currencyCode     CurrencyCode
+  amount       Decimal      @db.Decimal(20, 6)
+  currencyCode CurrencyCode
 
   // amount converted to entry.baseCurrencyCode at posting time
-  amountBase       Decimal      @db.Decimal(20, 6)
-  description      String?
+  amountBase  Decimal @db.Decimal(20, 6)
+  description String?
 
-  journalEntry     JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account          GlAccount    @relation(fields: [accountId], references: [id])
-  costCenter       CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      GlAccount    @relation(fields: [accountId], references: [id])
+  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
 
   @@index([journalEntryId])
   @@index([accountId])
@@ -358,20 +370,20 @@ model JournalLine {
 }
 
 model CostCenter {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
-  code      String
-  name      String
-  isActive  Boolean  @default(true)
+  code     String
+  name     String
+  isActive Boolean @default(true)
 
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  journalLines      JournalLine[]
-  products          Product[]
-  expenses          Expense[]
-  expenseLineItems  ExpenseLineItem[]
-  invoiceLineItems  InvoiceLineItem[]
+  journalLines     JournalLine[]
+  products         Product[]
+  expenses         Expense[]
+  expenseLineItems ExpenseLineItem[]
+  invoiceLineItems InvoiceLineItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -382,16 +394,21 @@ model CostCenter {
 }
 
 model Branch {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
-  code      String
-  name      String
-  address   String?
-  phone     String?
-  isActive  Boolean  @default(true)
+  code     String
+  name     String
+  address  String?
+  phone    String?
+  isActive Boolean @default(true)
 
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Inverse relations
+  invoices       Invoice[]
+  journalEntries JournalEntry[]
+  defaultUsers   User[]         @relation("UserDefaultBranch")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -402,20 +419,20 @@ model Branch {
 }
 
 model PrintTemplate {
-  id         String            @id @default(cuid())
-  companyId   String
+  id        String @id @default(cuid())
+  companyId String
 
-  name        String
-  type        PrintTemplateType
-  headerHtml  String           @db.Text
-  footerHtml  String           @db.Text
-  logoUrl     String?
-  isDefault   Boolean          @default(false)
+  name       String
+  type       PrintTemplateType
+  headerHtml String            @db.Text
+  footerHtml String            @db.Text
+  logoUrl    String?
+  isDefault  Boolean           @default(false)
 
-  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([companyId, type])
   @@index([companyId, isDefault])
@@ -425,24 +442,24 @@ model PrintTemplate {
 // --- Products/Items ---
 
 model Product {
-  id            String       @id @default(cuid())
-  companyId     String
-  name          String
-  description   String?
-  unitPrice     Decimal      @db.Decimal(20, 6)
-  currencyCode  CurrencyCode @default(IQD)
-  isActive      Boolean      @default(true)
+  id           String       @id @default(cuid())
+  companyId    String
+  name         String
+  description  String?
+  unitPrice    Decimal      @db.Decimal(20, 6)
+  currencyCode CurrencyCode @default(IQD)
+  isActive     Boolean      @default(true)
 
-  costCenterId       String?
-  revenueAccountId   String?
+  costCenterId     String?
+  revenueAccountId String?
 
-  company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  costCenter    CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  company        Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenter     CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   revenueAccount GlAccount?  @relation(fields: [revenueAccountId], references: [id], onDelete: SetNull)
-  expenses      Expense[]
+  expenses       Expense[]
 
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([companyId, isActive])
   @@index([companyId, name])
@@ -452,15 +469,15 @@ model Product {
 // --- Sales Representatives ---
 
 model SalesRepresentative {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   companyId String
   name      String
   email     String?
   phone     String?
-  isActive  Boolean  @default(true)
+  isActive  Boolean @default(true)
 
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoices  Invoice[]
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -472,158 +489,163 @@ model SalesRepresentative {
 // --- Sales/Invoicing ---
 
 model Customer {
-  id         String   @id @default(cuid())
-  companyId  String
-  name       String
+  id          String  @id @default(cuid())
+  companyId   String
+  name        String
   companyName String?
-  email      String?
-  phone      String?
-  address1   String?
-  address2   String?
-  city       String?
-  country    String?
+  email       String?
+  phone       String?
+  address1    String?
+  address2    String?
+  city        String?
+  country     String?
 
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoices   Invoice[]
+  company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices             Invoice[]
   installmentContracts InstallmentContract[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([companyId, name])
 }
 
 model Invoice {
-  id               String       @id @default(cuid())
-  companyId         String
-  customerId        String
+  id         String @id @default(cuid())
+  companyId  String
+  customerId String
 
-  invoiceNumber     String
-  status            InvoiceStatus @default(DRAFT)
-  issueDate         DateTime
-  dueDate           DateTime?
+  invoiceNumber String
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime
+  dueDate       DateTime?
 
-  currencyCode      CurrencyCode
-  baseCurrencyCode  CurrencyCode
-  exchangeRateId    String?
-  exchangeRate      ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+  currencyCode     CurrencyCode
+  baseCurrencyCode CurrencyCode
+  exchangeRateId   String?
+  exchangeRate     ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
 
-  subtotal          Decimal      @db.Decimal(20, 6)
-  discountType      String?      // "PERCENTAGE" | "FIXED"
-  discountValue     Decimal      @default(0) @db.Decimal(20, 6)
-  discountAmount    Decimal      @default(0) @db.Decimal(20, 6)
-  taxTotal          Decimal      @default(0) @db.Decimal(20, 6)
-  total             Decimal      @db.Decimal(20, 6)
+  // Optional branch (nullable to support existing data)
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
-  subtotalBase      Decimal      @db.Decimal(20, 6)
-  discountAmountBase Decimal     @default(0) @db.Decimal(20, 6)
-  taxTotalBase      Decimal      @default(0) @db.Decimal(20, 6)
-  totalBase         Decimal      @db.Decimal(20, 6)
+  subtotal       Decimal @db.Decimal(20, 6)
+  discountType   String? // "PERCENTAGE" | "FIXED"
+  discountValue  Decimal @default(0) @db.Decimal(20, 6)
+  discountAmount Decimal @default(0) @db.Decimal(20, 6)
+  taxTotal       Decimal @default(0) @db.Decimal(20, 6)
+  total          Decimal @db.Decimal(20, 6)
 
-  paymentTerms      String? // "MONTHLY" | "QUARTERLY" | "YEARLY"
-  templateKey       String? // for customizable templates
-  qrPayload         String?
+  subtotalBase       Decimal @db.Decimal(20, 6)
+  discountAmountBase Decimal @default(0) @db.Decimal(20, 6)
+  taxTotalBase       Decimal @default(0) @db.Decimal(20, 6)
+  totalBase          Decimal @db.Decimal(20, 6)
+
+  paymentTerms String? // "MONTHLY" | "QUARTERLY" | "YEARLY"
+  templateKey  String? // for customizable templates
+  qrPayload    String?
 
   salesRepresentativeId String?
   salesRepresentative   SalesRepresentative? @relation(fields: [salesRepresentativeId], references: [id], onDelete: SetNull)
 
-  customer          Customer  @relation(fields: [customerId], references: [id])
-  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lineItems         InvoiceLineItem[]
-  attachments       Attachment[]
-  payments          InvoicePayment[]
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineItems   InvoiceLineItem[]
+  attachments Attachment[]
+  payments    InvoicePayment[]
 
   // Optional linkage to posted accounting entry
-  journalEntryId    String?
-  journalEntry      JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  journalEntryId String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId, issueDate])
+  @@index([companyId, branchId])
   @@index([companyId, status])
   @@index([companyId, salesRepresentativeId])
 }
 
 model InvoicePayment {
-  id               String       @id @default(cuid())
-  companyId         String
-  invoiceId         String
+  id        String @id @default(cuid())
+  companyId String
+  invoiceId String
 
-  paymentDate      DateTime
-  method           String? // CASH | BANK | TRANSFER ...
-  note             String?
+  paymentDate DateTime
+  method      String? // CASH | BANK | TRANSFER ...
+  note        String?
 
-  amount           Decimal      @db.Decimal(20, 6)
-  currencyCode     CurrencyCode
+  amount       Decimal      @db.Decimal(20, 6)
+  currencyCode CurrencyCode
 
   // Snapshot of base currency used for conversion at posting time
   baseCurrencyCode CurrencyCode
   exchangeRateId   String?
   exchangeRate     ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
-  amountBase       Decimal      @db.Decimal(20, 6)
+  amountBase       Decimal       @db.Decimal(20, 6)
 
   // Optional linkage to posted accounting entry
-  journalEntryId   String?
-  journalEntry     JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  journalEntryId String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
 
-  createdById      String?
-  createdBy        User?        @relation(fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id])
 
-  company          Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoice          Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([companyId, paymentDate])
   @@index([companyId, invoiceId])
 }
 
 model InvoiceLineItem {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  description String
-  quantity    Decimal  @db.Decimal(20, 6)
-  unitPrice   Decimal  @db.Decimal(20, 6)
-  discountType String? // "PERCENTAGE" | "FIXED"
-  discountValue Decimal @default(0) @db.Decimal(20, 6)
-  lineTotal   Decimal  @db.Decimal(20, 6)
-  taxRate     Decimal? @db.Decimal(20, 6) // e.g. 0.05
+  id            String   @id @default(cuid())
+  invoiceId     String
+  description   String
+  quantity      Decimal  @db.Decimal(20, 6)
+  unitPrice     Decimal  @db.Decimal(20, 6)
+  discountType  String? // "PERCENTAGE" | "FIXED"
+  discountValue Decimal  @default(0) @db.Decimal(20, 6)
+  lineTotal     Decimal  @db.Decimal(20, 6)
+  taxRate       Decimal? @db.Decimal(20, 6) // e.g. 0.05
 
   costCenterId String?
 
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  costCenter  CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  costCenter CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
   @@index([costCenterId])
 }
 
 model InstallmentContract {
-  id                    String                    @id @default(cuid())
-  companyId             String
-  customerId            String
+  id         String @id @default(cuid())
+  companyId  String
+  customerId String
 
-  productName           String
-  invoiceNumber         String
-  invoiceDate           DateTime
+  productName   String
+  invoiceNumber String
+  invoiceDate   DateTime
 
-  durationMonths        Int
-  totalAmount           Decimal                   @db.Decimal(20, 6)
-  currencyCode          CurrencyCode
+  durationMonths Int
+  totalAmount    Decimal      @db.Decimal(20, 6)
+  currencyCode   CurrencyCode
 
-  installmentFrequency  InstallmentFrequency
-  numberOfInstallments  Int
-  amountPerInstallment  Decimal                   @db.Decimal(20, 6)
-  status                InstallmentContractStatus @default(ACTIVE)
+  installmentFrequency InstallmentFrequency
+  numberOfInstallments Int
+  amountPerInstallment Decimal                   @db.Decimal(20, 6)
+  status               InstallmentContractStatus @default(ACTIVE)
 
-  company               Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer              Customer                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId, invoiceDate])
@@ -634,45 +656,45 @@ model InstallmentContract {
 // --- Expenses ---
 
 model Expense {
-  id               String        @id @default(cuid())
-  companyId         String
+  id        String @id @default(cuid())
+  companyId String
 
-  expenseNumber     String?
-  status            ExpenseStatus @default(DRAFT)
-  expenseDate       DateTime
+  expenseNumber String?
+  status        ExpenseStatus @default(DRAFT)
+  expenseDate   DateTime
 
-  vendorName        String?
-  description       String?
+  vendorName  String?
+  description String?
 
   // Optional link to the product/item this expense was spent on
-  productId         String?
-  product           Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
-  costCenterId      String?
-  costCenter        CostCenter?   @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  costCenterId String?
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
 
-  currencyCode      CurrencyCode
-  baseCurrencyCode  CurrencyCode
-  exchangeRateId    String?
-  exchangeRate      ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+  currencyCode     CurrencyCode
+  baseCurrencyCode CurrencyCode
+  exchangeRateId   String?
+  exchangeRate     ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
 
-  total             Decimal      @db.Decimal(20, 6)
-  totalBase         Decimal      @db.Decimal(20, 6)
+  total     Decimal @db.Decimal(20, 6)
+  totalBase Decimal @db.Decimal(20, 6)
 
   // Suggested posting account (e.g., expense category)
-  expenseAccountId  String?
-  expenseAccount    GlAccount?     @relation(fields: [expenseAccountId], references: [id])
+  expenseAccountId String?
+  expenseAccount   GlAccount? @relation(fields: [expenseAccountId], references: [id])
 
   // Optional linkage to posted accounting entry
-  journalEntryId    String?
-  journalEntry      JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  journalEntryId String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
 
-  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  attachments       Attachment[]
-  lineItems         ExpenseLineItem[]
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  lineItems   ExpenseLineItem[]
 
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([companyId, expenseNumber])
   @@index([companyId, expenseDate])
@@ -682,19 +704,19 @@ model Expense {
 }
 
 model ExpenseLineItem {
-  id              String      @id @default(cuid())
-  expenseId       String
+  id        String @id @default(cuid())
+  expenseId String
 
-  accountId       String
-  account         GlAccount   @relation(fields: [accountId], references: [id])
+  accountId String
+  account   GlAccount @relation(fields: [accountId], references: [id])
 
-  costCenterId    String?
-  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  costCenterId String?
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
 
-  description     String?
-  amount          Decimal     @db.Decimal(20, 6)
+  description String?
+  amount      Decimal @db.Decimal(20, 6)
 
-  expense         Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
   @@index([expenseId])
 }
@@ -702,28 +724,28 @@ model ExpenseLineItem {
 // --- Attachments (invoices + expenses) ---
 
 model Attachment {
-  id            String              @id @default(cuid())
-  companyId      String
-  ownerType     AttachmentOwnerType
+  id        String              @id @default(cuid())
+  companyId String
+  ownerType AttachmentOwnerType
 
-  invoiceId     String?
-  expenseId     String?
+  invoiceId String?
+  expenseId String?
 
-  originalName  String
-  mimeType      String
-  sizeBytes     Int
+  originalName String
+  mimeType     String
+  sizeBytes    Int
 
   // Storage reference (local path or object key)
-  storageKey    String
+  storageKey String
 
-  uploadedById  String?
-  uploadedBy    User?               @relation(fields: [uploadedById], references: [id])
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
 
-  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoice       Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  expense       Expense?            @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
-  createdAt     DateTime            @default(now())
+  createdAt DateTime @default(now())
 
   @@index([companyId, ownerType])
   @@index([invoiceId])

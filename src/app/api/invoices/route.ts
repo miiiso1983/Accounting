@@ -26,6 +26,7 @@ const BodySchema = z.object({
   paymentTerms: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
   salesRepresentativeId: z.string().optional().or(z.literal("")),
   mode: z.enum(["DRAFT", "SEND"]),
+	branchId: z.string().optional().or(z.literal("")),
   lines: z
     .array(
       z.object({
@@ -97,6 +98,9 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
 
+	const requestedBranchIdRaw = typeof body.branchId === "string" ? body.branchId.trim() : "";
+	const requestedBranchId = requestedBranchIdRaw.length > 0 ? requestedBranchIdRaw : null;
+
   const issueDate = new Date(`${body.issueDate}T00:00:00.000Z`);
   const dueDate = body.dueDate ? new Date(`${body.dueDate}T00:00:00.000Z`) : null;
   const baseCurrencyCode = company.baseCurrencyCode;
@@ -108,6 +112,11 @@ export async function POST(req: Request) {
     }
 
     const created = await prisma.$transaction(async (tx) => {
+			if (requestedBranchId) {
+				const b = await tx.branch.findFirst({ where: { id: requestedBranchId, companyId: company.id }, select: { id: true } });
+				if (!b) throw new Error("Invalid branch");
+			}
+
       const customer = await tx.customer.findFirst({ where: { id: body.customerId, companyId: company.id }, select: { id: true } });
       if (!customer) throw new Error("Customer not found");
 
@@ -221,6 +230,7 @@ export async function POST(req: Request) {
       const invoice = await tx.invoice.create({
         data: {
           companyId: company.id,
+					branchId: requestedBranchId,
           customerId: customer.id,
           invoiceNumber: body.invoiceNumber,
           status: body.mode === "SEND" ? "SENT" : "DRAFT",
@@ -254,7 +264,7 @@ export async function POST(req: Request) {
             })),
           },
         },
-        select: { id: true, invoiceNumber: true, issueDate: true, exchangeRateId: true, journalEntryId: true },
+				select: { id: true, invoiceNumber: true, issueDate: true, exchangeRateId: true, journalEntryId: true, branchId: true },
       });
 
       if (body.mode === "SEND") {
@@ -273,6 +283,7 @@ export async function POST(req: Request) {
 
         const entry = await createPostedJournalEntryTx(tx, {
           companyId: company.id,
+					branchId: invoice.branchId ?? undefined,
           entryDate: issueDate,
           description: `Invoice ${invoice.invoiceNumber}`,
           baseCurrencyCode,

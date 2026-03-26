@@ -23,6 +23,7 @@ const UpdateBodySchema = z.object({
   discountValue: z.string().optional().or(z.literal("")),
   paymentTerms: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
   salesRepresentativeId: z.string().optional().or(z.literal("")),
+	branchId: z.string().optional().or(z.literal("")),
   lines: z
     .array(
       z.object({
@@ -74,7 +75,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const existing = await prisma.invoice.findFirst({
     where: { id, companyId: company.id },
-    select: { id: true, status: true, journalEntryId: true, invoiceNumber: true },
+		select: { id: true, status: true, journalEntryId: true, invoiceNumber: true, branchId: true },
   });
   if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
   if (existing.status !== "DRAFT" && existing.status !== "SENT") {
@@ -87,6 +88,10 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
 
+	const requestedBranchIdRaw = typeof body.branchId === "string" ? body.branchId.trim() : undefined;
+	const nextBranchId =
+		requestedBranchIdRaw === undefined ? (existing.branchId ?? null) : (requestedBranchIdRaw.length > 0 ? requestedBranchIdRaw : null);
+
 
   const issueDate = new Date(`${body.issueDate}T00:00:00.000Z`);
   const dueDate = body.dueDate ? new Date(`${body.dueDate}T00:00:00.000Z`) : null;
@@ -95,6 +100,11 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
+			if (nextBranchId) {
+				const b = await tx.branch.findFirst({ where: { id: nextBranchId, companyId: company.id }, select: { id: true } });
+				if (!b) throw new Error("Invalid branch");
+			}
+
       const customer = await tx.customer.findFirst({ where: { id: body.customerId, companyId: company.id }, select: { id: true } });
       if (!customer) throw new Error("Customer not found");
 
@@ -199,6 +209,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
         where: { id },
         data: {
           customerId: customer.id,
+					...(requestedBranchIdRaw === undefined ? {} : { branchId: nextBranchId }),
           invoiceNumber: body.invoiceNumber,
           issueDate,
           dueDate,
@@ -245,6 +256,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
           // Create reversal entry
           await createPostedJournalEntryTx(tx, {
             companyId: company.id,
+						branchId: oldEntry.branchId ?? existing.branchId ?? undefined,
             entryDate: issueDate,
             description: `Reversal: Invoice ${existing.invoiceNumber} (edit)`,
             baseCurrencyCode,
@@ -287,6 +299,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
 
         const newEntry = await createPostedJournalEntryTx(tx, {
           companyId: company.id,
+					branchId: nextBranchId ?? undefined,
           entryDate: issueDate,
           description: `Invoice ${body.invoiceNumber}`,
           baseCurrencyCode,

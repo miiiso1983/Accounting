@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedBranches } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -19,7 +20,7 @@ export default async function NewJournalEntryPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { companyId: true },
+    select: { companyId: true, defaultBranchId: true },
   });
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
@@ -42,6 +43,10 @@ export default async function NewJournalEntryPage() {
 		select: { id: true, code: true, name: true },
 	});
 
+	const branchesActive = await getCachedBranches(companyId);
+	const defaultBranchId = user.defaultBranchId ?? undefined;
+	const branches = branchesActive.map((b) => ({ ...b, isActive: true as const }));
+
 	  return (
 	    <div className="rounded-2xl border border-zinc-200 bg-white p-5 md:p-6 shadow-sm">
       <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-4">
@@ -55,7 +60,7 @@ export default async function NewJournalEntryPage() {
       </div>
 
       <div className="mt-5">
-		<JournalEntryForm accounts={accounts} costCenters={costCenters} baseCurrencyCode={company.baseCurrencyCode} />
+		<JournalEntryForm accounts={accounts} costCenters={costCenters} branches={branches} baseCurrencyCode={company.baseCurrencyCode} defaultBranchId={defaultBranchId} />
       </div>
     </div>
   );

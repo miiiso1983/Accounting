@@ -84,6 +84,7 @@ export default async function JournalIndexPage({
 			},
 			orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
 			include: {
+				branch: { select: { code: true, name: true } },
 				lines: {
 					include: { costCenter: { select: { code: true, name: true } } },
 				},
@@ -130,6 +131,7 @@ export default async function JournalIndexPage({
               <th className="py-2 pr-3">Description</th>
 						<th className="py-2 pr-3">Source</th>
 							<th className="py-2 pr-3">Cost Center</th>
+								<th className="py-2 pr-3">Branch / الفرع</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3">Debit (base)</th>
               <th className="py-2 pr-3">Credit (base)</th>
@@ -176,6 +178,7 @@ export default async function JournalIndexPage({
 											<div className="font-mono text-xs text-zinc-600">{refId || "-"}</div>
 										</td>
 										<td className="py-2 pr-3 text-zinc-700">{costCenterCodes || "-"}</td>
+										<td className="py-2 pr-3 text-zinc-700">{e.branch ? `${e.branch.code}` : "-"}</td>
                   <td className="py-2 pr-3 text-zinc-700">{e.status}</td>
                   <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(totals.debit)}</td>
                   <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(totals.credit)}</td>

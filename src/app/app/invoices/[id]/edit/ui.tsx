@@ -13,11 +13,13 @@ type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
 type CostCenterOption = { id: string; code: string; name: string };
 type SalesRepOption = { id: string; name: string };
+type BranchOption = { id: string; code: string; name: string; isActive?: boolean };
 
 type InvoiceData = {
   id: string;
   invoiceNumber: string;
   customerId: string;
+  branchId: string;
   issueDate: string;
   dueDate: string;
   currencyCode: "IQD" | "USD";
@@ -36,6 +38,7 @@ type Props = {
   products: ProductOption[];
 	costCenters: CostCenterOption[];
 	salesReps: SalesRepOption[];
+	branches: BranchOption[];
   baseCurrencyCode: "IQD" | "USD";
 };
 
@@ -77,6 +80,7 @@ const OptionalPaymentTermsSchema = z.preprocess(
 const FormSchema = z.object({
   invoiceNumber: z.string().min(1),
   customerId: z.string().min(1),
+  branchId: z.preprocess((v) => (v === "" ? undefined : v), z.string().optional()),
   issueDate: z.string().min(1),
   dueDate: z.string().optional(),
   currencyCode: z.enum(["IQD", "USD"]),
@@ -105,7 +109,7 @@ async function readResponseData(res: Response) {
   }
 }
 
-export function InvoiceEditForm({ invoiceId, initialData, customers: initialCustomers, products, costCenters, salesReps, baseCurrencyCode }: Props) {
+export function InvoiceEditForm({ invoiceId, initialData, customers: initialCustomers, products, costCenters, salesReps, branches, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [customers, setCustomers] = useState(initialCustomers);
@@ -119,6 +123,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
     defaultValues: {
       invoiceNumber: initialData.invoiceNumber,
       customerId: initialData.customerId,
+      branchId: initialData.branchId,
       issueDate: initialData.issueDate,
       dueDate: initialData.dueDate,
       currencyCode: initialData.currencyCode,
@@ -193,6 +198,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
     setServerError(null);
     const payload = {
       ...values,
+      branchId: values.branchId ?? "",
       lines: values.lines.map((l) => ({
         ...l,
         discountType: l.discountValue && Number(l.discountValue) > 0 ? (l.discountType || "FIXED") : undefined,
@@ -256,6 +262,17 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
               </div>
               <button type="button" className="mt-1 shrink-0 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50" title="Add new customer / إضافة زبون جديد" onClick={() => setShowNewCustomer(true)}>+</button>
             </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-zinc-700">Branch / الفرع</label>
+            <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("branchId")} disabled={branches.length === 0}>
+              <option value="">— None / بدون —</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.code} — {b.name}{b.isActive === false ? " (Inactive / غير نشط)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700">Company name / اسم الشركة</label>

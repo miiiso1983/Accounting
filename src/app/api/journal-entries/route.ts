@@ -33,6 +33,7 @@ const BodySchema = z.object({
       }),
     )
     .min(2),
+	branchId: z.string().optional().or(z.literal("")),
 });
 
 export async function POST(req: Request) {
@@ -106,9 +107,19 @@ export async function POST(req: Request) {
     exchangeRateId = fx.id;
   }
 
+	const requestedBranchId = body.branchId?.trim() ? body.branchId.trim() : null;
+	if (requestedBranchId) {
+		const row = await prisma.branch.findFirst({
+			where: { id: requestedBranchId, companyId: company.id },
+			select: { id: true },
+		});
+		if (!row) return Response.json({ error: "Invalid branch" }, { status: 400 });
+	}
+
   try {
     const entry = await createPostedJournalEntry(prisma, {
       companyId: company.id,
+			branchId: requestedBranchId ?? undefined,
       entryDate,
       description: body.description,
       type: "MANUAL",

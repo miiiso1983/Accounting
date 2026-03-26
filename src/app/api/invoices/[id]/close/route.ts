@@ -31,7 +31,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: user.companyId },
     select: {
-      id: true, companyId: true, invoiceNumber: true, status: true,
+			id: true, companyId: true, branchId: true, invoiceNumber: true, status: true,
       issueDate: true, currencyCode: true, baseCurrencyCode: true,
       exchangeRateId: true, totalBase: true,
     },
@@ -70,6 +70,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
       const entry = await createPostedJournalEntryTx(tx, {
         companyId: invoice.companyId,
+				branchId: invoice.branchId ?? undefined,
         entryDate: new Date(),
         description: `Invoice Closure: ${invoice.invoiceNumber} — remaining balance write-down`,
         baseCurrencyCode: invoice.baseCurrencyCode,

@@ -11,7 +11,8 @@ import { QuickAccountModal, type QuickAccountResult } from "@/components/account
 
 type AccountOption = { id: string; code: string; name: string };
 type CostCenterOption = { id: string; code: string; name: string };
-type Props = { accounts: AccountOption[]; costCenters: CostCenterOption[]; baseCurrencyCode: "IQD" | "USD" };
+type BranchOption = { id: string; code: string; name: string; isActive?: boolean };
+type Props = { accounts: AccountOption[]; costCenters: CostCenterOption[]; branches: BranchOption[]; baseCurrencyCode: "IQD" | "USD"; defaultBranchId?: string };
 
 const LineSchema = z.object({
   accountId: z.string().min(1),
@@ -33,6 +34,7 @@ const LineSchema = z.object({
 const FormSchema = z.object({
   entryDate: z.string().min(1),
   description: z.string().optional(),
+  branchId: z.string().optional(),
   currencyCode: z.enum(["IQD", "USD"]).optional(),
   exchangeRate: z.string().optional(),
   lines: z.array(LineSchema).min(2),
@@ -61,7 +63,7 @@ function autoResizeTextarea(el: HTMLTextAreaElement, maxRows: number) {
   el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
-export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseCurrencyCode }: Props) {
+export function JournalEntryForm({ accounts: initialAccounts, costCenters, branches, baseCurrencyCode, defaultBranchId }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [accountList, setAccountList] = useState<AccountOption[]>(initialAccounts);
@@ -73,6 +75,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseC
     resolver: zodResolver(FormSchema),
     defaultValues: {
       entryDate: today,
+      branchId: defaultBranchId && branches.some((b) => b.id === defaultBranchId) ? defaultBranchId : "",
       currencyCode: baseCurrencyCode,
       lines: [
         { accountId: "", costCenterId: "", debitAmount: "", creditAmount: "", description: "" },
@@ -106,6 +109,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseC
     const payload = {
       entryDate: values.entryDate,
       description: values.description,
+      branchId: values.branchId ?? "",
       currencyCode: values.currencyCode,
       exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
       lines: values.lines.map((l) => {
@@ -153,6 +157,17 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, baseC
         <div>
           <label className="text-sm font-medium text-zinc-700">Entry date / تاريخ القيد</label>
           <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" type="date" {...form.register("entryDate")} />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-zinc-700">Branch / الفرع</label>
+          <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("branchId")} disabled={branches.length === 0}>
+            <option value="">— None / بدون —</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.code} — {b.name}{b.isActive === false ? " (Inactive / غير نشط)" : ""}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="text-sm font-medium text-zinc-700">Currency / العملة</label>

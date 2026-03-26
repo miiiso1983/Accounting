@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
-import { getCachedCustomers, getCachedProducts, getCachedCostCenters, getCachedSalesReps } from "@/lib/db/cached-queries";
+	import { getCachedBranches, getCachedCustomers, getCachedProducts, getCachedCostCenters, getCachedSalesReps } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -13,6 +13,7 @@ import { InvoiceForm } from "./ui";
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
 type CostCenterOption = { id: string; code: string; name: string };
 type SalesRepOption = { id: string; name: string };
+	type BranchOption = { id: string; code: string; name: string; isActive?: boolean };
 
 export default async function NewInvoicePage({
   searchParams,
@@ -30,19 +31,29 @@ export default async function NewInvoicePage({
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { companyId: true, company: { select: { baseCurrencyCode: true } } },
+		select: { companyId: true, defaultBranchId: true, company: { select: { baseCurrencyCode: true } } },
   });
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
   const company = user.company;
   if (!company) return <div className="rounded-2xl border bg-white p-5 text-sm">Company not found.</div>;
 
-  const [customers, productsRaw, costCenters, salesReps] = await Promise.all([
+	const [customers, productsRaw, costCenters, salesReps, branchesActive] = await Promise.all([
     getCachedCustomers(companyId),
     getCachedProducts(companyId),
     getCachedCostCenters(companyId),
     getCachedSalesReps(companyId),
+		getCachedBranches(companyId),
   ]);
+
+	const defaultBranchId = user.defaultBranchId ?? null;
+	const branches: BranchOption[] = branchesActive.map((b) => ({ ...b, isActive: true }));
+	const needsDefaultBranch = defaultBranchId && !branches.some((b) => b.id === defaultBranchId);
+	const defaultBranch = needsDefaultBranch
+		? await prisma.branch.findFirst({ where: { id: defaultBranchId!, companyId }, select: { id: true, code: true, name: true, isActive: true } })
+		: null;
+	if (defaultBranch) branches.push(defaultBranch);
+	branches.sort((a, b) => a.code.localeCompare(b.code));
 
   const products: ProductOption[] = productsRaw.map((p) => ({
     ...p,
@@ -70,8 +81,10 @@ export default async function NewInvoicePage({
           products={products}
           costCenters={costCenterOptions}
           salesReps={salesRepOptions}
+				branches={branches}
           baseCurrencyCode={company.baseCurrencyCode}
           defaultCustomerId={defaultCustomerId}
+				defaultBranchId={defaultBranchId ?? undefined}
         />
         {customers.length === 0 ? (
           <div className="mt-3 text-sm text-zinc-600">

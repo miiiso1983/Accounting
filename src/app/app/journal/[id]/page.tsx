@@ -37,6 +37,7 @@ export default async function JournalEntryDetailsPage({ params }: { params: Prom
       invoices: { select: { id: true, invoiceNumber: true } },
       expenses: { select: { id: true, expenseNumber: true } },
       invoicePayments: { select: { id: true, invoiceId: true } },
+      branch: { select: { id: true, code: true, name: true } },
       lines: {
         orderBy: [{ dc: "asc" }],
         include: { account: { select: { code: true, name: true } } },
@@ -78,6 +79,9 @@ export default async function JournalEntryDetailsPage({ params }: { params: Prom
             {entry.description ? ` — ${entry.description}` : ""}
           </div>
           <div className="mt-1 text-xs text-zinc-500">ID: {entry.id}</div>
+          {entry.branch ? (
+            <div className="mt-0.5 text-xs text-zinc-500">Branch / الفرع: {entry.branch.code} — {entry.branch.name}</div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <JournalExportButtons excelHref={`/api/journal-entries/${entry.id}/export`} />

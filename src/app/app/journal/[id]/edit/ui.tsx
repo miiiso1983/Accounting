@@ -8,11 +8,13 @@ import { z } from "zod";
 
 type AccountOption = { id: string; code: string; name: string };
 type CostCenterOption = { id: string; code: string; name: string };
+type BranchOption = { id: string; code: string; name: string; isActive?: boolean };
 
 type InitialData = {
   id: string;
   entryDate: string;
   description: string;
+  branchId: string;
   currencyCode: "IQD" | "USD";
   lines: Array<{
     accountId: string;
@@ -28,6 +30,7 @@ type Props = {
   initialData: InitialData;
   accounts: AccountOption[];
   costCenters: CostCenterOption[];
+  branches: BranchOption[];
   baseCurrencyCode: "IQD" | "USD";
 };
 
@@ -51,6 +54,7 @@ const LineSchema = z.object({
 const FormSchema = z.object({
   entryDate: z.string().min(1),
   description: z.string().optional(),
+  branchId: z.string().optional(),
   currencyCode: z.enum(["IQD", "USD"]).optional(),
   exchangeRate: z.string().optional(),
   lines: z.array(LineSchema).min(2),
@@ -79,7 +83,7 @@ function autoResizeTextarea(el: HTMLTextAreaElement, maxRows: number) {
   el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
-export function JournalEntryEditForm({ entryId, initialData, accounts, costCenters, baseCurrencyCode }: Props) {
+export function JournalEntryEditForm({ entryId, initialData, accounts, costCenters, branches, baseCurrencyCode }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -88,6 +92,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
     defaultValues: {
       entryDate: initialData.entryDate,
       description: initialData.description,
+      branchId: initialData.branchId,
       currencyCode: initialData.currencyCode,
       lines: initialData.lines,
     },
@@ -109,6 +114,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
     const payload = {
       entryDate: values.entryDate,
       description: values.description,
+      branchId: values.branchId || "",
       currencyCode: values.currencyCode,
       exchangeRate: showFx ? { rate: values.exchangeRate } : undefined,
       lines: values.lines.map((l) => {
@@ -154,6 +160,17 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
         <div>
           <label className="text-sm font-medium text-zinc-700">Entry date / تاريخ القيد</label>
           <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" type="date" {...form.register("entryDate")} />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-zinc-700">Branch / الفرع</label>
+          <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("branchId")} disabled={branches.length === 0}>
+            <option value="">— None / بدون —</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.code} — {b.name}{b.isActive === false ? " (Inactive / غير نشط)" : ""}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="text-sm font-medium text-zinc-700">Currency / العملة</label>
@@ -205,9 +222,9 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
 	        <div className="overflow-x-auto">
 	          <div className="w-max min-w-full">
 	            {/* Column headers */}
-	            <div className="flex items-center gap-2 px-1 pb-2 border-b border-zinc-200 text-xs font-semibold text-zinc-500">
-	              <div className="flex-1 min-w-[260px]">Account / الحساب</div>
-	              <div className="min-w-[180px]">Cost Center / مركز كلفة</div>
+              <div className="flex items-center gap-2 px-1 pb-2 border-b border-zinc-200 text-xs font-semibold text-zinc-500">
+                <div className="flex-1 min-w-65">Account / الحساب</div>
+                <div className="min-w-45">Cost Center / مركز كلفة</div>
 	              <div className="min-w-[120px] text-end">Debit / مدين</div>
 	              <div className="min-w-[120px] text-end">Credit / دائن</div>
 	              <div className="min-w-[200px]">Description / الوصف</div>
@@ -216,8 +233,8 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
 
 	            <div className="mt-2 space-y-2">
 	              {fields.map((f, idx) => (
-	                <div key={f.id} className="flex items-start gap-2">
-	                  <div className="flex-1 min-w-[260px]">
+                  <div key={f.id} className="flex items-start gap-2">
+                    <div className="flex-1 min-w-65">
                     <select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.accountId` as const)}>
                       <option value="">Select account…</option>
                       {accounts.map((a) => (
@@ -225,7 +242,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
                       ))}
                     </select>
                   </div>
-	                  <div className="min-w-[180px]">
+                    <div className="min-w-45">
                     <select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
                       <option value="">— None —</option>
                       {costCenters.map((cc) => (

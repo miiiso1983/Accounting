@@ -17,6 +17,7 @@ export async function createPostedJournalEntryTx(tx: Prisma.TransactionClient, i
   return tx.journalEntry.create({
     data: {
       companyId: input.companyId,
+			branchId: input.branchId ?? null,
       entryNumber: nextEntryNumber,
       type,
       status: "POSTED",

@@ -15,6 +15,9 @@ export type JournalLineInput = {
 
 export type CreateJournalEntryInput = {
   companyId: string;
+
+  /** optional branch (nullable in DB; omit to leave null) */
+  branchId?: string;
   entryDate: Date;
   description?: string;
   type?: JournalEntryType;

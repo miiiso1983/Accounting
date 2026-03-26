@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
-import { getCachedCustomers, getCachedProducts, getCachedCostCenters, getCachedSalesReps } from "@/lib/db/cached-queries";
+import { getCachedCustomers, getCachedProducts, getCachedCostCenters, getCachedSalesReps, getCachedBranches } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -13,6 +13,7 @@ import { InvoiceEditForm } from "./ui";
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
 type CostCenterOption = { id: string; code: string; name: string };
 type SalesRepOption = { id: string; name: string };
+type BranchOption = { id: string; code: string; name: string; isActive?: boolean };
 
 export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,12 +48,21 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     );
   }
 
-  const [customers, productsRaw, costCenters, salesReps] = await Promise.all([
+  const [customers, productsRaw, costCenters, salesReps, branchesActive] = await Promise.all([
     getCachedCustomers(companyId),
     getCachedProducts(companyId),
     getCachedCostCenters(companyId),
     getCachedSalesReps(companyId),
+    getCachedBranches(companyId),
   ]);
+
+  // Build branch options; include the invoice's current branch even if inactive
+  const branches: BranchOption[] = branchesActive.map((b) => ({ ...b, isActive: true }));
+  if (invoice.branchId && !branches.some((b) => b.id === invoice.branchId)) {
+    const inactiveBranch = await prisma.branch.findFirst({ where: { id: invoice.branchId, companyId }, select: { id: true, code: true, name: true, isActive: true } });
+    if (inactiveBranch) branches.push(inactiveBranch);
+  }
+  branches.sort((a, b) => a.code.localeCompare(b.code));
 
   const products: ProductOption[] = productsRaw.map((p) => ({
     ...p,
@@ -66,6 +76,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     id: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
     customerId: invoice.customerId,
+    branchId: invoice.branchId ?? "",
     issueDate: invoice.issueDate.toISOString().slice(0, 10),
     dueDate: invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : "",
     currencyCode: invoice.currencyCode as "IQD" | "USD",
@@ -105,6 +116,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
           products={products}
           costCenters={costCenterOptions}
           salesReps={salesRepOptions}
+          branches={branches}
           baseCurrencyCode={company.baseCurrencyCode}
         />
       </div>

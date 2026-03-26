@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedBranches } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -61,10 +62,21 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
     select: { id: true, code: true, name: true },
   });
 
+  // Build branch options; include entry's current branch even if inactive
+  const branchesActive = await getCachedBranches(companyId);
+  type BranchOption = { id: string; code: string; name: string; isActive?: boolean };
+  const branches: BranchOption[] = branchesActive.map((b) => ({ ...b, isActive: true }));
+  if (entry.branchId && !branches.some((b) => b.id === entry.branchId)) {
+    const inactiveBranch = await prisma.branch.findFirst({ where: { id: entry.branchId, companyId }, select: { id: true, code: true, name: true, isActive: true } });
+    if (inactiveBranch) branches.push(inactiveBranch);
+  }
+  branches.sort((a, b) => a.code.localeCompare(b.code));
+
   const entryData = {
     id: entry.id,
     entryDate: entry.entryDate.toISOString().slice(0, 10),
     description: entry.description ?? "",
+    branchId: entry.branchId ?? "",
     currencyCode: (entry.currencyCode ?? entry.baseCurrencyCode) as "IQD" | "USD",
     lines: entry.lines.map((l) => ({
       accountId: l.accountId,
@@ -93,6 +105,7 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
           initialData={entryData}
           accounts={accounts}
           costCenters={costCenters}
+          branches={branches}
           baseCurrencyCode={company.baseCurrencyCode}
         />
       </div>

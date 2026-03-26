@@ -27,6 +27,7 @@ const BodySchema = z.object({
       }),
     )
     .min(2),
+	branchId: z.string().optional().or(z.literal("")),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -52,7 +53,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 	  // Only DRAFT or POSTED entries can be edited
   const existing = await prisma.journalEntry.findFirst({
     where: { id, companyId: company.id },
-    select: { id: true, status: true, type: true },
+	    select: { id: true, status: true, type: true, branchId: true },
   });
   if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 	  if (existing.type === "SYSTEM") {
@@ -107,6 +108,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     exchangeRateId = fx.id;
   }
 
+	const requestedBranchId = body.branchId === undefined ? undefined : (body.branchId.trim() ? body.branchId.trim() : null);
+	let nextBranchId: string | null | undefined;
+	if (requestedBranchId === undefined) {
+		nextBranchId = existing.branchId;
+	} else if (requestedBranchId === null) {
+		nextBranchId = null;
+	} else {
+		const row = await prisma.branch.findFirst({
+			where: { id: requestedBranchId, companyId: company.id },
+			select: { id: true },
+		});
+		if (!row) return Response.json({ error: "Invalid branch" }, { status: 400 });
+		nextBranchId = requestedBranchId;
+	}
+
   try {
     const updated = await prisma.$transaction(async (tx) => {
 	      let nextExchangeRateId: string | undefined;
@@ -148,6 +164,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       return tx.journalEntry.update({
         where: { id },
         data: {
+	        branchId: nextBranchId ?? null,
           entryDate,
           description: body.description ?? null,
           currencyCode: entryCurrency ?? null,

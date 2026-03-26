@@ -13,13 +13,16 @@ type CustomerOption = { id: string; name: string; companyName: string | null };
 type ProductOption = { id: string; name: string; description: string | null; unitPrice: string; currencyCode: string; costCenterId: string | null };
 type CostCenterOption = { id: string; code: string; name: string };
 type SalesRepOption = { id: string; name: string };
+type BranchOption = { id: string; code: string; name: string; isActive?: boolean };
 type Props = {
 	customers: CustomerOption[];
 	products: ProductOption[];
 	costCenters: CostCenterOption[];
 	salesReps: SalesRepOption[];
+	branches: BranchOption[];
 	baseCurrencyCode: "IQD" | "USD";
 	defaultCustomerId?: string;
+	defaultBranchId?: string;
 };
 
 const LineSchema = z.object({
@@ -45,6 +48,7 @@ const OptionalPaymentTermsSchema = z.preprocess(
 const FormSchema = z.object({
   invoiceNumber: z.string().min(1),
   customerId: z.string().min(1),
+  branchId: z.preprocess((v) => (v === "" ? undefined : v), z.string().optional()),
   issueDate: z.string().min(1),
   dueDate: z.string().optional(),
 
@@ -93,7 +97,7 @@ async function readResponseData(res: Response) {
   }
 }
 
-export function InvoiceForm({ customers: initialCustomers, products, costCenters, salesReps, baseCurrencyCode, defaultCustomerId }: Props) {
+export function InvoiceForm({ customers: initialCustomers, products, costCenters, salesReps, branches, baseCurrencyCode, defaultCustomerId, defaultBranchId }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [customers, setCustomers] = useState(initialCustomers);
@@ -109,12 +113,18 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
     return customers[0]?.id ?? "";
   }, [customers, defaultCustomerId]);
 
+	const initialBranchId = useMemo(() => {
+		if (defaultBranchId && branches.some((b) => b.id === defaultBranchId)) return defaultBranchId;
+		return "";
+	}, [branches, defaultBranchId]);
+
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const form = useForm<FormValues, undefined, SubmitValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       invoiceNumber: "",
 	      customerId: initialCustomerId,
+		      branchId: initialBranchId,
       issueDate: today,
       dueDate: "",
       currencyCode: baseCurrencyCode,
@@ -214,6 +224,7 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
     const payload = {
       ...values,
       mode,
+	      branchId: values.branchId ?? "",
       lines: values.lines.map((l) => ({
         ...l,
         discountType: l.discountValue && Number(l.discountValue) > 0 ? (l.discountType || "FIXED") : undefined,
@@ -253,8 +264,8 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
     <div className="grid gap-6 max-w-full box-border">
       {serverError ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{serverError}</div> : null}
 
-      <form className="grid gap-5">
-        <div className="grid gap-4 md:grid-cols-2">
+	      <form className="grid gap-5">
+	        <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="text-sm font-medium text-zinc-700">Invoice # / رقم الفاتورة</label>
             <input className="mt-1 w-full rounded-xl border px-3 py-2 font-mono text-sm" placeholder="INV-0001" {...form.register("invoiceNumber")} />
@@ -280,6 +291,19 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
             </div>
             {errors.customerId ? <div className="mt-1 text-xs text-red-600">Customer is required.</div> : null}
           </div>
+
+	          <div>
+	            <label className="text-sm font-medium text-zinc-700">Branch / الفرع</label>
+	            <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("branchId")} disabled={branches.length === 0}>
+	              <option value="">— None / بدون —</option>
+	              {branches.map((b) => (
+	                <option key={b.id} value={b.id}>
+	                  {b.code} — {b.name}{b.isActive === false ? " (Inactive / غير نشط)" : ""}
+	                </option>
+	              ))}
+	            </select>
+	            <div className="mt-1 text-xs text-zinc-500">Used for reporting and posting context. / يُستخدم للتقارير وسياق الترحيل.</div>
+	          </div>
 
           <div>
             <label className="text-sm font-medium text-zinc-700">Company name / اسم الشركة</label>
