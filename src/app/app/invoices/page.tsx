@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedBranches } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -51,6 +52,7 @@ export default async function InvoicesIndexPage({
   const customerId = typeof sp.customerId === "string" ? sp.customerId : "";
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const paymentStateParam = typeof sp.paymentState === "string" ? sp.paymentState : "ALL";
+  const branchId = typeof sp.branchId === "string" ? sp.branchId : "";
   const takeParam = typeof sp.take === "string" ? sp.take : undefined;
   const take = Math.min(Math.max(Number(takeParam) || 50, 1), 500);
 
@@ -74,7 +76,7 @@ export default async function InvoicesIndexPage({
   const companyId = user?.companyId;
   if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
 
-  const [customers, invoicesRaw] = await Promise.all([
+  const [customers, invoicesRaw, branches] = await Promise.all([
     prisma.customer.findMany({
       where: { companyId },
       orderBy: { name: "asc" },
@@ -102,11 +104,13 @@ export default async function InvoicesIndexPage({
               ],
             }
           : {}),
+        ...(branchId ? { branchId } : {}),
       },
       orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
       include: { customer: { select: { id: true, name: true } }, branch: { select: { code: true, name: true } } },
       take,
     }),
+    getCachedBranches(companyId),
   ]);
 
   const invoiceIds = invoicesRaw.map((i) => i.id);
@@ -140,6 +144,7 @@ export default async function InvoicesIndexPage({
     ...(customerId ? { customerId } : {}),
     ...(q ? { q } : {}),
     ...(paymentState !== "ALL" ? { paymentState } : {}),
+    ...(branchId ? { branchId } : {}),
   }).toString();
 
   return (
@@ -207,6 +212,18 @@ export default async function InvoicesIndexPage({
               <option value="UNPAID">Unpaid / غير مدفوع</option>
               <option value="PARTIAL">Partial / جزئي</option>
               <option value="PAID">Paid / مدفوع</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-zinc-600">Branch / الفرع</label>
+            <select name="branchId" defaultValue={branchId} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
+              <option value="">All / الكل</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.code} — {b.name}
+                </option>
+              ))}
             </select>
           </div>
 

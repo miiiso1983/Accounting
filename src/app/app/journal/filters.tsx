@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { getJournalSourceLabel } from "@/lib/accounting/journal/utils";
 
+type BranchOption = { id: string; code: string; name: string };
+
 type Props = {
   initial: {
     q: string;
@@ -9,14 +11,16 @@ type Props = {
     from: string;
     to: string;
     accountCode: string;
+    branchId: string;
   };
   referenceTypeOptions: string[];
+  branches: BranchOption[];
 };
 
-export function JournalListFilters({ initial, referenceTypeOptions }: Props) {
+export function JournalListFilters({ initial, referenceTypeOptions, branches }: Props) {
   return (
     <form className="grid gap-3 md:grid-cols-12" method="GET" action="/app/journal">
-      <div className="md:col-span-4">
+      <div className="md:col-span-3">
         <label className="text-xs font-medium text-zinc-600">Search / بحث</label>
         <input
           className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm"
@@ -49,13 +53,26 @@ export function JournalListFilters({ initial, referenceTypeOptions }: Props) {
       </div>
 
       <div className="md:col-span-2">
-        <label className="text-xs font-medium text-zinc-600">From / من</label>
-        <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="from" defaultValue={initial.from} />
+        <label className="text-xs font-medium text-zinc-600">Branch / الفرع</label>
+        <select className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" name="branchId" defaultValue={initial.branchId}>
+          <option value="">All / الكل</option>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.code} — {b.name}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div className="md:col-span-2">
-        <label className="text-xs font-medium text-zinc-600">To / إلى</label>
-        <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="to" defaultValue={initial.to} />
+      <div className="md:col-span-3 grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-medium text-zinc-600">From / من</label>
+          <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="from" defaultValue={initial.from} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-zinc-600">To / إلى</label>
+          <input className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm" type="date" name="to" defaultValue={initial.to} />
+        </div>
       </div>
 
       <div className="md:col-span-12 flex flex-wrap items-center gap-2">

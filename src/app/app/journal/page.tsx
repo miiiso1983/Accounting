@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth/options";
 import { formatJournalEntryNumber, getJournalEntryTypeLabel, getJournalSourceLabel } from "@/lib/accounting/journal/utils";
 import { prisma } from "@/lib/db/prisma";
+import { getCachedBranches } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -28,6 +29,7 @@ export default async function JournalIndexPage({
 	const from = typeof sp.from === "string" ? sp.from.trim() : "";
 	const to = typeof sp.to === "string" ? sp.to.trim() : "";
 	const accountCode = typeof sp.accountCode === "string" ? sp.accountCode.trim() : "";
+	const branchId = typeof sp.branchId === "string" ? sp.branchId.trim() : "";
 
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
@@ -81,6 +83,7 @@ export default async function JournalIndexPage({
 						},
 					}
 					: {}),
+				...(branchId ? { branchId } : {}),
 			},
 			orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
 			include: {
@@ -97,6 +100,8 @@ export default async function JournalIndexPage({
 		new Set(refTypeRows.map((r) => (r.referenceType === null ? "MANUAL" : r.referenceType)).filter(Boolean)),
 	).sort();
 
+	const branches = await getCachedBranches(companyId);
+
   return (
     <div className="rounded-2xl border bg-white p-5">
       <div className="flex items-start justify-between gap-4">
@@ -106,7 +111,7 @@ export default async function JournalIndexPage({
         </div>
         <div className="flex items-center gap-2">
           <JournalExportButtons
-            excelHref={`/api/journal-entries/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(referenceTypeParam ? { referenceType: referenceTypeParam } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(accountCode ? { accountCode } : {}) }).toString()}`}
+            excelHref={`/api/journal-entries/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(referenceTypeParam ? { referenceType: referenceTypeParam } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(accountCode ? { accountCode } : {}), ...(branchId ? { branchId } : {}) }).toString()}`}
           />
           <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/journal/new">
 	            New manual entry
@@ -116,8 +121,9 @@ export default async function JournalIndexPage({
 
 			<div className="mt-4">
 				<JournalListFilters
-					initial={{ q, referenceType: referenceTypeParam, from, to, accountCode }}
+					initial={{ q, referenceType: referenceTypeParam, from, to, accountCode, branchId }}
 					referenceTypeOptions={refTypeOptions}
+					branches={branches.map((b) => ({ id: b.id, code: b.code, name: b.name }))}
 				/>
 			</div>
 

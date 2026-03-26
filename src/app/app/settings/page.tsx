@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Printer, Settings } from "lucide-react";
+import { Building2, Printer, Settings, UserCog } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
@@ -19,7 +19,7 @@ export default async function SettingsPage() {
   const canPrintTemplates = hasPermission(session, PERMISSIONS.SETTINGS_WRITE);
 
   if (!canCostCenters && !canBranches && !canPrintTemplates) {
-    return <div className="rounded-2xl border bg-white p-5 text-sm">Not authorized.</div>;
+    // Still allow access for "My Preferences" which is always available
   }
 
   const locale = await getRequestLocale();
@@ -27,6 +27,12 @@ export default async function SettingsPage() {
   const t = createTranslator(messages);
 
   const cards = [
+    {
+      href: "/app/settings/preferences",
+      title: "My Preferences / تفضيلاتي",
+      desc: "Set your default branch and personal preferences. / ضبط الفرع الافتراضي والتفضيلات الشخصية.",
+      icon: <UserCog className="h-5 w-5" aria-hidden />,
+    },
     canCostCenters
       ? {
           href: "/app/settings/cost-centers",
