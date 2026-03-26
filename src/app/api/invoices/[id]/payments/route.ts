@@ -102,6 +102,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   if (!invoice) return Response.json({ error: "Not found" }, { status: 404 });
   if (invoice.status === "CANCELLED") return Response.json({ error: "Cannot record payment for cancelled invoice" }, { status: 400 });
+  if (invoice.status === "WRITTEN_OFF") return Response.json({ error: "Cannot record payment for a written-off invoice / لا يمكن تسجيل دفع لفاتورة مشطوبة" }, { status: 400 });
   if (invoice.status === "DRAFT") return Response.json({ error: "Send/post the invoice before recording payments" }, { status: 400 });
 
   const paymentCurrency = (body.currencyCode ?? invoice.currencyCode) as "IQD" | "USD";
