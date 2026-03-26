@@ -226,18 +226,18 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
 	          <div className="w-max min-w-full">
 	            {/* Column headers */}
 	            <div className="flex items-center gap-2 px-1 pb-2 border-b border-zinc-200 text-xs font-semibold text-zinc-500">
-	              <div className="flex-1 min-w-[260px]">Account / الحساب</div>
-	              <div className="min-w-[180px]">Cost Center / مركز كلفة</div>
-	              <div className="min-w-[120px] text-end">Debit / مدين</div>
-	              <div className="min-w-[120px] text-end">Credit / دائن</div>
-	              <div className="min-w-[200px]">Description / الوصف</div>
-	              <div className="min-w-[56px] text-center">Actions / الإجراءات</div>
+	              <div className="flex-1 min-w-65">Account / الحساب</div>
+	              <div className="min-w-45">Cost Center / مركز كلفة</div>
+	              <div className="min-w-30 text-end">Debit / مدين</div>
+	              <div className="min-w-30 text-end">Credit / دائن</div>
+	              <div className="min-w-50">Description / الوصف</div>
+	              <div className="min-w-14 text-center">Actions / الإجراءات</div>
 	            </div>
 
 	            <div className="mt-2 space-y-2">
 	              {fields.map((f, idx) => (
 	                <div key={f.id} className="flex items-start gap-2">
-	                  <div className="flex-1 min-w-[260px]">
+	                  <div className="flex-1 min-w-65">
                     <input type="hidden" {...form.register(`lines.${idx}.accountId` as const)} />
                     <div className="flex gap-1">
                       <div className="flex-1 min-w-0">
@@ -262,7 +262,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                       </button>
                     </div>
                   </div>
-	                  <div className="min-w-[180px]">
+	                  <div className="min-w-45">
                     <select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
                       <option value="">— None —</option>
                       {costCenters.map((cc) => (
@@ -272,7 +272,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                       ))}
                     </select>
                   </div>
-	                  <div className="min-w-[120px]">
+	                  <div className="min-w-30">
                     <input
                       className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
                       inputMode="decimal"
@@ -286,7 +286,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                       }}
                     />
                   </div>
-	                  <div className="min-w-[120px]">
+	                  <div className="min-w-30">
                     <input
                       className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
                       inputMode="decimal"
@@ -300,7 +300,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                       }}
                     />
                   </div>
-	              	  <div className="min-w-[200px]">
+	              	  <div className="min-w-50">
 	              	    {(() => {
 	              	      const reg = form.register(`lines.${idx}.description` as const);
 	              	      return (
@@ -318,7 +318,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
 	              	      );
 	              	    })()}
 	              	  </div>
-	                  <div className="min-w-[56px]">
+	                  <div className="min-w-14">
                     <button
                       type="button"
                       className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"

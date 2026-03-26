@@ -225,10 +225,10 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
               <div className="flex items-center gap-2 px-1 pb-2 border-b border-zinc-200 text-xs font-semibold text-zinc-500">
                 <div className="flex-1 min-w-65">Account / الحساب</div>
                 <div className="min-w-45">Cost Center / مركز كلفة</div>
-	              <div className="min-w-[120px] text-end">Debit / مدين</div>
-	              <div className="min-w-[120px] text-end">Credit / دائن</div>
-	              <div className="min-w-[200px]">Description / الوصف</div>
-	              <div className="min-w-[56px] text-center">Actions / الإجراءات</div>
+	              <div className="min-w-30 text-end">Debit / مدين</div>
+	              <div className="min-w-30 text-end">Credit / دائن</div>
+	              <div className="min-w-50">Description / الوصف</div>
+	              <div className="min-w-14 text-center">Actions / الإجراءات</div>
 	            </div>
 
 	            <div className="mt-2 space-y-2">
@@ -250,7 +250,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
                       ))}
                     </select>
                   </div>
-	                  <div className="min-w-[120px]">
+	                  <div className="min-w-30">
                     <input
                       className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
                       inputMode="decimal"
@@ -264,7 +264,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
                       }}
                     />
                   </div>
-	                  <div className="min-w-[120px]">
+	                  <div className="min-w-30">
                     <input
                       className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
                       inputMode="decimal"
@@ -278,7 +278,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
                       }}
                     />
                   </div>
-		              	  <div className="min-w-[200px]">
+		              	  <div className="min-w-50">
 	              	    {(() => {
 	              	      const reg = form.register(`lines.${idx}.description` as const);
 	              	      return (
@@ -296,7 +296,7 @@ export function JournalEntryEditForm({ entryId, initialData, accounts, costCente
 	              	      );
 	              	    })()}
 	              	  </div>
-	                  <div className="min-w-[56px]">
+	                  <div className="min-w-14">
                     <button
                       type="button"
                       className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
