@@ -43,16 +43,16 @@ export function DefaultBranchForm({
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-zinc-700">
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Default Branch / الفرع الافتراضي
         </label>
-        <p className="mt-0.5 text-xs text-zinc-500">
+        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
           This branch will be auto-selected when creating new invoices and journal entries.
           <br />
           سيتم اختيار هذا الفرع تلقائياً عند إنشاء فواتير وقيود جديدة.
         </p>
         <select
-          className="mt-2 w-full rounded-xl border px-3 py-2 text-sm"
+          className="mt-2 w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm"
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
           disabled={branches.length === 0}
@@ -65,7 +65,7 @@ export function DefaultBranchForm({
           ))}
         </select>
         {branches.length === 0 && (
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
             No branches available. Create branches first in Settings → Branches.
           </p>
         )}
@@ -74,7 +74,7 @@ export function DefaultBranchForm({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-xl bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
           onClick={handleSave}
           disabled={saving}
         >

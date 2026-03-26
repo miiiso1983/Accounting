@@ -35,12 +35,12 @@ export default async function JournalIndexPage({
   if (!session) redirect("/login");
 
   if (!hasPermission(session, PERMISSIONS.JOURNAL_READ)) {
-    return <div className="rounded-2xl border bg-white p-5 text-sm">Not authorized.</div>;
+    return <div className="rounded-2xl border bg-white dark:bg-zinc-950 dark:border-zinc-700 p-5 text-sm">Not authorized.</div>;
   }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { companyId: true } });
   const companyId = user?.companyId;
-  if (!companyId) return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
+  if (!companyId) return <div className="rounded-2xl border bg-white dark:bg-zinc-950 dark:border-zinc-700 p-5 text-sm">No company assigned.</div>;
 
 	const [refTypeRows, entries] = await Promise.all([
 		prisma.journalEntry.findMany({
@@ -103,17 +103,17 @@ export default async function JournalIndexPage({
 	const branches = await getCachedBranches(companyId);
 
   return (
-    <div className="rounded-2xl border bg-white p-5">
+    <div className="rounded-2xl border bg-white dark:bg-zinc-950 dark:border-zinc-700 p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-sm text-zinc-500">Journal</div>
-          <div className="mt-1 text-base font-medium text-zinc-900">Journal Entries</div>
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">Journal</div>
+          <div className="mt-1 text-base font-medium text-zinc-900 dark:text-zinc-100">Journal Entries</div>
         </div>
         <div className="flex items-center gap-2">
           <JournalExportButtons
             excelHref={`/api/journal-entries/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(referenceTypeParam ? { referenceType: referenceTypeParam } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(accountCode ? { accountCode } : {}), ...(branchId ? { branchId } : {}) }).toString()}`}
           />
-          <Link className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800" href="/app/journal/new">
+          <Link className="rounded-xl bg-zinc-900 dark:bg-zinc-100 px-3 py-2 text-sm text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200" href="/app/journal/new">
 	            New manual entry
           </Link>
         </div>
@@ -129,8 +129,8 @@ export default async function JournalIndexPage({
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="text-xs text-zinc-500">
-            <tr className="border-b">
+          <thead className="text-xs text-zinc-500 dark:text-zinc-400">
+            <tr className="border-b dark:border-zinc-700">
               <th className="py-2 pr-3">Entry #</th>
               <th className="py-2 pr-3">Date</th>
               <th className="py-2 pr-3">Type</th>
@@ -164,37 +164,37 @@ export default async function JournalIndexPage({
               );
 
               return (
-                <tr key={e.id} className="border-b last:border-b-0">
-                  <td className="py-2 pr-3 font-mono text-zinc-700">
+                <tr key={e.id} className="border-b dark:border-zinc-700 last:border-b-0">
+                  <td className="py-2 pr-3 font-mono text-zinc-700 dark:text-zinc-300">
                     <Link className="underline" href={`/app/journal/${e.id}`}>
 	                      {entryLabel}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3 text-zinc-700">
+                  <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">
                     {e.entryDate.toISOString().slice(0, 10)}
                   </td>
-	                  <td className="py-2 pr-3 text-zinc-700">
-	                    <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
+	                  <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">
+	                    <span className="inline-flex rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
 	                      {getJournalEntryTypeLabel(e.type)}
 	                    </span>
 	                  </td>
-                  <td className="py-2 pr-3 text-zinc-900">{e.description ?? "-"}</td>
-										<td className="py-2 pr-3 text-zinc-700">
-											<div className="text-xs font-medium text-zinc-900">{refLabel}</div>
-											<div className="font-mono text-xs text-zinc-600">{refId || "-"}</div>
+                  <td className="py-2 pr-3 text-zinc-900 dark:text-zinc-100">{e.description ?? "-"}</td>
+										<td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">
+											<div className="text-xs font-medium text-zinc-900 dark:text-zinc-100">{refLabel}</div>
+											<div className="font-mono text-xs text-zinc-600 dark:text-zinc-400">{refId || "-"}</div>
 										</td>
-										<td className="py-2 pr-3 text-zinc-700">{costCenterCodes || "-"}</td>
-										<td className="py-2 pr-3 text-zinc-700">{e.branch ? `${e.branch.code}` : "-"}</td>
-                  <td className="py-2 pr-3 text-zinc-700">{e.status}</td>
-                  <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(totals.debit)}</td>
-                  <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(totals.credit)}</td>
+										<td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{costCenterCodes || "-"}</td>
+										<td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{e.branch ? `${e.branch.code}` : "-"}</td>
+                  <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{e.status}</td>
+                  <td className="py-2 pr-3 font-mono text-zinc-900 dark:text-zinc-100">{fmt(totals.debit)}</td>
+                  <td className="py-2 pr-3 font-mono text-zinc-900 dark:text-zinc-100">{fmt(totals.credit)}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
 
-        {entries.length === 0 ? <div className="mt-4 text-sm text-zinc-600">No journal entries yet.</div> : null}
+        {entries.length === 0 ? <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">No journal entries yet.</div> : null}
       </div>
     </div>
   );

@@ -18,20 +18,20 @@ export default async function PreferencesPage() {
   });
   const companyId = user?.companyId;
   if (!companyId)
-    return <div className="rounded-2xl border bg-white p-5 text-sm">No company assigned.</div>;
+    return <div className="rounded-2xl border bg-white dark:bg-zinc-950 dark:border-zinc-700 p-5 text-sm">No company assigned.</div>;
 
   const branches = await getCachedBranches(companyId);
 
   return (
-    <div className="rounded-2xl border bg-white p-5">
+    <div className="rounded-2xl border bg-white dark:bg-zinc-950 dark:border-zinc-700 p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-sm text-zinc-500">Settings / الإعدادات</div>
-          <div className="mt-1 text-base font-medium text-zinc-900">
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">Settings / الإعدادات</div>
+          <div className="mt-1 text-base font-medium text-zinc-900 dark:text-zinc-100">
             My Preferences / تفضيلاتي
           </div>
         </div>
-        <Link className="text-sm underline text-zinc-700" href="/app/settings">
+        <Link className="text-sm underline text-zinc-700 dark:text-zinc-300" href="/app/settings">
           Back / رجوع
         </Link>
       </div>

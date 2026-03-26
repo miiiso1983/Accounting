@@ -155,12 +155,12 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
     <form className="grid gap-5 max-w-full box-border" onSubmit={form.handleSubmit(onSubmit)}>
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-sm font-medium text-zinc-700">Entry date / تاريخ القيد</label>
-          <input className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" type="date" {...form.register("entryDate")} />
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Entry date / تاريخ القيد</label>
+          <input className="mt-1 w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm" type="date" {...form.register("entryDate")} />
         </div>
         <div>
-          <label className="text-sm font-medium text-zinc-700">Branch / الفرع</label>
-          <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("branchId")} disabled={branches.length === 0}>
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Branch / الفرع</label>
+          <select className="mt-1 w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm" {...form.register("branchId")} disabled={branches.length === 0}>
             <option value="">— None / بدون —</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -170,36 +170,36 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
           </select>
         </div>
         <div>
-          <label className="text-sm font-medium text-zinc-700">Currency / العملة</label>
-          <select className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" {...form.register("currencyCode")}>
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Currency / العملة</label>
+          <select className="mt-1 w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm" {...form.register("currencyCode")}>
             <option value={baseCurrencyCode}>{baseCurrencyCode}</option>
             {baseCurrencyCode === "IQD" ? <option value="USD">USD</option> : <option value="IQD">IQD</option>}
           </select>
-          <div className="mt-1 text-xs text-zinc-500">Base currency: {baseCurrencyCode}</div>
+          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Base currency: {baseCurrencyCode}</div>
         </div>
       </div>
 
       {showFx ? (
         <div>
-          <label className="text-sm font-medium text-zinc-700">Exchange rate / سعر الصرف</label>
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Exchange rate / سعر الصرف</label>
           <div className="mt-1 flex items-center gap-2">
-            <div className="text-sm text-zinc-600">1 {currencyCode} =</div>
+            <div className="text-sm text-zinc-600 dark:text-zinc-400">1 {currencyCode} =</div>
             <input
-              className="w-40 rounded-xl border px-3 py-2 text-sm"
+              className="w-40 rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm"
               placeholder="e.g. 1300"
               {...form.register("exchangeRate")}
             />
-            <div className="text-sm text-zinc-600">{baseCurrencyCode}</div>
+            <div className="text-sm text-zinc-600 dark:text-zinc-400">{baseCurrencyCode}</div>
           </div>
-          <div className="mt-1 text-xs text-zinc-500">We store it as: 1 {currencyCode} = rate {baseCurrencyCode}</div>
+          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">We store it as: 1 {currencyCode} = rate {baseCurrencyCode}</div>
         </div>
       ) : null}
 
       <div>
-        <label className="text-sm font-medium text-zinc-700">Description / الوصف</label>
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Description / الوصف</label>
 	        <textarea
 	          rows={1}
-	          className="mt-1 w-full rounded-xl border px-3 py-2 text-sm resize-none"
+	          className="mt-1 w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm resize-none"
 	          placeholder="Memo / ملاحظة"
 	          {...descriptionReg}
 	          ref={(el) => {
@@ -210,12 +210,12 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
 	        />
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/30 p-4 md:p-5">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/30 dark:bg-zinc-900/30 p-4 md:p-5">
         <div className="flex items-center justify-between gap-4 mb-3">
-          <div className="text-sm font-medium text-zinc-900">Lines / البنود</div>
+          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Lines / البنود</div>
           <button
             type="button"
-            className="shrink-0 rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
+            className="shrink-0 rounded-xl border dark:border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:text-zinc-300"
             onClick={() => append({ accountId: "", costCenterId: "", debitAmount: "", creditAmount: "", description: "" })}
           >
             Add line / إضافة بند
@@ -225,7 +225,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
 	        <div className="overflow-x-auto">
 	          <div className="w-max min-w-full">
 	            {/* Column headers */}
-	            <div className="flex items-center gap-2 px-1 pb-2 border-b border-zinc-200 text-xs font-semibold text-zinc-500">
+	            <div className="flex items-center gap-2 px-1 pb-2 border-b border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
 	              <div className="flex-1 min-w-65">Account / الحساب</div>
 	              <div className="min-w-45">Cost Center / مركز كلفة</div>
 	              <div className="min-w-30 text-end">Debit / مدين</div>
@@ -255,7 +255,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                       <button
                         type="button"
                         title="New account / حساب جديد"
-                        className="shrink-0 rounded-xl border px-2 py-2 text-sm font-bold text-sky-600 hover:bg-sky-50"
+                        className="shrink-0 rounded-xl border dark:border-zinc-700 px-2 py-2 text-sm font-bold text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-zinc-800"
                         onClick={() => setQuickAccountLineIdx(idx)}
                       >
                         +
@@ -263,7 +263,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                     </div>
                   </div>
 	                  <div className="min-w-45">
-                    <select className="w-full rounded-xl border px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
+                    <select className="w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm" {...form.register(`lines.${idx}.costCenterId` as const)}>
                       <option value="">— None —</option>
                       {costCenters.map((cc) => (
                         <option key={cc.id} value={cc.id}>
@@ -274,7 +274,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                   </div>
 	                  <div className="min-w-30">
                     <input
-                      className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
+                      className="w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 font-mono text-sm text-end"
                       inputMode="decimal"
                       placeholder="0"
                       {...form.register(`lines.${idx}.debitAmount` as const)}
@@ -288,7 +288,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
                   </div>
 	                  <div className="min-w-30">
                     <input
-                      className="w-full rounded-xl border px-3 py-2 font-mono text-sm text-end"
+                      className="w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 font-mono text-sm text-end"
                       inputMode="decimal"
                       placeholder="0"
                       {...form.register(`lines.${idx}.creditAmount` as const)}
@@ -306,7 +306,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
 	              	      return (
 	              	        <textarea
 	              	          rows={1}
-	              	          className="w-full rounded-xl border px-3 py-2 text-sm resize-none"
+	              	          className="w-full rounded-xl border dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 px-3 py-2 text-sm resize-none"
 	              	          placeholder="Line note"
 	              	          {...reg}
 	              	          ref={(el) => {
@@ -321,7 +321,7 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
 	                  <div className="min-w-14">
                     <button
                       type="button"
-                      className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-zinc-50"
+                      className="w-full rounded-xl border dark:border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:text-zinc-300"
                       onClick={() => remove(idx)}
                       disabled={fields.length <= 2}
                       title={fields.length <= 2 ? "At least 2 lines required" : "Remove"}
@@ -336,13 +336,13 @@ export function JournalEntryForm({ accounts: initialAccounts, costCenters, branc
         </div>
       </div>
 
-      {serverError ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{serverError}</div> : null}
+      {serverError ? <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 p-3 text-sm text-red-700 dark:text-red-400">{serverError}</div> : null}
 
       <div className="flex items-center gap-3">
-        <button className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800" type="submit">
+        <button className="rounded-xl bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200" type="submit">
 	          Post manual entry
         </button>
-	        <div className="text-xs text-zinc-500">Manual entry must balance in base currency.</div>
+	        <div className="text-xs text-zinc-500 dark:text-zinc-400">Manual entry must balance in base currency.</div>
       </div>
       {quickAccountLineIdx !== null && (
         <QuickAccountModal
