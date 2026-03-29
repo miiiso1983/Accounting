@@ -569,9 +569,10 @@ model Invoice {
 }
 
 model InvoicePayment {
-  id        String @id @default(cuid())
-  companyId String
-  invoiceId String
+  id            String @id @default(cuid())
+  companyId     String
+  invoiceId     String
+  receiptNumber Int?
 
   paymentDate DateTime
   method      String? // CASH | BANK | TRANSFER ...
@@ -599,6 +600,7 @@ model InvoicePayment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([companyId, receiptNumber])
   @@index([companyId, paymentDate])
   @@index([companyId, invoiceId])
 }

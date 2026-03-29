@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -78,7 +79,7 @@ export default async function TransfersPage() {
                 return (
                   <tr key={t.id} className="border-b last:border-b-0">
                     <td className="py-2 pr-3 font-mono text-zinc-700">
-                      {t.entryDate.toISOString().slice(0, 10)}
+                      {formatDate(t.entryDate)}
                     </td>
                     <td className="py-2 pr-3 text-zinc-700">
                       {creditLine?.account ? `${creditLine.account.code} - ${creditLine.account.name}` : "-"}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -90,7 +91,7 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
 	  <div className="mt-3 grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border p-3 text-sm">
           <div className="text-xs text-zinc-500">Expense date</div>
-          <div className="mt-1 text-zinc-900">{expense.expenseDate.toISOString().slice(0, 10)}</div>
+          <div className="mt-1 text-zinc-900">{formatDate(expense.expenseDate)}</div>
         </div>
         <div className="rounded-xl border p-3 text-sm">
           <div className="text-xs text-zinc-500">Category</div>
@@ -176,7 +177,7 @@ export default async function ExpenseDetailsPage({ params }: { params: Promise<{
                 <div>
                   <div className="font-medium text-zinc-900">{attachment.originalName}</div>
                   <div className="text-xs text-zinc-500">
-                    {attachment.mimeType || "application/octet-stream"} · {fmtBytes(attachment.sizeBytes)} · {attachment.createdAt.toISOString().slice(0, 10)}
+                    {attachment.mimeType || "application/octet-stream"} · {fmtBytes(attachment.sizeBytes)} · {formatDate(attachment.createdAt)}
                   </div>
                 </div>
 

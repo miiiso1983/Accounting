@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ArrowUpRight, BookOpen, FileText, Landmark, NotebookPen, ReceiptText, Users } from "lucide-react";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { getCachedDashboardCounts } from "@/lib/db/cached-queries";
 
@@ -208,7 +209,7 @@ export default async function DashboardPage() {
                       <StatusPill status={inv.status} />
                     </div>
                     <div className="mt-1 truncate text-xs text-zinc-500">
-                      {(inv.customer?.name ?? "-") + " · " + new Intl.DateTimeFormat(locale).format(inv.issueDate)}
+                      {(inv.customer?.name ?? "-") + " · " + formatDate(inv.issueDate)}
                     </div>
                   </div>
 
@@ -251,7 +252,7 @@ export default async function DashboardPage() {
                       <StatusPill status={e.status} />
                     </div>
                     <div className="mt-1 truncate text-xs text-zinc-500">
-                      {(e.description ?? t("dashboardPage.noDescription")) + " · " + new Intl.DateTimeFormat(locale).format(e.entryDate)}
+                      {(e.description ?? t("dashboardPage.noDescription")) + " · " + formatDate(e.entryDate)}
                     </div>
                   </div>
 					<ArrowUpRight className="h-4 w-4 text-emerald-600 transition group-hover:text-emerald-700" aria-hidden />

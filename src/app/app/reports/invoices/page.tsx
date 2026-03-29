@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { getCachedCustomers, getCachedCostCenters } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -89,8 +90,8 @@ export default async function InvoicesReportPage({
       invoiceNumber: inv.invoiceNumber,
       customerName: inv.customer.name,
       status: inv.status,
-      issueDate: inv.issueDate.toISOString().slice(0, 10),
-      dueDate: inv.dueDate ? inv.dueDate.toISOString().slice(0, 10) : null,
+      issueDate: formatDate(inv.issueDate),
+      dueDate: inv.dueDate ? formatDate(inv.dueDate) : null,
       currencyCode: inv.currencyCode,
       total,
       paid,

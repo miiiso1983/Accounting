@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
 import { getCachedBranches } from "@/lib/db/cached-queries";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -273,7 +274,7 @@ export default async function InvoicesIndexPage({
           <tbody>
             {rows.map(({ inv, receivedBase, remainingBase }) => (
               <tr key={inv.id} className="border-b dark:border-zinc-700 last:border-b-0">
-                <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{inv.issueDate.toISOString().slice(0, 10)}</td>
+                <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{formatDate(inv.issueDate)}</td>
                 <td className="py-2 pr-3">
                   <Link className="underline text-zinc-700 dark:text-zinc-300" href={`/app/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
                 </td>

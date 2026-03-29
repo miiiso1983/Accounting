@@ -6,11 +6,15 @@ import { buildPaymentReceivedMessage, generateWhatsAppLink, sendWhatsApp } from 
 import { buildPublicReceiptUrl } from "@/lib/payments/public-link";
 
 import { generatePaymentReceiptPdf } from "./pdf";
+import { formatReceiptNumber } from "./receipt-number";
 
 export type NotifyPaymentChannel = "email" | "whatsapp";
 
 function formatDate(value: Date) {
-  return value.toISOString().slice(0, 10);
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const year = value.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function formatAmount(value: Prisma.Decimal) {
@@ -60,6 +64,7 @@ export async function notifyPaymentReceipt(args: {
           customerEmail: payment.invoice.customer.email,
           customerPhone: payment.invoice.customer.phone,
           invoiceNumber: payment.invoice.invoiceNumber,
+          receiptLabel: formatReceiptNumber(payment.receiptNumber, payment.id),
           paymentId: payment.id,
           paymentDate: formatDate(payment.paymentDate),
           method: payment.method,

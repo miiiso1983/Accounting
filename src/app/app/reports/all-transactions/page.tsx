@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { formatJournalEntryNumber, isPaymentReferenceType } from "@/lib/accounting/journal/utils";
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -152,7 +153,7 @@ export default async function AllTransactionsPage({
 
     return {
       id: je.id,
-      date: je.entryDate.toISOString().slice(0, 10),
+      date: formatDate(je.entryDate),
       docType: docTypeKey,
       docTypeLabel: DOC_TYPE_LABELS[docTypeKey] || docTypeKey,
       reference,

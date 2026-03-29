@@ -3,8 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { buildPublicReceiptUrl } from "@/lib/payments/public-link";
+import { formatReceiptNumber } from "@/lib/payments/receipt-number";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -50,7 +52,8 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
 
 		  const payments = invoice.payments.map((p) => ({
 		    id: p.id,
-		    paymentDate: p.paymentDate.toISOString().slice(0, 10),
+		    receiptLabel: formatReceiptNumber(p.receiptNumber, p.id),
+		    paymentDate: formatDate(p.paymentDate),
 		    amount: fmt(p.amount),
 		    currencyCode: p.currencyCode,
 		    amountBase: fmt(p.amountBase),

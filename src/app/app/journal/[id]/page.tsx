@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { formatJournalEntryNumber, getJournalEntryTypeLabel, getJournalSourceHref, getJournalSourceLabel } from "@/lib/accounting/journal/utils";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -111,7 +112,7 @@ export default async function JournalEntryDetailsPage({ params }: { params: Prom
 	      <div className="mt-4 grid gap-3 md:grid-cols-4">
         <div className="rounded-xl border p-3">
           <div className="text-xs text-zinc-500">Date</div>
-          <div className="text-sm font-medium text-zinc-900">{entry.entryDate.toISOString().slice(0, 10)}</div>
+          <div className="text-sm font-medium text-zinc-900">{formatDate(entry.entryDate)}</div>
         </div>
         <div className="rounded-xl border p-3">
           <div className="text-xs text-zinc-500">Type</div>

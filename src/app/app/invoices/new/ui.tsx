@@ -110,7 +110,7 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
 
   const initialCustomerId = useMemo(() => {
     if (defaultCustomerId && customers.some((c) => c.id === defaultCustomerId)) return defaultCustomerId;
-    return customers[0]?.id ?? "";
+    return "";
   }, [customers, defaultCustomerId]);
 
 	const initialBranchId = useMemo(() => {

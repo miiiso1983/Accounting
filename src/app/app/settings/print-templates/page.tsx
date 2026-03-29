@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { PRINT_TEMPLATE_TYPE_LABELS } from "@/lib/settings/print-templates";
@@ -60,7 +61,7 @@ export default async function PrintTemplatesPage() {
                     <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">No / لا</span>
                   )}
                 </td>
-                <td className="py-2 pr-3 text-zinc-700">{template.updatedAt.toISOString().slice(0, 10)}</td>
+                <td className="py-2 pr-3 text-zinc-700">{formatDate(template.updatedAt)}</td>
                 <td className="py-2 pr-3">
                   <Link className="text-sm underline text-zinc-700" href={`/app/settings/print-templates/${template.id}`}>
                     View / عرض

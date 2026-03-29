@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { getCachedCostCenters, getCachedPostingGlAccounts } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -56,7 +57,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <div className="text-sm text-zinc-500">Products / المنتجات</div>
           <div className="mt-1 text-base font-medium text-zinc-900">{product.name}</div>
           <div className="mt-0.5 text-xs text-zinc-500">
-            {product.isActive ? "Active / نشط" : "Inactive / غير نشط"} · Created {product.createdAt.toISOString().slice(0, 10)}
+            {product.isActive ? "Active / نشط" : "Inactive / غير نشط"} · Created {formatDate(product.createdAt)}
           </div>
         </div>
         <Link className="text-sm underline text-zinc-700" href="/app/products">

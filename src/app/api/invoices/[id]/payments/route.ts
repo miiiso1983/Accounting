@@ -162,10 +162,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             return amount.mul(fx.rate);
           })();
 
+      // Generate sequential receipt number per company
+      const lastPayment = await tx.invoicePayment.findFirst({
+        where: { companyId: invoice.companyId },
+        orderBy: { receiptNumber: "desc" },
+        select: { receiptNumber: true },
+      });
+      const nextReceiptNumber = (lastPayment?.receiptNumber ?? 0) + 1;
+
       const payment = await tx.invoicePayment.create({
         data: {
           companyId: invoice.companyId,
           invoiceId: invoice.id,
+          receiptNumber: nextReceiptNumber,
           paymentDate,
           method: body.method ?? "CASH",
           note: body.note ?? null,
@@ -176,7 +185,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           amountBase: amountBase.toDecimalPlaces(6).toFixed(6),
           createdById: session.user.id,
         },
-        select: { id: true },
+        select: { id: true, receiptNumber: true },
       });
 
       const entry = await createPostedJournalEntryTx(tx, {
@@ -209,7 +218,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         await tx.invoice.update({ where: { id: invoice.id }, data: { status: "PAID" }, select: { id: true } });
       }
 
-			return { paymentId: payment.id, journalEntryId: entry.id, invoiceStatus: isPaid ? ("PAID" as const) : (invoice.status as string) };
+			return { paymentId: payment.id, receiptNumber: payment.receiptNumber, journalEntryId: entry.id, invoiceStatus: isPaid ? ("PAID" as const) : (invoice.status as string) };
     }, INTERACTIVE_TRANSACTION_OPTIONS);
   } catch (e) {
     const message = readTransactionErrorMessage(e);

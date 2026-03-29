@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatReceiptNumber } from "@/lib/payments/receipt-number";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { PrintButton } from "../../../preview/print-button";
@@ -16,7 +17,10 @@ function fmt(n: unknown) {
 }
 
 function fmtDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 async function getLogoDataUrl() {
@@ -121,8 +125,8 @@ export default async function PaymentReceiptPreviewPage({
                 <span className="font-mono">{invoice.invoiceNumber}</span>
               </div>
               <div>
-                <span className="text-zinc-400">Receipt ID / رقم الإيصال:</span>{" "}
-                <span className="font-mono text-xs">{payment.id}</span>
+                <span className="text-zinc-400">Receipt # / رقم الإيصال:</span>{" "}
+                <span className="font-mono">{formatReceiptNumber(payment.receiptNumber, payment.id)}</span>
               </div>
               <div>
                 <span className="text-zinc-400">Date / التاريخ:</span>{" "}

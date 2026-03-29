@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { formatJournalEntryNumber, getJournalEntryTypeLabel, getJournalSourceLabel } from "@/lib/accounting/journal/utils";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { getCachedBranches } from "@/lib/db/cached-queries";
 import { hasPermission } from "@/lib/rbac/authorize";
@@ -171,7 +172,7 @@ export default async function JournalIndexPage({
                     </Link>
                   </td>
                   <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">
-                    {e.entryDate.toISOString().slice(0, 10)}
+                    {formatDate(e.entryDate)}
                   </td>
 	                  <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">
 	                    <span className="inline-flex rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">

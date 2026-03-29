@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { formatJournalEntryNumber, isPaymentReferenceType } from "@/lib/accounting/journal/utils";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -108,7 +109,7 @@ export async function GET(req: Request) {
 
     return {
       "#": idx + 1,
-      "Date / التاريخ": je.entryDate.toISOString().slice(0, 10),
+      "Date / التاريخ": formatDate(je.entryDate),
       "Document / الوثيقة": DOC_TYPE_LABELS[docTypeKey] || docTypeKey,
       "Reference / رقمها": reference,
       "Notes / ملاحظة": je.description || "",

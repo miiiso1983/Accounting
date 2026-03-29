@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -91,8 +92,8 @@ export async function GET(req: Request) {
       [columnMap.invoiceNumber]: inv.invoiceNumber,
       [columnMap.customer]: inv.customer.name,
       [columnMap.status]: inv.status,
-      [columnMap.issueDate]: inv.issueDate.toISOString().slice(0, 10),
-      [columnMap.dueDate]: inv.dueDate ? inv.dueDate.toISOString().slice(0, 10) : "",
+      [columnMap.issueDate]: formatDate(inv.issueDate),
+      [columnMap.dueDate]: inv.dueDate ? formatDate(inv.dueDate) : "",
       [columnMap.currencyCode]: inv.currencyCode,
       [columnMap.total]: total,
       [columnMap.paid]: paid,

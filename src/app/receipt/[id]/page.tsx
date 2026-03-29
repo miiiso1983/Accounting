@@ -7,6 +7,7 @@ import QRCode from "qrcode";
 
 import { prisma } from "@/lib/db/prisma";
 import { buildPublicReceiptUrl, hasValidPublicReceiptAccess } from "@/lib/payments/public-link";
+import { formatReceiptNumber } from "@/lib/payments/receipt-number";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -19,7 +20,10 @@ function fmt(n: unknown) {
 }
 
 function fmtDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 async function getLogoDataUrl() {
@@ -74,8 +78,8 @@ export default async function PublicReceiptPage({
           <div className="text-right">
             <div className="text-xl font-bold text-emerald-700">RECEIPT</div>
             <div className="text-xl font-bold text-emerald-700" dir="rtl">إيصال</div>
-            <div className="mt-2 font-mono text-xs text-zinc-500">Receipt ID</div>
-            <div className="font-mono text-sm text-zinc-900">{payment.id}</div>
+            <div className="mt-2 font-mono text-xs text-zinc-500">Receipt #</div>
+            <div className="font-mono text-sm text-zinc-900">{formatReceiptNumber(payment.receiptNumber, payment.id)}</div>
           </div>
         </div>
 

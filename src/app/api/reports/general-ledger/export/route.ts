@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
     const v = Number(l.amountBase);
     running += l.dc === "DEBIT" ? v : -v;
     return {
-      Date: l.journalEntry.entryDate.toISOString().slice(0, 10),
+      Date: formatDate(l.journalEntry.entryDate),
       Entry: l.journalEntry.description ?? "",
       "Ref Type": l.journalEntry.referenceType ?? "",
       "Ref ID": l.journalEntry.referenceId ?? "",

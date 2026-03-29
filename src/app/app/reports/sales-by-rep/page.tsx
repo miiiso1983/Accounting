@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -169,7 +170,7 @@ export default async function SalesByRepPage({
                       <Link className="underline text-zinc-700" href={`/app/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
                     </td>
                     <td className="py-1 pr-3 text-zinc-700">{inv.customer.name}</td>
-                    <td className="py-1 pr-3 text-zinc-700">{inv.issueDate.toISOString().slice(0, 10)}</td>
+                    <td className="py-1 pr-3 text-zinc-700">{formatDate(inv.issueDate)}</td>
                     <td className="py-1 pr-3 text-right font-mono text-zinc-700">{fmt(Number(inv.total))} {inv.currencyCode}</td>
                     <td className="py-1 pr-3">
                       <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-100 text-zinc-700">{inv.status}</span>

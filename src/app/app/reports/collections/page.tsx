@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -97,8 +98,8 @@ export default async function CollectionsPage({
     g.rows.push({
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
-      issueDate: inv.issueDate.toISOString().slice(0, 10),
-      paidDate: latestPayment.paymentDate.toISOString().slice(0, 10),
+      issueDate: formatDate(inv.issueDate),
+      paidDate: formatDate(latestPayment.paymentDate),
       totalAmount,
       collectedAmount,
       currency: inv.currencyCode,

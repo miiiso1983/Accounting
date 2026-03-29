@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { formatJournalEntryNumber, getJournalEntryTypeLabel, getJournalSourceLabel } from "@/lib/accounting/journal/utils";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -48,7 +49,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const rows = entry.lines.map((l) => ({
     "Entry #": entryLabel,
     "Entry Type": getJournalEntryTypeLabel(entry.type),
-    Date: entry.entryDate.toISOString().slice(0, 10),
+    Date: formatDate(entry.entryDate),
     Description: entry.description ?? "",
     Status: entry.status,
     Source: getJournalSourceLabel(entry.referenceType),

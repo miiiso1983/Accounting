@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -118,7 +119,7 @@ export async function GET(req: Request) {
     })
     .filter((r) => (paymentState === "ALL" ? true : r.paymentState === paymentState))
     .map(({ inv, receivedBase, remainingBase, paymentState: ps }) => ({
-      Date: inv.issueDate.toISOString().slice(0, 10),
+      Date: formatDate(inv.issueDate),
       "Invoice #": inv.invoiceNumber,
       Customer: inv.customer.name,
       Status: inv.status,

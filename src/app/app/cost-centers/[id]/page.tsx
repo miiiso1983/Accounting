@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -36,7 +37,7 @@ export default async function CostCenterDetailPage({ params }: { params: Promise
 						{cc.code} — {cc.name}
           </div>
           <div className="mt-0.5 text-xs text-zinc-500">
-						{cc.isActive ? "Active / نشط" : "Inactive / غير نشط"} · Created {cc.createdAt.toISOString().slice(0, 10)}
+						{cc.isActive ? "Active / نشط" : "Inactive / غير نشط"} · Created {formatDate(cc.createdAt)}
           </div>
         </div>
         <Link className="text-sm underline text-zinc-700" href="/app/cost-centers">

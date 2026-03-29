@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
+import { formatDate } from "@/lib/format/date";
 import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
@@ -166,7 +167,7 @@ export default async function GeneralLedgerPage({
               <tbody>
                 {rows.map((l) => (
                   <tr key={l.id} className="border-b last:border-b-0">
-                    <td className="py-2 pr-3 text-zinc-700">{l.journalEntry.entryDate.toISOString().slice(0, 10)}</td>
+                    <td className="py-2 pr-3 text-zinc-700">{formatDate(l.journalEntry.entryDate)}</td>
                     <td className="py-2 pr-3">
                       <Link className="underline text-zinc-700" href={`/app/journal/${l.journalEntry.id}`}>
                         {l.journalEntry.description ?? l.journalEntry.id}

@@ -31,6 +31,7 @@ export type PaymentReceiptPdfData = {
   customerEmail?: string | null;
   customerPhone?: string | null;
   invoiceNumber: string;
+  receiptLabel?: string;
   paymentId: string;
   paymentDate: string;
   method?: string | null;
@@ -195,7 +196,7 @@ export async function generatePaymentReceiptPdf(data: PaymentReceiptPdfData): Pr
     page.drawText(truncateText(value, 180, bold, FONT_SIZE), { x: rightX + labelW, y: yy, size: FONT_SIZE, font: bold, color: COLORS.ink });
   };
   drawKV("Invoice #:", safePdfText(data.invoiceNumber), y);
-  drawKV("Receipt ID:", safePdfText(data.paymentId), y - LINE_HEIGHT);
+  drawKV("Receipt #:", safePdfText(data.receiptLabel ?? data.paymentId), y - LINE_HEIGHT);
   drawKV("Date:", safePdfText(data.paymentDate), y - LINE_HEIGHT * 2);
   drawKV("Method:", safePdfText(data.method, "-").toUpperCase(), y - LINE_HEIGHT * 3);
 

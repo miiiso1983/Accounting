@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -66,7 +67,7 @@ export default async function SalesRepDetailPage({ params }: { params: Promise<{
         </div>
         <div className="rounded-xl border p-3">
           <div className="text-xs text-zinc-500">Created / تاريخ الإنشاء</div>
-          <div className="mt-1 text-sm text-zinc-900">{rep.createdAt.toISOString().slice(0, 10)}</div>
+          <div className="mt-1 text-sm text-zinc-900">{formatDate(rep.createdAt)}</div>
         </div>
       </div>
 

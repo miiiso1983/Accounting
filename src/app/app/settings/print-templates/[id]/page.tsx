@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { PRINT_TEMPLATE_TYPE_LABELS } from "@/lib/settings/print-templates";
@@ -32,7 +33,7 @@ export default async function PrintTemplateDetailPage({ params }: { params: Prom
         <div>
           <div className="text-sm text-zinc-500">Print Templates / نماذج الطباعة</div>
           <div className="mt-1 text-base font-medium text-zinc-900">{template.name}</div>
-          <div className="mt-0.5 text-xs text-zinc-500">Updated {template.updatedAt.toISOString().slice(0, 10)}</div>
+          <div className="mt-0.5 text-xs text-zinc-500">Updated {formatDate(template.updatedAt)}</div>
         </div>
         <Link className="text-sm underline text-zinc-700" href="/app/settings/print-templates">
           Back / رجوع

@@ -311,7 +311,8 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
 
 type PaymentRow = {
   id: string;
-  paymentDate: string; // yyyy-mm-dd
+  receiptLabel: string;
+  paymentDate: string; // dd/mm/yyyy
   amount: string;
   currencyCode: string;
   amountBase: string;
@@ -520,6 +521,7 @@ export function InvoicePaymentsPanel({
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-zinc-500">
             <tr className="border-b">
+              <th className="py-2 pr-3">Receipt #</th>
               <th className="py-2 pr-3">Date</th>
               <th className="py-2 pr-3">Amount</th>
               <th className="py-2 pr-3">Base</th>
@@ -531,13 +533,14 @@ export function InvoicePaymentsPanel({
           <tbody>
             {payments.length === 0 ? (
               <tr>
-                <td className="py-3 text-sm text-zinc-600" colSpan={6}>
+                <td className="py-3 text-sm text-zinc-600" colSpan={7}>
                   No payments recorded yet.
                 </td>
               </tr>
             ) : (
               payments.map((p) => (
                 <tr key={p.id} className="border-b last:border-b-0">
+                  <td className="py-2 pr-3 font-mono text-zinc-900">{p.receiptLabel}</td>
                   <td className="py-2 pr-3 font-mono text-zinc-700">{p.paymentDate}</td>
                   <td className="py-2 pr-3 font-mono text-zinc-900">
                     {p.amount} {p.currencyCode}

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -102,7 +103,7 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
             <tbody>
               {customer.invoices.map((inv) => (
                 <tr key={inv.id} className="border-b last:border-b-0">
-                  <td className="py-2 pr-3 text-zinc-700">{inv.issueDate.toISOString().slice(0, 10)}</td>
+                  <td className="py-2 pr-3 text-zinc-700">{formatDate(inv.issueDate)}</td>
                   <td className="py-2 pr-3">
                     <Link className="underline text-zinc-700" href={`/app/invoices/${inv.id}`}>
                       {inv.invoiceNumber}

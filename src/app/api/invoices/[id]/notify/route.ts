@@ -15,7 +15,10 @@ const BodySchema = z.object({
 });
 
 function formatDate(value: Date) {
-  return value.toISOString().slice(0, 10);
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const year = value.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {

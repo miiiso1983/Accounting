@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -34,7 +35,7 @@ export default async function BranchDetailPage({ params }: { params: Promise<{ i
           <div className="text-sm text-zinc-500">Branches / الفروع</div>
           <div className="mt-1 text-base font-medium text-zinc-900">{branch.code} — {branch.name}</div>
           <div className="mt-0.5 text-xs text-zinc-500">
-            {branch.isActive ? "Active / نشط" : "Inactive / غير نشط"} · Created {branch.createdAt.toISOString().slice(0, 10)}
+            {branch.isActive ? "Active / نشط" : "Inactive / غير نشط"} · Created {formatDate(branch.createdAt)}
           </div>
         </div>
         <Link className="text-sm underline text-zinc-700" href="/app/settings/branches">

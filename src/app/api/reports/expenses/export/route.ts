@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/format/date";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
       // Legacy expense without line items
       rows.push({
         "Expense #": e.expenseNumber || e.id.slice(0, 8),
-        Date: e.expenseDate.toISOString().slice(0, 10),
+        Date: formatDate(e.expenseDate),
         Vendor: e.vendorName || "",
         Status: e.status,
         "Account Code": e.expenseAccount?.code || "",
@@ -72,7 +73,7 @@ export async function GET(req: Request) {
       for (const li of e.lineItems) {
         rows.push({
           "Expense #": e.expenseNumber || e.id.slice(0, 8),
-          Date: e.expenseDate.toISOString().slice(0, 10),
+          Date: formatDate(e.expenseDate),
           Vendor: e.vendorName || "",
           Status: e.status,
           "Account Code": li.account.code,
