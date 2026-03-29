@@ -28,7 +28,7 @@ type InvoiceData = {
   discountValue: string;
   paymentTerms: string;
   salesRepresentativeId: string;
-	lines: { description: string; costCenterId?: string; quantity: string; unitPrice: string; discountType?: string; discountValue?: string; taxRate: string }[];
+	lines: { description: string; costCenterId?: string; productId?: string; quantity: string; unitPrice: string; discountType?: string; discountValue?: string; taxRate: string }[];
 };
 
 type Props = {
@@ -60,6 +60,7 @@ function fmtNum(n: number): string {
 const LineSchema = z.object({
   description: z.string().min(1),
 	costCenterId: z.string().optional(),
+  productId: z.string().optional(),
   quantity: z.string().min(1),
   unitPrice: z.string().min(1),
   discountType: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["PERCENTAGE", "FIXED"]).optional()),
@@ -355,7 +356,7 @@ export function InvoiceEditForm({ invoiceId, initialData, customers: initialCust
           errors={errors as Record<string, unknown> | undefined}
           lineTotals={totals.lineTotals}
           fmtNum={fmtNum}
-          onAppend={() => append({ description: "", costCenterId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" })}
+          onAppend={() => append({ description: "", costCenterId: "", productId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" })}
           onRemove={remove}
           canRemove={fields.length > 1}
         />

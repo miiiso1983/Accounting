@@ -457,6 +457,7 @@ model Product {
   costCenter     CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   revenueAccount GlAccount?  @relation(fields: [revenueAccountId], references: [id], onDelete: SetNull)
   expenses       Expense[]
+  invoiceLineItems InvoiceLineItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -617,12 +618,15 @@ model InvoiceLineItem {
   taxRate       Decimal? @db.Decimal(20, 6) // e.g. 0.05
 
   costCenterId String?
+  productId    String?
 
   invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   costCenter CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
   @@index([costCenterId])
+  @@index([productId])
 }
 
 model InstallmentContract {

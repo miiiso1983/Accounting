@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { hasPermission } from "@/lib/rbac/authorize";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 
-type AccountType = "ASSET" | "LIABILITY" | "EQUITY";
+type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "EXPENSE";
 type ANode = { id: string; code: string; name: string; type: AccountType; parentId: string | null; isPosting: boolean; balance: number; children: ANode[] };
 
 export async function GET(req: Request) {
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   const toDate = asOf ? (() => { const d = new Date(`${asOf}T23:59:59.999Z`); return isNaN(d.getTime()) ? undefined : d; })() : undefined;
 
   const allAccounts = await prisma.glAccount.findMany({
-    where: { companyId, type: { in: ["ASSET", "LIABILITY", "EQUITY"] } },
+    where: { companyId, type: { in: ["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"] } },
     orderBy: [{ code: "asc" }],
     select: { id: true, code: true, name: true, type: true, parentId: true, isPosting: true },
   });
@@ -65,7 +65,13 @@ export async function GET(req: Request) {
   const totalAssets = roots.filter((r) => r.type === "ASSET").reduce((s, r) => s + r.balance, 0);
   const totalLiabilities = roots.filter((r) => r.type === "LIABILITY").reduce((s, r) => s + -r.balance, 0);
   const totalEquity = roots.filter((r) => r.type === "EQUITY").reduce((s, r) => s + -r.balance, 0);
-  const totalLE = totalLiabilities + totalEquity;
+
+  // Period Revenue (Net Income) = Income − Expenses (dynamically, not persisted)
+  const totalIncome = roots.filter((r) => r.type === "INCOME").reduce((s, r) => s + -r.balance, 0);
+  const totalExpenses = roots.filter((r) => r.type === "EXPENSE").reduce((s, r) => s + r.balance, 0);
+  const periodRevenue = totalIncome - totalExpenses;
+
+  const totalLE = totalLiabilities + totalEquity + periodRevenue;
   const diff = totalAssets - totalLE;
   const balanced = Math.abs(diff) < 0.01;
 
@@ -84,7 +90,8 @@ export async function GET(req: Request) {
   rows.push({ Section: "", Code: "", Account: "Total Liabilities", Balance: totalLiabilities });
   rows.push({ Section: "", Code: "", Account: "", Balance: 0 });
   flatten(roots.filter((r) => r.type === "EQUITY"), "Equity", 0);
-  rows.push({ Section: "", Code: "", Account: "Total Equity", Balance: totalEquity });
+  rows.push({ Section: "", Code: "", Account: "  Period Revenue / إيراد الفترة", Balance: periodRevenue });
+  rows.push({ Section: "", Code: "", Account: "Total Equity", Balance: totalEquity + periodRevenue });
 
   rows.push({ Section: "", Code: "", Account: "", Balance: 0 });
   rows.push({ Section: "", Code: "", Account: "Liabilities + Equity", Balance: totalLE });

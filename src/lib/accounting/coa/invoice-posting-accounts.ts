@@ -52,3 +52,36 @@ export async function getInvoicePostingAccountsTx(tx: Prisma.TransactionClient, 
 export async function ensureInvoicePostingAccountsTx(tx: Prisma.TransactionClient, companyId: string) {
   return ensureInvoicePostingAccounts(tx, companyId);
 }
+
+/**
+ * Groups line-item totals by their product-level revenueAccountId.
+ * Falls back to `defaultSalesAccountId` when a line has no product or the product has no revenueAccountId.
+ *
+ * Returns a Map<accountId, subtotal>.
+ */
+export async function groupRevenueByProductAccount(
+  tx: InvoicePostingAccountsDb,
+  lineItems: { productId: string | null; lineTotal: { toString(): string } }[],
+  defaultSalesAccountId: string,
+): Promise<Map<string, Prisma.Decimal>> {
+  const productIds = [...new Set(lineItems.filter((l) => l.productId).map((l) => l.productId!))];
+
+  const products =
+    productIds.length > 0
+      ? await tx.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, revenueAccountId: true },
+        })
+      : [];
+
+  const productAccountMap = new Map(products.map((p) => [p.id, p.revenueAccountId]));
+
+  const accountTotals = new Map<string, Prisma.Decimal>();
+  for (const line of lineItems) {
+    const accountId = (line.productId && productAccountMap.get(line.productId)) || defaultSalesAccountId;
+    const current = accountTotals.get(accountId) ?? new Prisma.Decimal(0);
+    accountTotals.set(accountId, current.plus(new Prisma.Decimal(line.lineTotal.toString())));
+  }
+
+  return accountTotals;
+}

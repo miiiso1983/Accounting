@@ -60,9 +60,9 @@ export default async function BalanceSheetPage({
     select: { id: true, code: true, name: true },
   });
 
-  // Fetch all accounts (not just posting)
+  // Fetch all accounts (including INCOME/EXPENSE for Period Revenue)
   const allAccounts = await prisma.glAccount.findMany({
-    where: { companyId, type: { in: ["ASSET", "LIABILITY", "EQUITY"] } },
+    where: { companyId, type: { in: ["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"] } },
     orderBy: [{ code: "asc" }],
     select: { id: true, code: true, name: true, type: true, parentId: true, isPosting: true },
   });
@@ -110,6 +110,8 @@ export default async function BalanceSheetPage({
   const assetRoots = roots.filter((r) => r.type === "ASSET");
   const liabilityRoots = roots.filter((r) => r.type === "LIABILITY");
   const equityRoots = roots.filter((r) => r.type === "EQUITY");
+  const incomeRoots = roots.filter((r) => r.type === "INCOME");
+  const expenseRoots = roots.filter((r) => r.type === "EXPENSE");
 
   // Display balances according to normal balance
   // ASSET: debit-normal → positive means debit > credit (correct)
@@ -122,7 +124,14 @@ export default async function BalanceSheetPage({
   const totalAssets = assetRoots.reduce((s, r) => s + r.balance, 0);
   const totalLiabilities = liabilityRoots.reduce((s, r) => s + -r.balance, 0);
   const totalEquity = equityRoots.reduce((s, r) => s + -r.balance, 0);
-  const totalLE = totalLiabilities + totalEquity;
+
+  // Period Revenue (Net Income) = Total Income − Total Expenses (dynamically calculated)
+  // INCOME is credit-normal → negate raw balance; EXPENSE is debit-normal → raw balance
+  const totalIncome = incomeRoots.reduce((s, r) => s + -r.balance, 0);
+  const totalExpenses = expenseRoots.reduce((s, r) => s + r.balance, 0);
+  const periodRevenue = totalIncome - totalExpenses;
+
+  const totalLE = totalLiabilities + totalEquity + periodRevenue;
   const balanced = Math.abs(totalAssets - totalLE) < 0.01;
 
   const qs = new URLSearchParams({ ...(asOf ? { asOf } : {}), ...(costCenterId ? { costCenterId } : {}) }).toString();
@@ -177,9 +186,17 @@ export default async function BalanceSheetPage({
 
         {/* EQUITY */}
         <Section title="Equity / حقوق الملكية" color="purple" roots={equityRoots} displayBal={displayBal} fmt={fmt} glHref={glHref} />
+        {/* Period Revenue (Net Income) — dynamically calculated, not persisted */}
+        <div className="rounded-xl bg-emerald-50/60 px-4 py-2 flex justify-between items-center text-sm text-emerald-800">
+          <span className="flex items-center gap-2">
+            <span className="font-mono text-xs text-emerald-600">—</span>
+            <span>Period Revenue / إيراد الفترة</span>
+          </span>
+          <span className={`font-mono ${periodRevenue < 0 ? "text-rose-600" : "text-emerald-900"}`}>{fmt(periodRevenue)}</span>
+        </div>
         <div className="rounded-xl bg-purple-50 px-4 py-3 flex justify-between items-center font-bold text-purple-900">
           <span>Total Equity / إجمالي حقوق الملكية</span>
-          <span className="font-mono">{fmt(totalEquity)}</span>
+          <span className="font-mono">{fmt(totalEquity + periodRevenue)}</span>
         </div>
 
         {/* TOTAL L+E */}

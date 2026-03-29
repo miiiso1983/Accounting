@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 
-import { ensureInvoicePostingAccounts, getInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
+import { Prisma } from "@/generated/prisma/client";
+import { ensureInvoicePostingAccounts, getInvoicePostingAccountsTx, groupRevenueByProductAccount } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { authOptions } from "@/lib/auth/options";
 import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { prisma } from "@/lib/db/prisma";
@@ -46,6 +47,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       total: true,
       totalBase: true,
       journalEntryId: true,
+      lineItems: { select: { productId: true, lineTotal: true } },
     },
   });
 
@@ -62,11 +64,34 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       const salesId = mustGetPostingAccountIdByCode({ accountsByCode, code: "4100" });
       const vatId = mustGetPostingAccountIdByCode({ accountsByCode, code: "2250" });
 
-      const netSales = invoice.subtotal.minus(invoice.discountAmount);
-      const netSalesBase = invoice.subtotalBase.minus(invoice.discountAmountBase).toDecimalPlaces(6);
+      // Group revenue by product-level account (fallback to 4100)
+      const revenueByAccount = await groupRevenueByProductAccount(tx, invoice.lineItems, salesId);
+      const mulToBase = (amt: Prisma.Decimal) => {
+        if (invoice.currencyCode === invoice.baseCurrencyCode) return amt;
+        // For send route, subtotal ratio is used to derive base amounts
+        const ratio = invoice.subtotal.gt(0) ? invoice.subtotalBase.div(invoice.subtotal) : new Prisma.Decimal(1);
+        return amt.mul(ratio);
+      };
+      const discountAmount = invoice.discountAmount;
+      const subtotal = invoice.subtotal;
+      const revenueCreditLines: { accountId: string; dc: "CREDIT"; amount: string; amountBase: string }[] = [];
+      for (const [accountId, accountSubtotal] of revenueByAccount) {
+        let adjustedAmount = accountSubtotal;
+        if (discountAmount.gt(0) && subtotal.gt(0)) {
+          const proportion = accountSubtotal.div(subtotal);
+          adjustedAmount = accountSubtotal.minus(discountAmount.mul(proportion)).toDecimalPlaces(6);
+        }
+        revenueCreditLines.push({
+          accountId,
+          dc: "CREDIT" as const,
+          amount: adjustedAmount.toFixed(6),
+          amountBase: mulToBase(adjustedAmount).toDecimalPlaces(6).toFixed(6),
+        });
+      }
+
       const entryLines = [
         { accountId: arId, dc: "DEBIT" as const, amount: invoice.total.toFixed(6), amountBase: invoice.totalBase.toFixed(6) },
-        { accountId: salesId, dc: "CREDIT" as const, amount: netSales.toFixed(6), amountBase: netSalesBase.toFixed(6) },
+        ...revenueCreditLines,
         ...(invoice.taxTotal.gt(0)
           ? [{ accountId: vatId, dc: "CREDIT" as const, amount: invoice.taxTotal.toFixed(6), amountBase: invoice.taxTotalBase.toFixed(6) }]
           : []),

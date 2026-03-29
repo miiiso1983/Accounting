@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { authOptions } from "@/lib/auth/options";
-import { ensureInvoicePostingAccounts, getInvoicePostingAccountsTx } from "@/lib/accounting/coa/invoice-posting-accounts";
+import { ensureInvoicePostingAccounts, getInvoicePostingAccountsTx, groupRevenueByProductAccount } from "@/lib/accounting/coa/invoice-posting-accounts";
 import { prisma } from "@/lib/db/prisma";
 import { INTERACTIVE_TRANSACTION_OPTIONS, readTransactionErrorMessage } from "@/lib/db/interactive-transaction";
 import { createPostedJournalEntryTx } from "@/lib/accounting/journal/create";
@@ -32,6 +32,7 @@ const BodySchema = z.object({
       z.object({
         description: z.string().min(1),
 				costCenterId: z.string().optional().or(z.literal("")),
+        productId: z.string().optional().or(z.literal("")),
         quantity: z.string().min(1),
         unitPrice: z.string().min(1),
         discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
@@ -184,10 +185,12 @@ export async function POST(req: Request) {
         if (taxRate && taxRate.lt(0)) throw new Error("Tax rate must be >= 0");
         const lineTax = taxRate ? lineTotal.mul(taxRate) : zero;
 				const costCenterId = l.costCenterId?.trim() ? l.costCenterId.trim() : null;
+				const productId = l.productId?.trim() ? l.productId.trim() : null;
 
         return {
           description: l.description,
 					costCenterId,
+					productId,
           quantity: qty,
           unitPrice: price,
           discountType: lineDiscountType,
@@ -255,6 +258,7 @@ export async function POST(req: Request) {
             create: computedLines.map((l) => ({
               description: l.description,
 							costCenterId: l.costCenterId,
+							productId: l.productId,
               quantity: l.quantity.toDecimalPlaces(6).toFixed(6),
               unitPrice: l.unitPrice.toDecimalPlaces(6).toFixed(6),
               discountType: l.discountType,
@@ -273,9 +277,26 @@ export async function POST(req: Request) {
         const salesId = mustGetPostingAccountIdByCode({ accountsByCode, code: "4100" });
         const vatId = mustGetPostingAccountIdByCode({ accountsByCode, code: "2250" });
 
+        // Group revenue by product-level account (fallback to 4100)
+        const revenueByAccount = await groupRevenueByProductAccount(tx, computedLines, salesId);
+        const revenueCreditLines: { accountId: string; dc: "CREDIT"; amount: string; amountBase: string }[] = [];
+        for (const [accountId, accountSubtotal] of revenueByAccount) {
+          let adjustedAmount = accountSubtotal;
+          if (discountAmount.gt(0) && subtotal.gt(0)) {
+            const proportion = accountSubtotal.div(subtotal);
+            adjustedAmount = accountSubtotal.minus(discountAmount.mul(proportion)).toDecimalPlaces(6);
+          }
+          revenueCreditLines.push({
+            accountId,
+            dc: "CREDIT" as const,
+            amount: adjustedAmount.toFixed(6),
+            amountBase: mulToBase(adjustedAmount).toDecimalPlaces(6).toFixed(6),
+          });
+        }
+
         const postingLines = [
           { accountId: arId, dc: "DEBIT" as const, amount: total.toFixed(6), amountBase: totalBase.toFixed(6) },
-          { accountId: salesId, dc: "CREDIT" as const, amount: afterDiscount.toFixed(6), amountBase: afterDiscountBase.toFixed(6) },
+          ...revenueCreditLines,
           ...(taxTotal.gt(0)
             ? [{ accountId: vatId, dc: "CREDIT" as const, amount: taxTotal.toFixed(6), amountBase: taxTotalBase.toFixed(6) }]
             : []),

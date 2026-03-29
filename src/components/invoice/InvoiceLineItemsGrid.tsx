@@ -129,7 +129,7 @@ function GridProductCell({ idx, products, costCenters, setValue }: { idx: number
   return (
     <td className="px-2 py-1.5">
       <select className="w-full border-0 bg-transparent px-1 py-1.5 text-sm focus:ring-1 focus:ring-sky-300 rounded" defaultValue=""
-        onChange={e => { const p = products.find(x => x.id === e.target.value); if (p) { setValue(`lines.${idx}.description`, p.description || p.name); setValue(`lines.${idx}.unitPrice`, p.unitPrice); setValue(`lines.${idx}.costCenterId`, p.costCenterId && costCenters.some(cc => cc.id === p.costCenterId) ? p.costCenterId : ""); } }}>
+        onChange={e => { const p = products.find(x => x.id === e.target.value); if (p) { setValue(`lines.${idx}.description`, p.description || p.name); setValue(`lines.${idx}.unitPrice`, p.unitPrice); setValue(`lines.${idx}.costCenterId`, p.costCenterId && costCenters.some(cc => cc.id === p.costCenterId) ? p.costCenterId : ""); setValue(`lines.${idx}.productId`, p.id); } }}>
         <option value="">— منتج —</option>
         {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>

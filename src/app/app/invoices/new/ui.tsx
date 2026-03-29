@@ -28,6 +28,7 @@ type Props = {
 const LineSchema = z.object({
   description: z.string().min(1),
 	costCenterId: z.string().optional(),
+  productId: z.string().optional(),
   quantity: z.string().min(1),
   unitPrice: z.string().min(1),
   discountType: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["PERCENTAGE", "FIXED"]).optional()),
@@ -132,7 +133,7 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
       discountType: "",
       discountValue: "",
       paymentTerms: "",
-			lines: [{ description: "", costCenterId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" }],
+			lines: [{ description: "", costCenterId: "", productId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" }],
     },
   });
 
@@ -392,7 +393,7 @@ export function InvoiceForm({ customers: initialCustomers, products, costCenters
           errors={errors as Record<string, unknown> | undefined}
           lineTotals={totals.lineTotals}
           fmtNum={fmtNum}
-          onAppend={() => append({ description: "", costCenterId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" })}
+          onAppend={() => append({ description: "", costCenterId: "", productId: "", quantity: "1", unitPrice: "", discountType: "", discountValue: "", taxRate: "" })}
           onRemove={remove}
           canRemove={fields.length > 1}
         />

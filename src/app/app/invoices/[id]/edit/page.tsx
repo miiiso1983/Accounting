@@ -88,6 +88,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
     lines: invoice.lineItems.map((li) => ({
       description: li.description,
       costCenterId: li.costCenterId ?? "",
+      productId: li.productId ?? "",
       quantity: String(li.quantity),
       unitPrice: String(li.unitPrice),
       discountType: li.discountType ?? "",
