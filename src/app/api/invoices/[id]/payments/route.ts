@@ -162,9 +162,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             return amount.mul(fx.rate);
           })();
 
-      // Generate sequential receipt number per company
+      // Generate sequential receipt number per company (exclude nulls — PostgreSQL sorts NULLs first in DESC)
       const lastPayment = await tx.invoicePayment.findFirst({
-        where: { companyId: invoice.companyId },
+        where: { companyId: invoice.companyId, receiptNumber: { not: null } },
         orderBy: { receiptNumber: "desc" },
         select: { receiptNumber: true },
       });
