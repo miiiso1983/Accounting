@@ -53,6 +53,15 @@ enum InvoiceStatus {
   WRITTEN_OFF
 }
 
+enum EstimateStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
 enum ExpenseStatus {
   DRAFT
   SUBMITTED
@@ -107,6 +116,7 @@ model Company {
   printTemplates       PrintTemplate[]
   installmentContracts InstallmentContract[]
   salesRepresentatives SalesRepresentative[]
+  estimates            Estimate[]
 }
 
 // --- Auth.js / NextAuth v4 models (Prisma Adapter) ---
@@ -137,6 +147,7 @@ model User {
   // Operational links
   createdJournalEntries  JournalEntry[]
   createdInvoicePayments InvoicePayment[]
+  createdEstimates       Estimate[]
   uploadedAttachments    Attachment[]
 
   createdAt DateTime @default(now())
@@ -252,6 +263,7 @@ model ExchangeRate {
   // Inverse relations
   journalEntries  JournalEntry[]
   invoices        Invoice[]
+  estimates       Estimate[]
   expenses        Expense[]
   invoicePayments InvoicePayment[]
 
@@ -379,11 +391,12 @@ model CostCenter {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  journalLines     JournalLine[]
-  products         Product[]
-  expenses         Expense[]
-  expenseLineItems ExpenseLineItem[]
-  invoiceLineItems InvoiceLineItem[]
+  journalLines      JournalLine[]
+  products          Product[]
+  expenses          Expense[]
+  expenseLineItems  ExpenseLineItem[]
+  invoiceLineItems  InvoiceLineItem[]
+  estimateLineItems EstimateLineItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -407,6 +420,7 @@ model Branch {
 
   // Inverse relations
   invoices       Invoice[]
+  estimates      Estimate[]
   journalEntries JournalEntry[]
   defaultUsers   User[]         @relation("UserDefaultBranch")
 
@@ -456,8 +470,9 @@ model Product {
   company        Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   costCenter     CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   revenueAccount GlAccount?  @relation(fields: [revenueAccountId], references: [id], onDelete: SetNull)
-  expenses       Expense[]
-  invoiceLineItems InvoiceLineItem[]
+  expenses           Expense[]
+  invoiceLineItems   InvoiceLineItem[]
+  estimateLineItems  EstimateLineItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -503,6 +518,7 @@ model Customer {
 
   company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices             Invoice[]
+  estimates            Estimate[]
   installmentContracts InstallmentContract[]
 
   createdAt DateTime @default(now())
@@ -554,6 +570,9 @@ model Invoice {
   lineItems   InvoiceLineItem[]
   attachments Attachment[]
   payments    InvoicePayment[]
+
+  // Inverse: estimate that was converted to this invoice
+  sourceEstimate Estimate? @relation("EstimateToInvoice")
 
   // Optional linkage to posted accounting entry
   journalEntryId String?
@@ -756,4 +775,82 @@ model Attachment {
   @@index([companyId, ownerType])
   @@index([invoiceId])
   @@index([expenseId])
+}
+
+
+// --- Estimates (عروض الأسعار) ---
+
+model Estimate {
+  id         String @id @default(cuid())
+  companyId  String
+  customerId String
+
+  estimateNumber String
+  status         EstimateStatus @default(DRAFT)
+  issueDate      DateTime
+  expiryDate     DateTime?
+
+  currencyCode     CurrencyCode
+  baseCurrencyCode CurrencyCode
+  exchangeRateId   String?
+  exchangeRate     ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  subtotal       Decimal @db.Decimal(20, 6)
+  discountType   String? // "PERCENTAGE" | "FIXED"
+  discountValue  Decimal @default(0) @db.Decimal(20, 6)
+  discountAmount Decimal @default(0) @db.Decimal(20, 6)
+  taxTotal       Decimal @default(0) @db.Decimal(20, 6)
+  total          Decimal @db.Decimal(20, 6)
+
+  subtotalBase       Decimal @db.Decimal(20, 6)
+  discountAmountBase Decimal @default(0) @db.Decimal(20, 6)
+  taxTotalBase       Decimal @default(0) @db.Decimal(20, 6)
+  totalBase          Decimal @db.Decimal(20, 6)
+
+  note String?
+
+  // Link to converted invoice (when status = CONVERTED)
+  convertedInvoiceId String?  @unique
+  convertedInvoice   Invoice? @relation("EstimateToInvoice", fields: [convertedInvoiceId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User? @relation(fields: [createdById], references: [id])
+
+  customer  Customer          @relation(fields: [customerId], references: [id])
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineItems EstimateLineItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, estimateNumber])
+  @@index([companyId, issueDate])
+  @@index([companyId, branchId])
+  @@index([companyId, status])
+}
+
+model EstimateLineItem {
+  id            String  @id @default(cuid())
+  estimateId    String
+  description   String
+  quantity      Decimal @db.Decimal(20, 6)
+  unitPrice     Decimal @db.Decimal(20, 6)
+  discountType  String? // "PERCENTAGE" | "FIXED"
+  discountValue Decimal @default(0) @db.Decimal(20, 6)
+  lineTotal     Decimal @db.Decimal(20, 6)
+  taxRate       Decimal? @db.Decimal(20, 6) // e.g. 0.05
+
+  costCenterId String?
+  productId    String?
+
+  estimate   Estimate    @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  costCenter CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([estimateId])
+  @@index([costCenterId])
+  @@index([productId])
 }

@@ -22,6 +22,10 @@ export const PERMISSIONS = {
   INVOICE_PAYMENT_READ: "invoice_payment:read",
   INVOICE_PAYMENT_WRITE: "invoice_payment:write",
 
+  // Estimates
+  ESTIMATE_READ: "estimate:read",
+  ESTIMATE_WRITE: "estimate:write",
+
   // Expenses
   EXPENSE_READ: "expense:read",
   EXPENSE_WRITE: "expense:write",

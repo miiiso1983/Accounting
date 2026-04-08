@@ -7,6 +7,7 @@ import {
   BookOpen,
   BarChart3,
   Building2,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   NotebookPen,
@@ -66,6 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <NavItem href="/app/customers" icon={<Users className="h-4 w-4" aria-hidden />} label={t("nav.customers")} />
                 <NavItem href="/app/products" icon={<Package className="h-4 w-4" aria-hidden />} label={t("nav.products")} />
                 <NavItem href="/app/invoices" icon={<FileText className="h-4 w-4" aria-hidden />} label={t("nav.invoices")} />
+                <NavItem href="/app/estimates" icon={<ClipboardList className="h-4 w-4" aria-hidden />} label={t("nav.estimates")} />
 	                <NavItem href="/app/expenses" icon={<ReceiptText className="h-4 w-4" aria-hidden />} label={t("nav.expenses")} />
                 <NavItem href="/app/transfers" icon={<ArrowLeftRight className="h-4 w-4" aria-hidden />} label={t("nav.transfers")} />
                 <NavItem href="/app/sales-reps" icon={<UserCheck className="h-4 w-4" aria-hidden />} label={t("nav.salesReps")} />
@@ -125,6 +127,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <MobileNavChip href="/app/customers" label={t("nav.customers")} />
                 <MobileNavChip href="/app/products" label={t("nav.products")} />
                 <MobileNavChip href="/app/invoices" label={t("nav.invoices")} />
+                <MobileNavChip href="/app/estimates" label={t("nav.estimates")} />
 	                <MobileNavChip href="/app/expenses" label={t("nav.expenses")} />
                 <MobileNavChip href="/app/transfers" label={t("nav.transfers")} />
                 <MobileNavChip href="/app/sales-reps" label={t("nav.salesReps")} />
