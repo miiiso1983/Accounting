@@ -85,11 +85,13 @@ export async function GET(req: Request) {
   const activeHeaders = activeKeys.map((k) => columnMap[k]);
 
   type RowType = Record<string, string | number>;
+  const closedStatuses = new Set(["CLOSED", "WRITTEN_OFF", "CANCELLED"]);
   const rows: RowType[] = invoices.map((inv) => {
+    const isClosed = closedStatuses.has(inv.status);
     const total = Number(inv.totalBase);
     const paid = inv.payments.reduce((s, p) => s + Number(p.amountBase), 0);
     const credited = inv.creditNotes.reduce((s, cn) => s + Number(cn.totalBase), 0);
-    const remaining = total - paid - credited;
+    const remaining = isClosed ? 0 : total - paid - credited;
     const ccNames = [...new Set(inv.lineItems.map((li) => li.costCenter?.name).filter(Boolean))].join(", ");
     const fullRow: Record<string, string | number> = {
       [columnMap.invoiceNumber]: inv.invoiceNumber,

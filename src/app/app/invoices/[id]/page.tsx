@@ -48,12 +48,13 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
   if (!invoice) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
 
   // Compute remaining balance = total - payments - credit notes
+  const isClosed = invoice.status === "CLOSED" || invoice.status === "WRITTEN_OFF" || invoice.status === "CANCELLED";
   const paidBase = invoice.payments.reduce((s, p) => s + Number(p.amountBase), 0);
   const creditedBase = invoice.creditNotes.reduce((s, cn) => s + Number(cn.totalBase), 0);
   const paidInCurrency = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const creditedInCurrency = invoice.creditNotes.reduce((s, cn) => s + Number(cn.total), 0);
-  const remainingBase = Math.max(0, Number(invoice.totalBase) - paidBase - creditedBase);
-  const remainingInCurrency = Math.max(0, Number(invoice.total) - paidInCurrency - creditedInCurrency);
+  const remainingBase = isClosed ? 0 : Math.max(0, Number(invoice.totalBase) - paidBase - creditedBase);
+  const remainingInCurrency = isClosed ? 0 : Math.max(0, Number(invoice.total) - paidInCurrency - creditedInCurrency);
   const hasCreditNotes = invoice.creditNotes.length > 0;
   const hasPayments = invoice.payments.length > 0;
 

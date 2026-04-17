@@ -31,7 +31,7 @@ function parseDateEnd(ymd: string | undefined) {
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-type PaymentState = "ALL" | "PAID" | "PARTIAL" | "UNPAID";
+type PaymentState = "ALL" | "PAID" | "PARTIAL" | "UNPAID" | "SETTLED";
 type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED";
 
 function paymentStateOf(totalBase: Prisma.Decimal, receivedBase: Prisma.Decimal): Exclude<PaymentState, "ALL"> {
@@ -140,14 +140,16 @@ export default async function InvoicesIndexPage({
     creditedByInvoiceId.set(row.invoiceId, new Prisma.Decimal(row._sum.totalBase ?? 0));
   }
 
+  const closedStatuses = new Set(["CLOSED", "WRITTEN_OFF", "CANCELLED"]);
   const rows = invoicesRaw
     .map((inv) => {
+      const isClosed = closedStatuses.has(inv.status);
       const receivedBase = receivedByInvoiceId.get(inv.id) ?? new Prisma.Decimal(0);
       const creditedBase = creditedByInvoiceId.get(inv.id) ?? new Prisma.Decimal(0);
       const totalBase = new Prisma.Decimal(inv.totalBase);
-      const remainingBase = totalBase.sub(receivedBase).sub(creditedBase);
-      const ps = paymentStateOf(totalBase, receivedBase.plus(creditedBase));
-      return { inv, receivedBase, creditedBase, remainingBase, paymentState: ps };
+      const remainingBase = isClosed ? new Prisma.Decimal(0) : totalBase.sub(receivedBase).sub(creditedBase);
+      const ps = isClosed ? ("SETTLED" as const) : paymentStateOf(totalBase, receivedBase.plus(creditedBase));
+      return { inv, receivedBase, creditedBase, remainingBase, paymentState: ps, isClosed };
     })
     .filter((r) => (paymentState === "ALL" ? true : r.paymentState === paymentState));
   const canWrite = hasPermission(session, PERMISSIONS.INVOICE_WRITE);
@@ -286,8 +288,8 @@ export default async function InvoicesIndexPage({
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ inv, receivedBase, remainingBase }) => (
-              <tr key={inv.id} className="border-b dark:border-zinc-700 last:border-b-0">
+            {rows.map(({ inv, receivedBase, creditedBase, remainingBase, isClosed }) => (
+              <tr key={inv.id} className={`border-b dark:border-zinc-700 last:border-b-0 ${isClosed ? "opacity-60" : ""}`}>
                 <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{formatDate(inv.issueDate)}</td>
                 <td className="py-2 pr-3">
                   <Link className="underline text-zinc-700 dark:text-zinc-300" href={`/app/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
@@ -296,8 +298,15 @@ export default async function InvoicesIndexPage({
                 <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{inv.branch ? `${inv.branch.code}` : "-"}</td>
                 <td className="py-2 pr-3 text-zinc-700 dark:text-zinc-300">{inv.status}</td>
                 <td className="py-2 pr-3 font-mono text-zinc-900 dark:text-zinc-100">{fmt(inv.totalBase)}</td>
-                <td className="py-2 pr-3 font-mono text-zinc-900 dark:text-zinc-100">{fmt(receivedBase)}</td>
-                <td className="py-2 pr-3 font-mono text-zinc-900 dark:text-zinc-100">{fmt(remainingBase)}</td>
+                <td className="py-2 pr-3 font-mono text-emerald-700 dark:text-emerald-400">{Number(receivedBase) > 0 ? fmt(receivedBase) : "-"}</td>
+                <td className="py-2 pr-3 font-mono">
+                  {isClosed
+                    ? <span className="text-zinc-400">0 (مقفل)</span>
+                    : <span className="text-zinc-900 dark:text-zinc-100">{fmt(remainingBase)}</span>}
+                  {!isClosed && Number(creditedBase) > 0 && (
+                    <span className="block text-xs text-rose-600">مردود: {fmt(creditedBase)}</span>
+                  )}
+                </td>
                 <td className="py-2 pr-3">
                   <InvoiceListActions invoiceId={inv.id} status={inv.status} canWrite={canWrite} />
                 </td>

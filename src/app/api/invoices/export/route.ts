@@ -20,7 +20,7 @@ function parseDateEnd(ymd: string | undefined) {
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-type PaymentState = "ALL" | "PAID" | "PARTIAL" | "UNPAID";
+type PaymentState = "ALL" | "PAID" | "PARTIAL" | "UNPAID" | "SETTLED";
 type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED";
 
 function paymentStateOf(totalBase: Prisma.Decimal, receivedBase: Prisma.Decimal): Exclude<PaymentState, "ALL"> {
@@ -117,13 +117,15 @@ export async function GET(req: Request) {
     creditedByInvoiceId.set(row.invoiceId, new Prisma.Decimal(row._sum.totalBase ?? 0));
   }
 
+  const closedStatuses = new Set(["CLOSED", "WRITTEN_OFF", "CANCELLED"]);
   const rows = invoices
     .map((inv) => {
+      const isClosed = closedStatuses.has(inv.status);
       const receivedBase = receivedByInvoiceId.get(inv.id) ?? new Prisma.Decimal(0);
       const creditedBase = creditedByInvoiceId.get(inv.id) ?? new Prisma.Decimal(0);
       const totalBase = new Prisma.Decimal(inv.totalBase);
-      const remainingBase = totalBase.sub(receivedBase).sub(creditedBase);
-      const ps = paymentStateOf(totalBase, receivedBase.plus(creditedBase));
+      const remainingBase = isClosed ? new Prisma.Decimal(0) : totalBase.sub(receivedBase).sub(creditedBase);
+      const ps = isClosed ? ("SETTLED" as const) : paymentStateOf(totalBase, receivedBase.plus(creditedBase));
       return { inv, receivedBase, creditedBase, remainingBase, paymentState: ps };
     })
     .filter((r) => (paymentState === "ALL" ? true : r.paymentState === paymentState))

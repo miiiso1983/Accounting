@@ -125,11 +125,12 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
             </thead>
             <tbody>
               {customer.invoices.map((inv) => {
+                const isClosed = inv.status === "CLOSED" || inv.status === "WRITTEN_OFF" || inv.status === "CANCELLED";
                 const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
                 const credited = inv.creditNotes.reduce((s, cn) => s + Number(cn.total), 0);
-                const remaining = Math.max(0, Number(inv.total) - paid - credited);
+                const remaining = isClosed ? 0 : Math.max(0, Number(inv.total) - paid - credited);
                 return (
-                  <tr key={inv.id} className="border-b last:border-b-0">
+                  <tr key={inv.id} className={`border-b last:border-b-0 ${isClosed ? "opacity-60" : ""}`}>
                     <td className="py-2 pr-3 text-zinc-700">{formatDate(inv.issueDate)}</td>
                     <td className="py-2 pr-3">
                       <Link className="underline text-zinc-700" href={`/app/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
@@ -138,7 +139,7 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
                     <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(inv.total)} {inv.currencyCode}</td>
                     <td className="py-2 pr-3 font-mono text-emerald-700">{paid > 0 ? fmt(paid) : "-"}</td>
                     <td className="py-2 pr-3 font-mono text-rose-700">{credited > 0 ? fmt(credited) : "-"}</td>
-                    <td className="py-2 pr-3 font-mono font-medium text-zinc-900">{fmt(remaining)} {inv.currencyCode}</td>
+                    <td className="py-2 pr-3 font-mono font-medium text-zinc-900">{isClosed ? <span className="text-zinc-400">0 (مقفل)</span> : <>{fmt(remaining)} {inv.currencyCode}</>}</td>
                   </tr>
                 );
               })}
