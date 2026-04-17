@@ -46,13 +46,20 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     await ensureInvoicePostingAccounts(prisma, invoice.companyId);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Calculate remaining balance
-      const payments = await tx.invoicePayment.aggregate({
-        where: { invoiceId: invoice.id, companyId: invoice.companyId },
-        _sum: { amountBase: true },
-      });
+      // Calculate remaining balance = total - payments - credit notes
+      const [payments, creditNotes] = await Promise.all([
+        tx.invoicePayment.aggregate({
+          where: { invoiceId: invoice.id, companyId: invoice.companyId },
+          _sum: { amountBase: true },
+        }),
+        tx.creditNote.aggregate({
+          where: { invoiceId: invoice.id, companyId: invoice.companyId },
+          _sum: { totalBase: true },
+        }),
+      ]);
       const paidBase = payments._sum.amountBase ? new Prisma.Decimal(payments._sum.amountBase) : new Prisma.Decimal(0);
-      const remainingBase = invoice.totalBase.minus(paidBase);
+      const creditedBase = creditNotes._sum.totalBase ? new Prisma.Decimal(creditNotes._sum.totalBase) : new Prisma.Decimal(0);
+      const remainingBase = invoice.totalBase.minus(paidBase).minus(creditedBase);
 
       if (remainingBase.lte(0)) {
         // Already fully paid, just update status

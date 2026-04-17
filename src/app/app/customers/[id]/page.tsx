@@ -33,6 +33,10 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
       invoices: {
         orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
         take: 20,
+        include: {
+          payments: { select: { amountBase: true, amount: true } },
+          creditNotes: { select: { totalBase: true, total: true } },
+        },
       },
     },
   });
@@ -87,8 +91,25 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
         </div>
       </div>
 
+      {/* Outstanding balance summary */}
+      {(() => {
+        const outstandingInvoices = customer.invoices.filter((inv) => inv.status === "SENT" || inv.status === "OVERDUE");
+        const totalOutstanding = outstandingInvoices.reduce((s, inv) => {
+          const paid = inv.payments.reduce((ps, p) => ps + Number(p.amountBase), 0);
+          const credited = inv.creditNotes.reduce((cs, cn) => cs + Number(cn.totalBase), 0);
+          return s + Math.max(0, Number(inv.totalBase) - paid - credited);
+        }, 0);
+        return totalOutstanding > 0 ? (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="text-sm font-medium text-amber-900">Outstanding Balance / الرصيد المستحق</div>
+            <div className="mt-1 font-mono text-lg font-bold text-amber-800">{fmt(totalOutstanding)} {customer.invoices[0]?.baseCurrencyCode ?? ""}</div>
+            <div className="mt-1 text-xs text-amber-600">{outstandingInvoices.length} outstanding invoice(s)</div>
+          </div>
+        ) : null;
+      })()}
+
       <div className="mt-6">
-        <div className="text-sm font-medium text-zinc-900">Recent invoices</div>
+        <div className="text-sm font-medium text-zinc-900">Recent invoices / الفواتير الأخيرة</div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-zinc-500">
@@ -97,27 +118,30 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
                 <th className="py-2 pr-3">Invoice #</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
-                <th className="py-2 pr-3">Total (base)</th>
+                <th className="py-2 pr-3">Paid / مسدد</th>
+                <th className="py-2 pr-3">Returns / مردود</th>
+                <th className="py-2 pr-3">Remaining / متبقي</th>
               </tr>
             </thead>
             <tbody>
-              {customer.invoices.map((inv) => (
-                <tr key={inv.id} className="border-b last:border-b-0">
-                  <td className="py-2 pr-3 text-zinc-700">{formatDate(inv.issueDate)}</td>
-                  <td className="py-2 pr-3">
-                    <Link className="underline text-zinc-700" href={`/app/invoices/${inv.id}`}>
-                      {inv.invoiceNumber}
-                    </Link>
-                  </td>
-                  <td className="py-2 pr-3 text-zinc-700">{inv.status}</td>
-                  <td className="py-2 pr-3 font-mono text-zinc-900">
-                    {fmt(inv.total)} {inv.currencyCode}
-                  </td>
-                  <td className="py-2 pr-3 font-mono text-zinc-900">
-                    {fmt(inv.totalBase)} {inv.baseCurrencyCode}
-                  </td>
-                </tr>
-              ))}
+              {customer.invoices.map((inv) => {
+                const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
+                const credited = inv.creditNotes.reduce((s, cn) => s + Number(cn.total), 0);
+                const remaining = Math.max(0, Number(inv.total) - paid - credited);
+                return (
+                  <tr key={inv.id} className="border-b last:border-b-0">
+                    <td className="py-2 pr-3 text-zinc-700">{formatDate(inv.issueDate)}</td>
+                    <td className="py-2 pr-3">
+                      <Link className="underline text-zinc-700" href={`/app/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
+                    </td>
+                    <td className="py-2 pr-3 text-zinc-700">{inv.status}</td>
+                    <td className="py-2 pr-3 font-mono text-zinc-900">{fmt(inv.total)} {inv.currencyCode}</td>
+                    <td className="py-2 pr-3 font-mono text-emerald-700">{paid > 0 ? fmt(paid) : "-"}</td>
+                    <td className="py-2 pr-3 font-mono text-rose-700">{credited > 0 ? fmt(credited) : "-"}</td>
+                    <td className="py-2 pr-3 font-mono font-medium text-zinc-900">{fmt(remaining)} {inv.currencyCode}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 

@@ -207,13 +207,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       await tx.invoicePayment.update({ where: { id: payment.id }, data: { journalEntryId: entry.id } });
 
-      const totals = await tx.invoicePayment.aggregate({
-        where: { invoiceId: invoice.id, companyId: invoice.companyId },
-        _sum: { amountBase: true },
-      });
+      const [totals, cnTotals] = await Promise.all([
+        tx.invoicePayment.aggregate({
+          where: { invoiceId: invoice.id, companyId: invoice.companyId },
+          _sum: { amountBase: true },
+        }),
+        tx.creditNote.aggregate({
+          where: { invoiceId: invoice.id, companyId: invoice.companyId },
+          _sum: { totalBase: true },
+        }),
+      ]);
 
       const paidBase = totals._sum.amountBase ? new Prisma.Decimal(totals._sum.amountBase) : new Prisma.Decimal(0);
-      const isPaid = paidBase.gte(invoice.totalBase);
+      const creditedBase = cnTotals._sum.totalBase ? new Prisma.Decimal(cnTotals._sum.totalBase) : new Prisma.Decimal(0);
+      const isPaid = paidBase.plus(creditedBase).gte(invoice.totalBase);
       if (isPaid) {
         await tx.invoice.update({ where: { id: invoice.id }, data: { status: "PAID" }, select: { id: true } });
       }

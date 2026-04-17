@@ -46,6 +46,17 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
   });
 
   if (!invoice) return <div className="rounded-2xl border bg-white p-5 text-sm">Not found.</div>;
+
+  // Compute remaining balance = total - payments - credit notes
+  const paidBase = invoice.payments.reduce((s, p) => s + Number(p.amountBase), 0);
+  const creditedBase = invoice.creditNotes.reduce((s, cn) => s + Number(cn.totalBase), 0);
+  const paidInCurrency = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const creditedInCurrency = invoice.creditNotes.reduce((s, cn) => s + Number(cn.total), 0);
+  const remainingBase = Math.max(0, Number(invoice.totalBase) - paidBase - creditedBase);
+  const remainingInCurrency = Math.max(0, Number(invoice.total) - paidInCurrency - creditedInCurrency);
+  const hasCreditNotes = invoice.creditNotes.length > 0;
+  const hasPayments = invoice.payments.length > 0;
+
 		  const canSend = hasPermission(session, PERMISSIONS.INVOICE_SEND);
 		  const canEdit = hasPermission(session, PERMISSIONS.INVOICE_WRITE) && invoice.status === "DRAFT";
 		  const canPaymentRead = hasPermission(session, PERMISSIONS.INVOICE_PAYMENT_READ);
@@ -110,6 +121,29 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
             {fmt(invoice.totalBase)} {invoice.baseCurrencyCode}
           </div>
         </div>
+        {(hasPayments || hasCreditNotes) && (
+          <>
+            {hasPayments && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <div className="text-xs text-emerald-600">Paid / المسدد</div>
+                <div className="mt-1 font-mono text-sm text-emerald-800">{fmt(paidInCurrency)} {invoice.currencyCode}</div>
+              </div>
+            )}
+            {hasCreditNotes && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+                <div className="text-xs text-rose-600">Credit Notes / مردودات</div>
+                <div className="mt-1 font-mono text-sm text-rose-800">{fmt(creditedInCurrency)} {invoice.currencyCode}</div>
+              </div>
+            )}
+            <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+              <div className="text-xs text-sky-600">Remaining / المتبقي</div>
+              <div className="mt-1 font-mono text-sm font-bold text-sky-800">{fmt(remainingInCurrency)} {invoice.currencyCode}</div>
+              {invoice.currencyCode !== invoice.baseCurrencyCode && (
+                <div className="mt-0.5 font-mono text-xs text-sky-600">{fmt(remainingBase)} {invoice.baseCurrencyCode}</div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {Number(invoice.discountAmount) > 0 ? (
