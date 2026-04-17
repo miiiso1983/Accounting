@@ -74,6 +74,7 @@ export default async function InvoicesReportPage({
         customer: { select: { id: true, name: true } },
         lineItems: { select: { costCenter: { select: { id: true, name: true } } } },
         payments: { select: { amountBase: true } },
+        creditNotes: { select: { totalBase: true } },
       },
     }),
     getCachedCustomers(companyId),
@@ -83,7 +84,8 @@ export default async function InvoicesReportPage({
   const rows = invoices.map((inv) => {
     const total = Number(inv.totalBase);
     const paid = inv.payments.reduce((s, p) => s + Number(p.amountBase), 0);
-    const remaining = total - paid;
+    const credited = inv.creditNotes.reduce((s, cn) => s + Number(cn.totalBase), 0);
+    const remaining = total - paid - credited;
     const ccNames = [...new Set(inv.lineItems.map((li) => li.costCenter?.name).filter(Boolean))];
     return {
       id: inv.id,

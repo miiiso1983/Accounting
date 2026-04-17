@@ -38,6 +38,7 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
       exchangeRate: true,
       lineItems: true,
       payments: { orderBy: { paymentDate: "desc" } },
+      creditNotes: { orderBy: { createdAt: "desc" }, include: { lineItems: true } },
       journalEntry: { select: { id: true } },
       salesRepresentative: { select: { id: true, name: true } },
       branch: { select: { id: true, code: true, name: true } },
@@ -147,8 +148,15 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
 	          hasJournalEntry={Boolean(invoice.journalEntryId)}
 	          canSendPermission={canSend}
 	          canDeletePermission={hasPermission(session, PERMISSIONS.INVOICE_WRITE)}
+	          canReturnPermission={hasPermission(session, PERMISSIONS.CREDIT_NOTE_WRITE)}
 	          customerEmail={invoice.customer?.email}
 	          customerPhone={invoice.customer?.phone}
+	          invoiceLines={invoice.lineItems.map((l) => ({
+	            description: l.description,
+	            quantity: String(l.quantity),
+	            unitPrice: String(l.unitPrice),
+	            taxRate: l.taxRate ? String(l.taxRate) : null,
+	          }))}
 	        />
       </div>
 
@@ -165,6 +173,29 @@ export default async function InvoiceDetailsPage({ params }: { params: Promise<{
 	        payments={payments}
 	      />
 	    </div>
+
+      {/* Credit Notes / المردودات */}
+      {invoice.creditNotes.length > 0 && (
+        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
+          <div className="text-sm font-medium text-rose-900 mb-2">Credit Notes / إشعارات دائنة ({invoice.creditNotes.length})</div>
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-rose-700">
+              <tr className="border-b border-rose-200"><th className="py-1 pr-3">CN #</th><th className="py-1 pr-3">Date</th><th className="py-1 pr-3">Total</th><th className="py-1 pr-3">Total (base)</th><th className="py-1 pr-3">Reason</th></tr>
+            </thead>
+            <tbody>
+              {invoice.creditNotes.map((cn) => (
+                <tr key={cn.id} className="border-b border-rose-100 last:border-b-0">
+                  <td className="py-1 pr-3"><Link className="underline text-rose-700" href={`/app/credit-notes/${cn.id}`}>{cn.creditNoteNumber}</Link></td>
+                  <td className="py-1 pr-3 text-zinc-700">{formatDate(cn.issueDate)}</td>
+                  <td className="py-1 pr-3 font-mono text-zinc-900">{fmt(cn.total)} {cn.currencyCode}</td>
+                  <td className="py-1 pr-3 font-mono text-zinc-900">{fmt(cn.totalBase)} {cn.baseCurrencyCode}</td>
+                  <td className="py-1 pr-3 text-zinc-600">{cn.reason ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-sm">

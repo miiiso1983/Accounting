@@ -72,6 +72,8 @@ export default async function DashboardPage() {
     dashboardCounts,
     salesThisMonthAgg,
     receivablesAgg,
+    receivablesPaymentsAgg,
+    receivablesCreditNotesAgg,
     recentInvoices,
     recentEntries,
     invoicesForChart,
@@ -90,6 +92,14 @@ export default async function DashboardPage() {
         companyId,
         status: { in: ["SENT", "OVERDUE"] },
       },
+      _sum: { totalBase: true },
+    }),
+    prisma.invoicePayment.aggregate({
+      where: { companyId, invoice: { status: { in: ["SENT", "OVERDUE"] } } },
+      _sum: { amountBase: true },
+    }),
+    prisma.creditNote.aggregate({
+      where: { companyId, invoice: { status: { in: ["SENT", "OVERDUE"] } } },
       _sum: { totalBase: true },
     }),
     prisma.invoice.findMany({
@@ -116,7 +126,10 @@ export default async function DashboardPage() {
 
   const [accountsCount, customersCount, invoicesCount, postedEntriesCount] = dashboardCounts;
   const salesThisMonth = toNumberSafe(salesThisMonthAgg._sum.totalBase);
-  const receivables = toNumberSafe(receivablesAgg._sum.totalBase);
+  const receivablesGross = toNumberSafe(receivablesAgg._sum.totalBase);
+  const receivablesPaid = toNumberSafe(receivablesPaymentsAgg._sum.amountBase);
+  const receivablesCredited = toNumberSafe(receivablesCreditNotesAgg._sum.totalBase);
+  const receivables = Math.max(0, receivablesGross - receivablesPaid - receivablesCredited);
 
   const fmtCount = (n: number) => new Intl.NumberFormat(locale).format(n);
   const fmtMoney = (n: number) => {

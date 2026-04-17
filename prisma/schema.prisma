@@ -117,6 +117,7 @@ model Company {
   installmentContracts InstallmentContract[]
   salesRepresentatives SalesRepresentative[]
   estimates            Estimate[]
+  creditNotes          CreditNote[]
 }
 
 // --- Auth.js / NextAuth v4 models (Prisma Adapter) ---
@@ -148,6 +149,7 @@ model User {
   createdJournalEntries  JournalEntry[]
   createdInvoicePayments InvoicePayment[]
   createdEstimates       Estimate[]
+  createdCreditNotes     CreditNote[]
   uploadedAttachments    Attachment[]
 
   createdAt DateTime @default(now())
@@ -264,6 +266,7 @@ model ExchangeRate {
   journalEntries  JournalEntry[]
   invoices        Invoice[]
   estimates       Estimate[]
+  creditNotes     CreditNote[]
   expenses        Expense[]
   invoicePayments InvoicePayment[]
 
@@ -345,6 +348,7 @@ model JournalEntry {
   invoices        Invoice[]
   expenses        Expense[]
   invoicePayments InvoicePayment[]
+  creditNotes     CreditNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -421,6 +425,7 @@ model Branch {
   // Inverse relations
   invoices       Invoice[]
   estimates      Estimate[]
+  creditNotes    CreditNote[]
   journalEntries JournalEntry[]
   defaultUsers   User[]         @relation("UserDefaultBranch")
 
@@ -570,6 +575,7 @@ model Invoice {
   lineItems   InvoiceLineItem[]
   attachments Attachment[]
   payments    InvoicePayment[]
+  creditNotes CreditNote[]
 
   // Inverse: estimate that was converted to this invoice
   sourceEstimate Estimate? @relation("EstimateToInvoice")
@@ -853,4 +859,66 @@ model EstimateLineItem {
   @@index([estimateId])
   @@index([costCenterId])
   @@index([productId])
+}
+
+// --- Credit Notes (إشعارات دائنة / مردودات) ---
+
+model CreditNote {
+  id         String @id @default(cuid())
+  companyId  String
+  invoiceId  String
+
+  creditNoteNumber String
+  issueDate        DateTime
+
+  currencyCode     CurrencyCode
+  baseCurrencyCode CurrencyCode
+  exchangeRateId   String?
+  exchangeRate     ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  subtotal  Decimal @db.Decimal(20, 6)
+  taxTotal  Decimal @default(0) @db.Decimal(20, 6)
+  total     Decimal @db.Decimal(20, 6)
+
+  subtotalBase Decimal @db.Decimal(20, 6)
+  taxTotalBase Decimal @default(0) @db.Decimal(20, 6)
+  totalBase    Decimal @db.Decimal(20, 6)
+
+  reason String?
+
+  // Linkage to posted accounting entry
+  journalEntryId String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  createdById String?
+  createdBy   User? @relation(fields: [createdById], references: [id])
+
+  company   Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice   Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  lineItems CreditNoteLineItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, creditNoteNumber])
+  @@index([companyId, issueDate])
+  @@index([companyId, invoiceId])
+  @@index([companyId, branchId])
+}
+
+model CreditNoteLineItem {
+  id           String  @id @default(cuid())
+  creditNoteId String
+  description  String
+  quantity     Decimal @db.Decimal(20, 6)
+  unitPrice    Decimal @db.Decimal(20, 6)
+  lineTotal    Decimal @db.Decimal(20, 6)
+  taxRate      Decimal? @db.Decimal(20, 6)
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  @@index([creditNoteId])
 }

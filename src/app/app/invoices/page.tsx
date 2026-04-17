@@ -115,25 +115,39 @@ export default async function InvoicesIndexPage({
   ]);
 
   const invoiceIds = invoicesRaw.map((i) => i.id);
-  const payAgg = invoiceIds.length
-    ? await prisma.invoicePayment.groupBy({
-        by: ["invoiceId"],
-        where: { companyId, invoiceId: { in: invoiceIds } },
-        _sum: { amountBase: true },
-      })
-    : [];
+  const [payAgg, cnAgg] = await Promise.all([
+    invoiceIds.length
+      ? prisma.invoicePayment.groupBy({
+          by: ["invoiceId"],
+          where: { companyId, invoiceId: { in: invoiceIds } },
+          _sum: { amountBase: true },
+        })
+      : [],
+    invoiceIds.length
+      ? prisma.creditNote.groupBy({
+          by: ["invoiceId"],
+          where: { companyId, invoiceId: { in: invoiceIds } },
+          _sum: { totalBase: true },
+        })
+      : [],
+  ]);
   const receivedByInvoiceId = new Map<string, Prisma.Decimal>();
   for (const row of payAgg) {
     receivedByInvoiceId.set(row.invoiceId, new Prisma.Decimal(row._sum.amountBase ?? 0));
+  }
+  const creditedByInvoiceId = new Map<string, Prisma.Decimal>();
+  for (const row of cnAgg) {
+    creditedByInvoiceId.set(row.invoiceId, new Prisma.Decimal(row._sum.totalBase ?? 0));
   }
 
   const rows = invoicesRaw
     .map((inv) => {
       const receivedBase = receivedByInvoiceId.get(inv.id) ?? new Prisma.Decimal(0);
+      const creditedBase = creditedByInvoiceId.get(inv.id) ?? new Prisma.Decimal(0);
       const totalBase = new Prisma.Decimal(inv.totalBase);
-      const remainingBase = totalBase.sub(receivedBase);
-      const ps = paymentStateOf(totalBase, receivedBase);
-      return { inv, receivedBase, remainingBase, paymentState: ps };
+      const remainingBase = totalBase.sub(receivedBase).sub(creditedBase);
+      const ps = paymentStateOf(totalBase, receivedBase.plus(creditedBase));
+      return { inv, receivedBase, creditedBase, remainingBase, paymentState: ps };
     })
     .filter((r) => (paymentState === "ALL" ? true : r.paymentState === paymentState));
   const canWrite = hasPermission(session, PERMISSIONS.INVOICE_WRITE);

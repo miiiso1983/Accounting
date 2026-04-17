@@ -26,6 +26,10 @@ export const PERMISSIONS = {
   ESTIMATE_READ: "estimate:read",
   ESTIMATE_WRITE: "estimate:write",
 
+  // Credit Notes
+  CREDIT_NOTE_READ: "credit_note:read",
+  CREDIT_NOTE_WRITE: "credit_note:write",
+
   // Expenses
   EXPENSE_READ: "expense:read",
   EXPENSE_WRITE: "expense:write",

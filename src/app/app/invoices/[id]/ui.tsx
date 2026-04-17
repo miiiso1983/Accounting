@@ -21,17 +21,26 @@ async function readResponseData(res: Response) {
   }
 }
 
+type InvoiceLineForReturn = {
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  taxRate: string | null;
+};
+
 type Props = {
   invoiceId: string;
   status: string;
   hasJournalEntry: boolean;
   canSendPermission: boolean;
   canDeletePermission: boolean;
+  canReturnPermission: boolean;
   customerEmail?: string | null;
   customerPhone?: string | null;
+  invoiceLines?: InvoiceLineForReturn[];
 };
 
-export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPermission, canDeletePermission, customerEmail, customerPhone }: Props) {
+export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPermission, canDeletePermission, canReturnPermission, customerEmail, customerPhone, invoiceLines }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -39,14 +48,14 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
   const [notifyLoading, setNotifyLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [returnAmount, setReturnAmount] = useState("");
   const [returnReason, setReturnReason] = useState("");
   const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnLines, setReturnLines] = useState<{ description: string; quantity: string; unitPrice: string; taxRate: string; included: boolean }[]>([]);
 
   const canSend = canSendPermission && status === "DRAFT" && !hasJournalEntry;
   const canDelete = canDeletePermission && status === "DRAFT";
   const canClose = status === "SENT" || status === "OVERDUE";
-  const canReturn = status === "SENT" || status === "PAID" || status === "OVERDUE";
+  const canReturn = canReturnPermission && (status === "SENT" || status === "PAID" || status === "OVERDUE");
   const canWriteOff = status === "SENT" || status === "OVERDUE";
 
   async function onSend() {
@@ -131,9 +140,23 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
     }
   }
 
+  function openReturnForm() {
+    // Pre-populate return lines from invoice lines
+    const lines = (invoiceLines ?? []).map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      taxRate: l.taxRate ?? "",
+      included: true,
+    }));
+    setReturnLines(lines);
+    setShowReturnForm(true);
+  }
+
   async function onReturn() {
-    if (!returnAmount.trim()) {
-      setError("Please enter a return amount / أدخل مبلغ المرتجع");
+    const selectedLines = returnLines.filter((l) => l.included && parseFloat(l.quantity) > 0);
+    if (selectedLines.length === 0) {
+      setError("Please select at least one line item / اختر عنصرًا واحدًا على الأقل");
       return;
     }
     setError(null);
@@ -143,17 +166,25 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
       const res = await fetch(`/api/invoices/${invoiceId}/return`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ amount: returnAmount.trim(), reason: returnReason.trim() || undefined }),
+        body: JSON.stringify({
+          reason: returnReason.trim() || undefined,
+          lines: selectedLines.map((l) => ({
+            description: l.description,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            taxRate: l.taxRate || undefined,
+          })),
+        }),
       });
       const data = await readResponseData(res);
       if (!res.ok) {
         setError(readErrorMessage(data) ?? `Failed to process return (HTTP ${res.status})`);
         return;
       }
-      setSuccess("✅ Sales return recorded / تم تسجيل المرتجع");
-      setReturnAmount("");
+      setSuccess("✅ Credit note created / تم إنشاء إشعار دائن");
       setReturnReason("");
       setShowReturnForm(false);
+      setReturnLines([]);
       router.refresh();
     } finally {
       setActionLoading(null);
@@ -232,7 +263,7 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
           <button
             type="button"
             className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-700 hover:bg-violet-100 disabled:opacity-50"
-            onClick={() => setShowReturnForm(!showReturnForm)}
+            onClick={openReturnForm}
             disabled={actionLoading !== null}
           >
             ↩ Return / مرتجع
@@ -264,44 +295,54 @@ export function InvoiceActions({ invoiceId, status, hasJournalEntry, canSendPerm
 
       {showReturnForm && canReturn && (
         <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 grid gap-3">
-          <div className="text-sm font-medium text-violet-800">Sales Return / مرتجع مبيعات</div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <label className="grid gap-1">
-              <span className="text-xs text-violet-600">Return Amount / مبلغ المرتجع</span>
-              <input
-                className="rounded-lg border bg-white px-3 py-2 text-sm"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={returnAmount}
-                onChange={(e) => setReturnAmount(e.target.value)}
-              />
-            </label>
-            <label className="grid gap-1 md:col-span-2">
-              <span className="text-xs text-violet-600">Reason (optional) / السبب</span>
-              <input
-                className="rounded-lg border bg-white px-3 py-2 text-sm"
-                placeholder="e.g. Damaged goods"
-                value={returnReason}
-                onChange={(e) => setReturnReason(e.target.value)}
-              />
-            </label>
+          <div className="text-sm font-medium text-violet-800">Credit Note / إشعار دائن (مردود)</div>
+          <label className="grid gap-1 max-w-md">
+            <span className="text-xs text-violet-600">Reason (optional) / السبب</span>
+            <input className="rounded-lg border bg-white px-3 py-2 text-sm" placeholder="e.g. Damaged goods / بضاعة تالفة" value={returnReason} onChange={(e) => setReturnReason(e.target.value)} />
+          </label>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-violet-700">
+                <tr className="border-b border-violet-200">
+                  <th className="py-1 pr-2 w-8">✓</th>
+                  <th className="py-1 pr-3">Description</th>
+                  <th className="py-1 pr-3 w-24">Qty</th>
+                  <th className="py-1 pr-3 w-28">Price</th>
+                  <th className="py-1 pr-3 w-20">Tax</th>
+                  <th className="py-1 pr-3 w-28 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {returnLines.map((line, idx) => {
+                  const lineTotal = (parseFloat(line.quantity) || 0) * (parseFloat(line.unitPrice) || 0);
+                  const lineTax = lineTotal * (parseFloat(line.taxRate) || 0);
+                  return (
+                    <tr key={idx} className="border-b border-violet-100">
+                      <td className="py-1 pr-2"><input type="checkbox" checked={line.included} onChange={(e) => { const copy = [...returnLines]; copy[idx] = { ...copy[idx], included: e.target.checked }; setReturnLines(copy); }} /></td>
+                      <td className="py-1 pr-3 text-zinc-700">{line.description}</td>
+                      <td className="py-1 pr-3"><input className="w-full rounded border bg-white px-2 py-1 text-sm font-mono" value={line.quantity} onChange={(e) => { const copy = [...returnLines]; copy[idx] = { ...copy[idx], quantity: e.target.value }; setReturnLines(copy); }} /></td>
+                      <td className="py-1 pr-3"><input className="w-full rounded border bg-white px-2 py-1 text-sm font-mono" value={line.unitPrice} onChange={(e) => { const copy = [...returnLines]; copy[idx] = { ...copy[idx], unitPrice: e.target.value }; setReturnLines(copy); }} /></td>
+                      <td className="py-1 pr-3 font-mono text-zinc-600">{line.taxRate ? `${(parseFloat(line.taxRate) * 100).toFixed(0)}%` : "-"}</td>
+                      <td className="py-1 pr-3 font-mono text-right">{(lineTotal + lineTax).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
+
+          <div className="text-right text-sm font-medium text-violet-900">
+            Credit Note Total: {returnLines.filter((l) => l.included).reduce((acc, l) => {
+              const lt = (parseFloat(l.quantity) || 0) * (parseFloat(l.unitPrice) || 0);
+              const tax = lt * (parseFloat(l.taxRate) || 0);
+              return acc + lt + tax;
+            }, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </div>
+
           <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="rounded-lg border px-3 py-1.5 text-sm text-zinc-600 hover:bg-white"
-              onClick={() => { setShowReturnForm(false); setReturnAmount(""); setReturnReason(""); }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="rounded-lg bg-violet-700 px-4 py-1.5 text-sm text-white hover:bg-violet-600 disabled:opacity-50"
-              onClick={onReturn}
-              disabled={actionLoading !== null}
-            >
-              {actionLoading === "return" ? "Processing..." : "Confirm Return"}
-            </button>
+            <button type="button" className="rounded-lg border px-3 py-1.5 text-sm text-zinc-600 hover:bg-white" onClick={() => { setShowReturnForm(false); setReturnLines([]); setReturnReason(""); }}>Cancel / إلغاء</button>
+            <button type="button" className="rounded-lg bg-violet-700 px-4 py-1.5 text-sm text-white hover:bg-violet-600 disabled:opacity-50" onClick={onReturn} disabled={actionLoading !== null}>{actionLoading === "return" ? "Processing..." : "Create Credit Note / إنشاء إشعار"}</button>
           </div>
         </div>
       )}

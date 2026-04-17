@@ -58,12 +58,28 @@ export default async function ArAgingPage({
     orderBy: { issueDate: "asc" },
   });
 
+  // Get payments and credit notes per invoice
+  const invIds = invoices.map((i) => i.id);
+  const [payAgg, cnAgg] = await Promise.all([
+    invIds.length ? prisma.invoicePayment.groupBy({ by: ["invoiceId"], where: { companyId, invoiceId: { in: invIds } }, _sum: { amountBase: true } }) : [],
+    invIds.length ? prisma.creditNote.groupBy({ by: ["invoiceId"], where: { companyId, invoiceId: { in: invIds } }, _sum: { totalBase: true } }) : [],
+  ]);
+  const paidMap = new Map<string, number>();
+  for (const r of payAgg) paidMap.set(r.invoiceId, Number(r._sum.amountBase ?? 0));
+  const cnMap = new Map<string, number>();
+  for (const r of cnAgg) cnMap.set(r.invoiceId, Number(r._sum.totalBase ?? 0));
+
   // Group by customer
   const customerBuckets = new Map<string, { name: string; bucket: Bucket; invoiceCount: number }>();
   const grandTotal = emptyBucket();
 
   for (const inv of invoices) {
-    const amt = Number(inv.totalBase);
+    const totalBase = Number(inv.totalBase);
+    const paid = paidMap.get(inv.id) ?? 0;
+    const credited = cnMap.get(inv.id) ?? 0;
+    const amt = Math.max(0, totalBase - paid - credited);
+    if (amt <= 0) continue; // fully settled
+
     const dueMs = inv.dueDate ? inv.dueDate.getTime() : inv.issueDate.getTime();
     const daysOverdue = Math.max(0, Math.floor((asOfMs - dueMs) / (1000 * 60 * 60 * 24)));
 

@@ -60,6 +60,7 @@ export async function GET(req: Request) {
       customer: { select: { name: true } },
       lineItems: { select: { costCenter: { select: { name: true } } } },
       payments: { select: { amountBase: true } },
+      creditNotes: { select: { totalBase: true } },
     },
   });
 
@@ -73,6 +74,7 @@ export async function GET(req: Request) {
     currencyCode: "Currency / العملة",
     total: "Total / الإجمالي",
     paid: "Paid / المسدد",
+    creditNotes: "Credit Notes / مردودات",
     remaining: "Remaining / المتبقي",
     costCenter: "Cost Center / مركز الكلفة",
   };
@@ -86,7 +88,8 @@ export async function GET(req: Request) {
   const rows: RowType[] = invoices.map((inv) => {
     const total = Number(inv.totalBase);
     const paid = inv.payments.reduce((s, p) => s + Number(p.amountBase), 0);
-    const remaining = total - paid;
+    const credited = inv.creditNotes.reduce((s, cn) => s + Number(cn.totalBase), 0);
+    const remaining = total - paid - credited;
     const ccNames = [...new Set(inv.lineItems.map((li) => li.costCenter?.name).filter(Boolean))].join(", ");
     const fullRow: Record<string, string | number> = {
       [columnMap.invoiceNumber]: inv.invoiceNumber,
@@ -97,6 +100,7 @@ export async function GET(req: Request) {
       [columnMap.currencyCode]: inv.currencyCode,
       [columnMap.total]: total,
       [columnMap.paid]: paid,
+      [columnMap.creditNotes]: credited,
       [columnMap.remaining]: remaining,
       [columnMap.costCenter]: ccNames || "",
     };
@@ -109,7 +113,8 @@ export async function GET(req: Request) {
   // Summary row
   const grandTotal = invoices.reduce((_, inv) => _ + Number(inv.totalBase), 0);
   const grandPaid = invoices.reduce((s, inv) => s + inv.payments.reduce((ps, p) => ps + Number(p.amountBase), 0), 0);
-  const grandRemaining = grandTotal - grandPaid;
+  const grandCredited = invoices.reduce((s, inv) => s + inv.creditNotes.reduce((cs, cn) => cs + Number(cn.totalBase), 0), 0);
+  const grandRemaining = grandTotal - grandPaid - grandCredited;
   const summaryRow: RowType = {};
   for (const h of activeHeaders) {
     if (h === columnMap.total) summaryRow[h] = grandTotal;

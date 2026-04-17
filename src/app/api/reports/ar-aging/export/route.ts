@@ -22,13 +22,27 @@ export async function GET(req: Request) {
 
   const invoices = await prisma.invoice.findMany({
     where: { companyId, status: { in: ["SENT", "OVERDUE"] }, issueDate: { lte: asOfDate } },
-    select: { totalBase: true, issueDate: true, dueDate: true, customerId: true, customer: { select: { name: true } } },
+    select: { id: true, totalBase: true, issueDate: true, dueDate: true, customerId: true, customer: { select: { name: true } } },
     orderBy: { issueDate: "asc" },
   });
 
+  const invIds = invoices.map((i) => i.id);
+  const [payAgg, cnAgg] = await Promise.all([
+    invIds.length ? prisma.invoicePayment.groupBy({ by: ["invoiceId"], where: { companyId, invoiceId: { in: invIds } }, _sum: { amountBase: true } }) : [],
+    invIds.length ? prisma.creditNote.groupBy({ by: ["invoiceId"], where: { companyId, invoiceId: { in: invIds } }, _sum: { totalBase: true } }) : [],
+  ]);
+  const paidMap = new Map<string, number>();
+  for (const r of payAgg) paidMap.set(r.invoiceId, Number(r._sum.amountBase ?? 0));
+  const cnMap = new Map<string, number>();
+  for (const r of cnAgg) cnMap.set(r.invoiceId, Number(r._sum.totalBase ?? 0));
+
   const map = new Map<string, { name: string; current: number; "1-30": number; "31-60": number; "61-90": number; "90+": number; total: number }>();
   for (const inv of invoices) {
-    const amt = Number(inv.totalBase);
+    const totalBase = Number(inv.totalBase);
+    const paid = paidMap.get(inv.id) ?? 0;
+    const credited = cnMap.get(inv.id) ?? 0;
+    const amt = Math.max(0, totalBase - paid - credited);
+    if (amt <= 0) continue;
     const dueMs = inv.dueDate ? inv.dueDate.getTime() : inv.issueDate.getTime();
     const days = Math.max(0, Math.floor((asOfMs - dueMs) / 86400000));
     if (!map.has(inv.customerId)) map.set(inv.customerId, { name: inv.customer.name, current: 0, "1-30": 0, "31-60": 0, "61-90": 0, "90+": 0, total: 0 });
